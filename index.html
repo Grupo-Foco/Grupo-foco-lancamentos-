@@ -285,7 +285,7 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
       <div class="section-label">02 — Datas & Status</div>
       <div class="form-grid four">
         <div class="field"><label>Data Documento</label><input type="date" id="f_data_doc"></div>
-        <div class="field"><label>Vencimento <span class="req">★</span></label><input type="date" id="f_vencimento"></div>
+        <div class="field"><label>Vencimento <span class="req">★</span></label><input type="date" id="f_vencimento" oninput="atualizarParcelas()"></div>
         <div class="field"><label>Data Pagamento</label><input type="date" id="f_pagamento"></div>
         <div class="field"><label>Status <span class="req">★</span></label>
           <div class="status-toggle">
@@ -298,9 +298,18 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
     </div>
     <div class="form-section">
       <div class="section-label">03 — Valor & Conta</div>
-      <div class="form-grid">
+      <div class="form-grid" style="grid-template-columns:repeat(4,1fr);">
         <div class="field"><label>Valor <span class="req">★</span></label>
-          <div class="valor-wrapper"><span class="valor-prefix">R$</span><input type="number" id="f_valor" placeholder="0,00" step="0.01" min="0"></div>
+          <div class="valor-wrapper"><span class="valor-prefix">R$</span><input type="number" id="f_valor" oninput="atualizarParcelas()" placeholder="0,00" step="0.01" min="0"></div>
+        </div>
+        <div class="field">
+          <label>Parcelas</label>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="number" id="f_parcelas" value="1" min="1" max="60"
+              style="width:70px;text-align:center;padding:10px;border-radius:var(--radius-sm);border:1.5px solid var(--cinza-light);font-size:15px;font-weight:700;color:var(--verde);"
+              oninput="atualizarParcelas()">
+            <span style="font-size:12px;color:var(--cinza);" id="parcelas-hint">a vista</span>
+          </div>
         </div>
         <div class="field"><label>Conta <span class="req" id="contaReq">★ (obrig. se PAGO)</span></label>
           <select id="f_conta"><option value="">Selecionar…</option><option>IVAN BASA</option><option>IVAN BB</option><option>IVAN BRADESCO</option><option>IVAN SICOOB</option><option>JOAO BB</option><option>JOAO SICOOB</option><option>NEILA BB</option><option>NEILA SICOOB</option></select>
@@ -369,6 +378,15 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
       </div>
     </div>
 
+    <div id="parcelas-preview-box" class="parcelas-preview" style="display:none;margin:0 0 16px;">
+      <div class="parcelas-preview-title">&#128197; Parcelas — edite as datas de vencimento</div>
+      <table class="parcelas-table">
+        <thead><tr>
+          <th>#</th><th>Vencimento</th><th>Valor</th>
+        </tr></thead>
+        <tbody id="parcelas-tbody"></tbody>
+      </table>
+    </div>
     <div class="form-actions">
       <button class="btn btn-secondary" onclick="clearForm()">↺ Limpar</button>
       <div style="display:flex;align-items:center;gap:16px;">
@@ -837,6 +855,73 @@ function limparConciliacao() {
 }
 
 
+
+function atualizarParcelas() {
+  var n = parseInt(document.getElementById('f_parcelas').value) || 1;
+  var hint = document.getElementById('parcelas-hint');
+  var box = document.getElementById('parcelas-preview-box');
+  var tbody = document.getElementById('parcelas-tbody');
+  if(n <= 1) {
+    hint.textContent = 'a vista';
+    box.style.display = 'none';
+    return;
+  }
+  hint.textContent = n + 'x mensais';
+  var vencBase = document.getElementById('f_vencimento').value;
+  var valor = parseFloat(document.getElementById('f_valor').value) || 0;
+  var parcVal = valor > 0 ? parseFloat((valor / n).toFixed(2)) : 0;
+  var ajuste = valor > 0 ? parseFloat((valor - parcVal * n).toFixed(2)) : 0;
+  var rows = '';
+  for(var i = 0; i < n; i++) {
+    var vencParc = '';
+    if(vencBase) {
+      var d = new Date(vencBase + 'T12:00:00');
+      d.setMonth(d.getMonth() + i);
+      vencParc = d.toISOString().slice(0,10);
+    }
+    var valorParc = i === n-1 ? parseFloat((parcVal + ajuste).toFixed(2)) : parcVal;
+    rows += '<tr>' +
+      '<td><span class="parcela-num">' + (i+1) + '/' + n + '</span></td>' +
+      '<td><input type="date" class="parcela-input-date" id="parc_venc_' + i + '" value="' + vencParc + '"></td>' +
+      '<td><span class="parcela-val">R$ ' + valorParc.toLocaleString('pt-BR',{minimumFractionDigits:2}) + '</span>' +
+      '<input type="hidden" id="parc_val_' + i + '" value="' + valorParc + '"></td>' +
+      '</tr>';
+  }
+  tbody.innerHTML = rows;
+  box.style.display = '';
+}
+
+
+function calcProxVenc(baseDate, meses) {
+  var d = new Date(baseDate + 'T12:00:00');
+  d.setMonth(d.getMonth() + meses);
+  return d.toISOString().slice(0,10);
+}
+
+function salvarParcelas(base, n, boletoPb, nfPb) {
+  var promessas = [];
+  for(var i = 0; i < n; i++) {
+    var vencInput = document.getElementById('parc_venc_' + i);
+    var valInput  = document.getElementById('parc_val_' + i);
+    var vencParc  = vencInput ? vencInput.value : base.vencimento;
+    var valorParc = valInput  ? parseFloat(valInput.value) : base.valor;
+    var docBase   = base.documento || '';
+    var docParc   = docBase ? docBase + ' (' + (i+1) + '/' + n + ')' : (i+1) + '/' + n;
+    var obj = {};
+    for(var k in base) obj[k] = base[k];
+    obj.vencimento = vencParc;
+    obj.valor      = valorParc;
+    obj.documento  = docParc;
+    obj.status     = 'A PAGAR';
+    obj.pagamento  = null;
+    if(boletoPb) obj.boleto_path = boletoPb;
+    if(nfPb)     obj.nf_path     = nfPb;
+    promessas.push(sb(TABLE, {method:'POST', body:JSON.stringify(obj)}));
+  }
+  return Promise.all(promessas);
+}
+
+
 async function init() {
   setLoading(true,'CONECTANDO AO BANCO…');
   try {
@@ -863,6 +948,7 @@ function setStatus(val,btn) {
 }
 
 async function saveLancamento() {
+  const nParcelas=parseInt(document.getElementById('f_parcelas').value)||1;
   const forn=document.getElementById('f_fornecedor').value.trim();
   const sol=document.getElementById('f_solicitante').value;
   const venc=document.getElementById('f_vencimento').value;
@@ -887,7 +973,24 @@ async function saveLancamento() {
   try {
     if(editingId) { await sb(`${TABLE}?id=eq.${editingId}`,{method:'PATCH',body:JSON.stringify(obj)}); editingId=null; showToast('✓ Atualizado!'); }
     else {
-      const saved = await sb(TABLE,{method:'POST',body:JSON.stringify(obj)});
+      const saved = await (async function(){
+      if(nParcelas > 1) {
+        setLoading(true, 'GERANDO ' + nParcelas + ' PARCELAS...');
+        var boletoPb = null, nfPb = null;
+        if(_arqs.boleto || _arqs.nf) {
+          showToast('Enviando anexos...');
+          var tmpId = 'tmp_' + Date.now();
+          boletoPb = await uploadAnexo(_arqs.boleto, tmpId, 'boleto');
+          nfPb     = await uploadAnexo(_arqs.nf,     tmpId, 'nf');
+        }
+        await salvarParcelas(obj, nParcelas, boletoPb, nfPb);
+        removerAnexo('boleto'); removerAnexo('nf');
+        showToast(nParcelas + ' parcelas geradas!');
+        await loadData(); clearForm(); showView('panel'); setLoading(false); return null;
+      }
+      return sb(TABLE,{method:'POST',body:JSON.stringify(obj)});
+    })();
+    if(!d) return;
       if(saved && saved[0] && (_arqs.boleto || _arqs.nf)) {
         showToast('📎 Enviando anexos…');
         const lid = saved[0].id;
@@ -921,6 +1024,10 @@ function clearForm() {
   document.getElementById('f_status').value='A PAGAR';
   document.querySelectorAll('.status-btn').forEach(b=>b.classList.remove('active'));
   document.querySelector('.status-btn.apagar').classList.add('active');
+
+  var pf=document.getElementById('f_parcelas');if(pf)pf.value='1';
+  var ph=document.getElementById('parcelas-hint');if(ph)ph.textContent='a vista';
+  var pb=document.getElementById('parcelas-preview-box');if(pb)pb.style.display='none';
 }
 
 // ── PAINEL ──
