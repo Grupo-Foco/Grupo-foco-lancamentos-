@@ -419,8 +419,33 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
   <div class="filters-bar">
     <div class="filter-group filter-search"><label>Buscar</label><input type="text" id="filter-search" placeholder="Fornecedor, histórico, NF…" oninput="applyFilters()"></div>
     <div class="filter-group"><label>Status</label><select id="filter-status" onchange="applyFilters()"><option value="">Todos</option><option>A PAGAR</option><option>PAGO</option></select></div>
-    <div class="filter-group"><label>Fazenda</label><select id="filter-fazenda" onchange="applyFilters()"><option value="">Todas</option><option>BRASIL</option><option>BREJINHO</option><option>ESCRITÓRIO - GO</option><option>LAGEADO</option><option>MAYARA</option><option>PEIXE</option><option>RATEIO</option><option>SANTA ANGELINA</option><option>SÃO BENTO</option></select></div>
-    <div class="filter-group"><label>Conta Gerencial</label><select id="filter-cg" onchange="applyFilters()"><option value="">Todas</option></select></div>
+    <div class="filter-group"><label>Fazenda</label>
+  <div class="ms-wrapper" id="ms-fazenda-wrap">
+    <button class="ms-btn" type="button" onclick="msToggle('fazenda')">
+      <span id="ms-fazenda-label">Todas</span>
+    </button>
+    <div class="ms-dropdown" id="ms-fazenda-drop">
+      <label class="ms-item"><input type="checkbox" value="ESCRITÓRIO - GO" onchange="msChange('fazenda')"> ESCRITÓRIO - GO</label>
+      <label class="ms-item"><input type="checkbox" value="LAGEADO" onchange="msChange('fazenda')"> LAGEADO</label>
+      <label class="ms-item"><input type="checkbox" value="MAYARA" onchange="msChange('fazenda')"> MAYARA</label>
+      <label class="ms-item"><input type="checkbox" value="PEIXE" onchange="msChange('fazenda')"> PEIXE</label>
+      <label class="ms-item"><input type="checkbox" value="RATEIO" onchange="msChange('fazenda')"> RATEIO</label>
+      <label class="ms-item"><input type="checkbox" value="SANTA ANGELINA" onchange="msChange('fazenda')"> SANTA ANGELINA</label>
+      <label class="ms-item"><input type="checkbox" value="SÃO BENTO" onchange="msChange('fazenda')"> SÃO BENTO</label>
+      <div class="ms-clear" onclick="msClear('fazenda')">✕ Limpar seleção</div>
+    </div>
+  </div>
+</div>
+    <div class="filter-group"><label>Conta Gerencial</label>
+  <div class="ms-wrapper" id="ms-cg-wrap">
+    <button class="ms-btn" type="button" onclick="msToggle('cg')">
+      <span id="ms-cg-label">Todas</span>
+    </button>
+    <div class="ms-dropdown" id="ms-cg-drop">
+      <div class="ms-clear" onclick="msClear('cg')">✕ Limpar seleção</div>
+    </div>
+  </div>
+</div>
     <div class="filter-group"><label>Mês vencimento</label>
       <select id="filter-mes" onchange="applyFilters()"><option value="">Todos</option><option value="01">Janeiro</option><option value="02">Fevereiro</option><option value="03">Março</option><option value="04">Abril</option><option value="05">Maio</option><option value="06">Junho</option><option value="07">Julho</option><option value="08">Agosto</option><option value="09">Setembro</option><option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option></select>
     </div>
@@ -1120,22 +1145,80 @@ function clearForm() {
 
 // ── PAINEL ──
 function populateCGFilter() {
-  const sel=document.getElementById('filter-cg'), cur=sel.value;
-  const cgs=[...new Set(lancamentos.map(l=>l.cg).filter(Boolean))].sort();
-  sel.innerHTML='<option value="">Todas</option>'+cgs.map(c=>`<option${c===cur?' selected':''}>${c}</option>`).join('');
+  var cgs = [...new Set(lancamentos.map(function(l){return l.cg||'';}).filter(Boolean))].sort();
+  var drop = document.getElementById('ms-cg-drop');
+  if(!drop) return;
+  // Manter o botão de limpar, recriar os itens
+  var clearBtn = drop.querySelector('.ms-clear');
+  drop.innerHTML = '';
+  cgs.forEach(function(cg) {
+    var lbl = document.createElement('label');
+    lbl.className = 'ms-item';
+    var chk = document.createElement('input');
+    chk.type = 'checkbox';
+    chk.value = cg;
+    chk.onchange = function(){ msChange('cg'); };
+    // Remarcar se já estava selecionado
+    if(_msSelected.cg && _msSelected.cg.includes(cg)) chk.checked = true;
+    lbl.appendChild(chk);
+    lbl.appendChild(document.createTextNode(' ' + cg));
+    drop.appendChild(lbl);
+  });
+  if(clearBtn) drop.appendChild(clearBtn);
+  else {
+    var cl = document.createElement('div');
+    cl.className = 'ms-clear';
+    cl.textContent = '✕ Limpar seleção';
+    cl.onclick = function(){ msClear('cg'); };
+    drop.appendChild(cl);
+  }
 }
+
+function msToggle(key) {
+  var drop = document.getElementById('ms-' + key + '-drop');
+  var allDrops = document.querySelectorAll('.ms-dropdown');
+  allDrops.forEach(function(d) { if(d !== drop) d.classList.remove('open'); });
+  drop.classList.toggle('open');
+}
+
+function msChange(key) {
+  var drop = document.getElementById('ms-' + key + '-drop');
+  var checked = Array.from(drop.querySelectorAll('input[type=checkbox]:checked')).map(function(c){return c.value;});
+  _msSelected[key] = checked;
+  var label = document.getElementById('ms-' + key + '-label');
+  if(!checked.length) label.textContent = 'Todas';
+  else if(checked.length === 1) label.textContent = checked[0];
+  else label.textContent = checked.length + ' selecionadas';
+  applyFilters();
+}
+
+function msClear(key) {
+  _msSelected[key] = [];
+  var drop = document.getElementById('ms-' + key + '-drop');
+  drop.querySelectorAll('input[type=checkbox]').forEach(function(c){c.checked=false;});
+  document.getElementById('ms-' + key + '-label').textContent = 'Todas';
+  applyFilters();
+}
+
+// Fechar ao clicar fora
+document.addEventListener('click', function(e) {
+  if(!e.target.closest('.ms-wrapper')) {
+    document.querySelectorAll('.ms-dropdown').forEach(function(d){d.classList.remove('open');});
+  }
+});
+
 
 function applyFilters() {
   const search=document.getElementById('filter-search')?.value.toLowerCase()||'';
   const status=document.getElementById('filter-status')?.value||'';
-  const fazenda=document.getElementById('filter-fazenda')?.value||'';
-  const cg=document.getElementById('filter-cg')?.value||'';
   const mes=document.getElementById('filter-mes')?.value||'';
+  const fazSel=_msSelected.fazenda||[];
+  const cgSel=_msSelected.cg||[];
   filtered=lancamentos.filter(l=>{
     if(search&&!`${l.fornecedor||''} ${l.historico||''} ${l.documento||''}`.toLowerCase().includes(search)) return false;
     if(status&&l.status!==status) return false;
-    if(fazenda&&l.fazenda!==fazenda) return false;
-    if(cg&&l.cg!==cg) return false;
+    if(fazSel.length&&!fazSel.includes(l.fazenda)) return false;
+    if(cgSel.length&&!cgSel.includes(l.cg)) return false;
     if(mes&&l.vencimento&&l.vencimento.split('-')[1]!==mes) return false;
     return true;
   });
