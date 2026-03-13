@@ -419,32 +419,21 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
   <div class="filters-bar">
     <div class="filter-group filter-search"><label>Buscar</label><input type="text" id="filter-search" placeholder="Fornecedor, histórico, NF…" oninput="applyFilters()"></div>
     <div class="filter-group"><label>Status</label><select id="filter-status" onchange="applyFilters()"><option value="">Todos</option><option>A PAGAR</option><option>PAGO</option></select></div>
-    <div class="filter-group"><label>Fazenda</label>
-  <div class="ms-wrapper" id="ms-fazenda-wrap">
-    <button class="ms-btn" type="button" onclick="msToggle('fazenda')">
-      <span id="ms-fazenda-label">Todas</span>
-    </button>
-    <div class="ms-dropdown" id="ms-fazenda-drop">
-      <label class="ms-item"><input type="checkbox" value="ESCRITÓRIO - GO" onchange="msChange('fazenda')"> ESCRITÓRIO - GO</label>
-      <label class="ms-item"><input type="checkbox" value="LAGEADO" onchange="msChange('fazenda')"> LAGEADO</label>
-      <label class="ms-item"><input type="checkbox" value="MAYARA" onchange="msChange('fazenda')"> MAYARA</label>
-      <label class="ms-item"><input type="checkbox" value="PEIXE" onchange="msChange('fazenda')"> PEIXE</label>
-      <label class="ms-item"><input type="checkbox" value="RATEIO" onchange="msChange('fazenda')"> RATEIO</label>
-      <label class="ms-item"><input type="checkbox" value="SANTA ANGELINA" onchange="msChange('fazenda')"> SANTA ANGELINA</label>
-      <label class="ms-item"><input type="checkbox" value="SÃO BENTO" onchange="msChange('fazenda')"> SÃO BENTO</label>
-      <div class="ms-clear" onclick="msClear('fazenda')">✕ Limpar seleção</div>
-    </div>
-  </div>
+    <div class="filter-group"><label>Fazenda <span style="font-size:10px;color:var(--cinza)">(ctrl+clique = múltiplas)</span></label>
+  <select id="filter-fazenda" multiple size="4" onchange="applyFilters()" style="height:auto;min-height:36px;max-height:90px;">
+    <option value="ESCRITÓRIO - GO">ESCRITÓRIO - GO</option>
+    <option value="LAGEADO">LAGEADO</option>
+    <option value="MAYARA">MAYARA</option>
+    <option value="PEIXE">PEIXE</option>
+    <option value="RATEIO">RATEIO</option>
+    <option value="SANTA ANGELINA">SANTA ANGELINA</option>
+    <option value="SÃO BENTO">SÃO BENTO</option>
+  </select>
+  <button onclick="document.getElementById('filter-fazenda').selectedIndex=-1;applyFilters();" style="font-size:10px;color:var(--cinza);background:none;border:none;cursor:pointer;padding:2px 0;">✕ Limpar</button>
 </div>
-    <div class="filter-group"><label>Conta Gerencial</label>
-  <div class="ms-wrapper" id="ms-cg-wrap">
-    <button class="ms-btn" type="button" onclick="msToggle('cg')">
-      <span id="ms-cg-label">Todas</span>
-    </button>
-    <div class="ms-dropdown" id="ms-cg-drop">
-      <div class="ms-clear" onclick="msClear('cg')">✕ Limpar seleção</div>
-    </div>
-  </div>
+    <div class="filter-group"><label>Conta Gerencial <span style="font-size:10px;color:var(--cinza)">(ctrl+clique = múltiplas)</span></label>
+  <select id="filter-cg" multiple size="4" onchange="applyFilters()" style="height:auto;min-height:36px;max-height:90px;"></select>
+  <button onclick="document.getElementById('filter-cg').selectedIndex=-1;applyFilters();" style="font-size:10px;color:var(--cinza);background:none;border:none;cursor:pointer;padding:2px 0;">✕ Limpar</button>
 </div>
     <div class="filter-group"><label>Mês vencimento</label>
       <select id="filter-mes" onchange="applyFilters()"><option value="">Todos</option><option value="01">Janeiro</option><option value="02">Fevereiro</option><option value="03">Março</option><option value="04">Abril</option><option value="05">Maio</option><option value="06">Junho</option><option value="07">Julho</option><option value="08">Agosto</option><option value="09">Setembro</option><option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option></select>
@@ -1145,33 +1134,10 @@ function clearForm() {
 
 // ── PAINEL ──
 function populateCGFilter() {
-  var cgs = [...new Set(lancamentos.map(function(l){return l.cg||'';}).filter(Boolean))].sort();
-  var drop = document.getElementById('ms-cg-drop');
-  if(!drop) return;
-  // Manter o botão de limpar, recriar os itens
-  var clearBtn = drop.querySelector('.ms-clear');
-  drop.innerHTML = '';
-  cgs.forEach(function(cg) {
-    var lbl = document.createElement('label');
-    lbl.className = 'ms-item';
-    var chk = document.createElement('input');
-    chk.type = 'checkbox';
-    chk.value = cg;
-    chk.onchange = function(){ msChange('cg'); };
-    // Remarcar se já estava selecionado
-    if(_msSelected.cg && _msSelected.cg.includes(cg)) chk.checked = true;
-    lbl.appendChild(chk);
-    lbl.appendChild(document.createTextNode(' ' + cg));
-    drop.appendChild(lbl);
-  });
-  if(clearBtn) drop.appendChild(clearBtn);
-  else {
-    var cl = document.createElement('div');
-    cl.className = 'ms-clear';
-    cl.textContent = '✕ Limpar seleção';
-    cl.onclick = function(){ msClear('cg'); };
-    drop.appendChild(cl);
-  }
+  var sel = document.getElementById('filter-cg');
+  if(!sel) return;
+  var cgs = [...new Set(lancamentos.map(l=>l.cg||'').filter(Boolean))].sort();
+  sel.innerHTML = cgs.map(function(cg){ return '<option value="'+cg+'">'+cg+'</option>'; }).join('');
 }
 
 function msToggle(key) {
@@ -1212,8 +1178,10 @@ function applyFilters() {
   const search=document.getElementById('filter-search')?.value.toLowerCase()||'';
   const status=document.getElementById('filter-status')?.value||'';
   const mes=document.getElementById('filter-mes')?.value||'';
-  const fazSel=_msSelected.fazenda||[];
-  const cgSel=_msSelected.cg||[];
+  const fazEl=document.getElementById('filter-fazenda');
+  const cgEl=document.getElementById('filter-cg');
+  const fazSel=fazEl?Array.from(fazEl.selectedOptions).map(o=>o.value):[];
+  const cgSel=cgEl?Array.from(cgEl.selectedOptions).map(o=>o.value):[];
   filtered=lancamentos.filter(l=>{
     if(search&&!`${l.fornecedor||''} ${l.historico||''} ${l.documento||''}`.toLowerCase().includes(search)) return false;
     if(status&&l.status!==status) return false;
