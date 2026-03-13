@@ -272,8 +272,8 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
 <header>
   <div class="logo">◈ GRUPO FOCO <span>/ Lançamentos</span></div>
   <nav class="nav-tabs">
-    <button class="nav-tab active" onclick="showView('form')">＋ Novo Lançamento</button>
-    <button class="nav-tab" onclick="showView('panel')">⊞ Painel</button>
+    <button class="nav-tab" id="nav-form" onclick="showView('form')">＋ Novo Lançamento</button>
+    <button class="nav-tab" id="nav-panel" onclick="showView('panel')">⊞ Painel</button>
   </nav>
   <div style="display:flex;align-items:center;gap:16px;">
     <div class="sync-indicator">
@@ -291,7 +291,7 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
 </header>
 
 <!-- FORMULÁRIO -->
-<div id="view-form" class="view active">
+<div id="view-form" class="view">
 <div class="form-container">
   <div class="form-header">
     <h1 id="formTitle">Novo Lançamento</h1>
@@ -456,6 +456,7 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
     <div style="display:flex;gap:10px;">
       <button class="btn btn-secondary" onclick="loadData()">↻ Atualizar</button>
       <button class="btn btn-secondary" onclick="exportXLSX()">↓ Excel</button>
+      <button class="btn btn-secondary" style="background:var(--verde-mid);color:var(--branco);" onclick="openConciliacao()">⇄ Conciliação</button>
       <button class="btn btn-ouro" onclick="showView('form')">＋ Novo</button>
     </div>
   </div>
@@ -787,7 +788,7 @@ function editLancamento(id) {
   const l=lancamentos.find(x=>x.id===id); if(!l) return;
   editingId=id;
   document.getElementById('formTitle').textContent='Editando Lançamento';
-  showView('form');
+  showView('panel');
   document.getElementById('f_fornecedor').value=l.fornecedor||'';
   document.getElementById('f_documento').value=l.documento||'';
   document.getElementById('f_solicitante').value=l.solicitante||'';
@@ -975,9 +976,11 @@ function exportXLSX() {
 function showView(v) {
   document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(el=>el.classList.remove('active'));
-  document.getElementById('view-'+v).classList.add('active');
-  document.querySelectorAll('.nav-tab')[v==='form'?0:1].classList.add('active');
-  if(v==='panel') loadData();
+  const viewEl = document.getElementById('view-'+v);
+  if(viewEl) viewEl.classList.add('active');
+  const tab = document.getElementById('nav-'+v);
+  if(tab) tab.classList.add('active');
+  if(v==='panel') { applyFilters(); renderStats(); }
 }
 function setUser(u){currentUser=u;localStorage.setItem('gf_user',u);document.getElementById('f_lancador').value=u;}
 function setSyncState(state,text) {
