@@ -130,6 +130,100 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
 .toast.show{transform:translateY(0);opacity:1;}
 .empty-state{padding:60px 20px;text-align:center;color:var(--cinza);}
 .empty-state .icon{font-size:40px;margin-bottom:12px;}
+
+/* ── ANEXOS ── */
+.anexo-section {
+  margin: 24px 0 0;
+  padding: 24px;
+  background: var(--branco);
+  border-radius: var(--radius);
+  border: 1.5px dashed var(--cinza-light);
+}
+.anexo-section-title {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  color: var(--verde-mid);
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+.anexo-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.anexo-box {
+  border: 2px dashed var(--cinza-light);
+  border-radius: var(--radius-sm);
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all .2s;
+  background: var(--creme);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-height: 100px;
+  justify-content: center;
+  position: relative;
+}
+.anexo-box:hover, .anexo-box.drag-over {
+  border-color: var(--verde-mid);
+  background: #e8f0e8;
+}
+.anexo-box input[type=file] { display: none; }
+.anexo-box .anexo-icon { font-size: 32px; }
+.anexo-box .anexo-label { font-size: 12px; color: var(--cinza); line-height: 1.4; }
+.anexo-box .anexo-nome {
+  font-size: 12px; font-weight: 600; color: var(--verde);
+  word-break: break-all; padding: 0 8px;
+}
+.anexo-remove {
+  position: absolute; top: 6px; right: 8px;
+  font-size: 16px; color: var(--erro); cursor: pointer;
+  line-height: 1; background: none; border: none;
+  display: none;
+}
+.anexo-box.tem-arquivo .anexo-remove { display: block; }
+.anexo-box.tem-arquivo { border-color: var(--verde-mid); border-style: solid; }
+
+/* Viewer */
+.viewer-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.88); z-index: 3000;
+  flex-direction: column; align-items: center; justify-content: center;
+}
+.viewer-overlay.open { display: flex; }
+.viewer-bar {
+  width: 95vw; max-width: 960px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 4px; color: #fff;
+  font-family: 'DM Sans', sans-serif; font-size: 13px;
+}
+.viewer-bar button {
+  background: rgba(255,255,255,.2); border: none; color: #fff;
+  padding: 6px 16px; border-radius: 6px; cursor: pointer; font-size: 13px;
+}
+.viewer-bar button:hover { background: rgba(255,255,255,.35); }
+.viewer-frame {
+  width: 95vw; max-width: 960px; height: 82vh;
+  background: #fff; border-radius: 10px; overflow: hidden;
+}
+.viewer-frame iframe, .viewer-frame img {
+  width: 100%; height: 100%; border: none; object-fit: contain;
+}
+/* Botões de anexo no detalhe */
+.btn-ver-anexo {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 9px 18px; border-radius: var(--radius-sm);
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  border: 2px solid var(--verde-mid); color: var(--verde);
+  background: var(--branco); transition: all .15s;
+  text-decoration: none;
+}
+.btn-ver-anexo:hover { background: var(--verde); color: var(--branco); }
 </style>
 </head>
 <body>
@@ -237,6 +331,35 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
       <div class="section-label">05 — Histórico</div>
       <div class="field"><label>Histórico / Descrição</label><textarea id="f_historico" placeholder="Descreva o lançamento…" rows="3"></textarea></div>
     </div>
+    <!-- ANEXOS -->
+    <div class="anexo-section">
+      <div class="anexo-section-title">📎 Anexos — Boleto & Nota Fiscal</div>
+      <div class="anexo-grid">
+        <div class="anexo-box" id="box_boleto"
+             onclick="document.getElementById('inp_boleto').click()"
+             ondragover="event.preventDefault();this.classList.add('drag-over')"
+             ondragleave="this.classList.remove('drag-over')"
+             ondrop="dropAnexo(event,'boleto')">
+          <input type="file" id="inp_boleto" accept=".pdf,.png,.jpg,.jpeg" onchange="selecionarAnexo(this,'boleto')">
+          <button class="anexo-remove" onclick="removerAnexo('boleto',event)">✕</button>
+          <span class="anexo-icon">📄</span>
+          <span class="anexo-label" id="lbl_boleto">Clique ou arraste<br><strong>Boleto</strong> — PDF ou Imagem</span>
+          <span class="anexo-nome" id="nome_boleto"></span>
+        </div>
+        <div class="anexo-box" id="box_nf"
+             onclick="document.getElementById('inp_nf').click()"
+             ondragover="event.preventDefault();this.classList.add('drag-over')"
+             ondragleave="this.classList.remove('drag-over')"
+             ondrop="dropAnexo(event,'nf')">
+          <input type="file" id="inp_nf" accept=".pdf,.png,.jpg,.jpeg,.xml" onchange="selecionarAnexo(this,'nf')">
+          <button class="anexo-remove" onclick="removerAnexo('nf',event)">✕</button>
+          <span class="anexo-icon">🧾</span>
+          <span class="anexo-label" id="lbl_nf">Clique ou arraste<br><strong>NF / Recibo / Contrato</strong></span>
+          <span class="anexo-nome" id="nome_nf"></span>
+        </div>
+      </div>
+    </div>
+
     <div class="form-actions">
       <button class="btn btn-secondary" onclick="clearForm()">↺ Limpar</button>
       <div style="display:flex;align-items:center;gap:16px;">
@@ -379,6 +502,87 @@ async function seedJaneiro() {
   }
 }
 
+// ═══════════════════════
+// ANEXOS
+// ═══════════════════════
+const _arqs = { boleto: null, nf: null };
+const SB_BUCKET = 'anexos';
+
+function selecionarAnexo(input, slot) {
+  const f = input.files[0]; if(!f) return;
+  _arqs[slot] = f;
+  _atualizarBoxAnexo(slot, f.name);
+}
+function dropAnexo(e, slot) {
+  e.preventDefault();
+  document.getElementById('box_'+slot).classList.remove('drag-over');
+  const f = e.dataTransfer.files[0]; if(!f) return;
+  _arqs[slot] = f;
+  _atualizarBoxAnexo(slot, f.name);
+}
+function _atualizarBoxAnexo(slot, nome) {
+  const box = document.getElementById('box_'+slot);
+  const lbl = document.getElementById('lbl_'+slot);
+  const nm  = document.getElementById('nome_'+slot);
+  box.classList.add('tem-arquivo');
+  lbl.style.display = 'none';
+  nm.textContent = '📎 ' + nome;
+}
+function removerAnexo(slot, e) {
+  e && e.stopPropagation();
+  _arqs[slot] = null;
+  document.getElementById('inp_'+slot).value = '';
+  document.getElementById('box_'+slot).classList.remove('tem-arquivo');
+  document.getElementById('lbl_'+slot).style.display = '';
+  document.getElementById('nome_'+slot).textContent = '';
+}
+
+async function uploadAnexo(file, lancId, slot) {
+  if(!file) return null;
+  const ext = file.name.split('.').pop();
+  const path = `${lancId}/${slot}.${ext}`;
+  const res = await fetch(`${SB_URL}/storage/v1/object/${SB_BUCKET}/${path}`, {
+    method: 'POST',
+    headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`,
+               'Content-Type': file.type, 'x-upsert': 'true' },
+    body: file
+  });
+  if(!res.ok) { console.error('Upload erro:', await res.text()); return null; }
+  return path;
+}
+
+async function getUrlAnexo(path) {
+  const res = await fetch(`${SB_URL}/storage/v1/object/sign/${SB_BUCKET}/${path}`, {
+    method: 'POST',
+    headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`,
+               'Content-Type': 'application/json' },
+    body: JSON.stringify({ expiresIn: 3600 })
+  });
+  if(!res.ok) return null;
+  const d = await res.json();
+  return `${SB_URL}/storage/v1${d.signedURL}`;
+}
+
+async function abrirAnexo(path) {
+  showToast('⏳ Carregando…');
+  const url = await getUrlAnexo(path);
+  if(!url) { showToast('⚠ Não foi possível abrir o anexo', true); return; }
+  const nome = path.split('/').pop();
+  document.getElementById('viewerNome').textContent = nome;
+  const frame = document.getElementById('viewerFrame');
+  if(/\.pdf$/i.test(nome)) {
+    frame.innerHTML = `<iframe src="${url}#toolbar=1" style="width:100%;height:100%;border:none;"></iframe>`;
+  } else {
+    frame.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:contain;">`;
+  }
+  document.getElementById('viewerOverlay').classList.add('open');
+}
+function fecharViewer() {
+  document.getElementById('viewerOverlay').classList.remove('open');
+  document.getElementById('viewerFrame').innerHTML = '';
+}
+
+
 async function init() {
   setLoading(true,'CONECTANDO AO BANCO…');
   try {
@@ -428,7 +632,24 @@ async function saveLancamento() {
   btn.disabled=true; btn.textContent='Salvando…';
   try {
     if(editingId) { await sb(`${TABLE}?id=eq.${editingId}`,{method:'PATCH',body:JSON.stringify(obj)}); editingId=null; showToast('✓ Atualizado!'); }
-    else { await sb(TABLE,{method:'POST',body:JSON.stringify(obj)}); showToast('✓ Lançamento salvo!'); }
+    else {
+      const saved = await sb(TABLE,{method:'POST',body:JSON.stringify(obj)});
+      if(saved && saved[0] && (_arqs.boleto || _arqs.nf)) {
+        showToast('📎 Enviando anexos…');
+        const lid = saved[0].id;
+        const [pb, pn] = await Promise.all([
+          uploadAnexo(_arqs.boleto, lid, 'boleto'),
+          uploadAnexo(_arqs.nf,     lid, 'nf')
+        ]);
+        const upd = {};
+        if(pb) upd.boleto_path = pb;
+        if(pn) upd.nf_path     = pn;
+        if(Object.keys(upd).length)
+          await sb(`${TABLE}?id=eq.${lid}`, {method:'PATCH', body:JSON.stringify(upd)});
+        removerAnexo('boleto'); removerAnexo('nf');
+      }
+      showToast('✓ Lançamento salvo!');
+    }
     clearForm();
     const fb=document.getElementById('saveFeedback'); fb.classList.add('show'); setTimeout(()=>fb.classList.remove('show'),2500);
     await loadData();
@@ -563,7 +784,16 @@ function openDetail(id) {
     <div class="detail-item"><div class="dl">Conta Gerencial</div><div class="dv">${esc(l.cg)}</div></div>
     <div class="detail-item"><div class="dl">Correntista</div><div class="dv">${esc(l.correntista)||'—'}</div></div>
     <div class="detail-item"><div class="dl">Lançador</div><div class="dv">${esc(l.lancador)||'—'}</div></div>
-    <div class="detail-item full"><div class="dl">Histórico</div><div class="dv" style="white-space:pre-wrap">${esc(l.historico)||'—'}</div></div>`;
+    <div class="detail-item full"><div class="dl">Histórico</div><div class="dv" style="white-space:pre-wrap">${esc(l.historico)||'—'}</div></div>
+    ${(l.boleto_path||l.nf_path)?`
+    <div style="margin-top:18px;padding-top:18px;border-top:1px solid var(--cinza-light);">
+      <div style="font-size:11px;font-weight:700;color:var(--cinza);letter-spacing:.08em;margin-bottom:10px;">ANEXOS</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        ${l.boleto_path?`<button class="btn-ver-anexo" onclick="abrirAnexo('${l.boleto_path}')">📄 Ver Boleto</button>`:''}
+        ${l.nf_path?`<button class="btn-ver-anexo" onclick="abrirAnexo('${l.nf_path}')">🧾 Ver NF / Recibo</button>`:''}
+      </div>
+    </div>`:''}
+  `;
   document.getElementById('modalDeleteBtn').onclick=async()=>{
     if(!confirm('Excluir?')) return;
     try { await sb(`${TABLE}?id=eq.${id}`,{method:'DELETE',prefer:'return=minimal'}); await loadData(); closeModal(); showToast('🗑 Excluído'); }
@@ -870,5 +1100,14 @@ init();
   </div>
 </div>
 
+
+<!-- VIEWER DE ANEXO -->
+<div class="viewer-overlay" id="viewerOverlay" onclick="if(event.target===this)fecharViewer()">
+  <div class="viewer-bar">
+    <span id="viewerNome" style="font-weight:600"></span>
+    <button onclick="fecharViewer()">✕ Fechar</button>
+  </div>
+  <div class="viewer-frame" id="viewerFrame"></div>
+</div>
 </body>
 </html>
