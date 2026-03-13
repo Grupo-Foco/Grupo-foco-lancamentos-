@@ -402,6 +402,42 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
       </div>
 
       <div class="form-actions">
+      <!-- 06 ANEXOS -->
+      <div class="form-section">
+        <div class="section-label">06 — Anexos</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div class="field">
+            <label>Boleto</label>
+            <div class="anexo-drop" id="drop_boleto"
+                 onclick="document.getElementById('file_boleto').click()"
+                 ondragover="event.preventDefault();this.classList.add('drag-over')"
+                 ondragleave="this.classList.remove('drag-over')"
+                 ondrop="handleDrop(event,'boleto')">
+              <input type="file" id="file_boleto" accept=".pdf,.png,.jpg,.jpeg" style="display:none" onchange="handleFileSelect(this,'boleto')">
+              <div id="drop_boleto_label" style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+                <span style="font-size:28px;">📄</span>
+                <span style="font-size:12px;color:var(--cinza);text-align:center;">Arraste ou clique<br>PDF / Imagem</span>
+              </div>
+            </div>
+          </div>
+          <div class="field">
+            <label>Nota Fiscal / Recibo / Contrato</label>
+            <div class="anexo-drop" id="drop_nf"
+                 onclick="document.getElementById('file_nf').click()"
+                 ondragover="event.preventDefault();this.classList.add('drag-over')"
+                 ondragleave="this.classList.remove('drag-over')"
+                 ondrop="handleDrop(event,'nf')">
+              <input type="file" id="file_nf" accept=".pdf,.png,.jpg,.jpeg,.xml" style="display:none" onchange="handleFileSelect(this,'nf')">
+              <div id="drop_nf_label" style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+                <span style="font-size:28px;">🧾</span>
+                <span style="font-size:12px;color:var(--cinza);text-align:center;">Arraste ou clique<br>PDF / Imagem / XML</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:20px 0 0;">
       <button class="btn btn-secondary" onclick="clearForm()">↺ Limpar</button>
       <div style="display:flex;align-items:center;gap:16px;">
         <span class="save-feedback" id="saveFeedback">✓ Salvo!</span>
