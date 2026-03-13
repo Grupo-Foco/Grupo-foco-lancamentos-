@@ -214,6 +214,38 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
 .viewer-frame iframe, .viewer-frame img {
   width: 100%; height: 100%; border: none; object-fit: contain;
 }
+/* Parcelas preview */
+.parcelas-preview {
+  margin-top: 12px;
+  padding: 14px 16px;
+  background: #f0f7f0;
+  border: 1.5px solid var(--verde-mid);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+}
+.parcelas-preview-title {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  color: var(--verde-mid);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.parcelas-preview-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.parcela-chip {
+  background: var(--branco);
+  border: 1px solid var(--verde-mid);
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 11px;
+  color: var(--verde);
+  font-family: 'DM Mono', monospace;
+}
 /* Conciliação */
 .concil-row-ok   { background: #f0fdf4; }
 .concil-row-dup  { background: #fffbeb; }
@@ -285,7 +317,7 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
       <div class="section-label">02 — Datas & Status</div>
       <div class="form-grid four">
         <div class="field"><label>Data Documento</label><input type="date" id="f_data_doc"></div>
-        <div class="field"><label>Vencimento <span class="req">★</span></label><input type="date" id="f_vencimento"></div>
+        <div class="field"><label>Vencimento <span class="req">★</span></label><input type="date" id="f_vencimento" onchange="atualizarParcelas()"></div>
         <div class="field"><label>Data Pagamento</label><input type="date" id="f_pagamento"></div>
         <div class="field"><label>Status <span class="req">★</span></label>
           <div class="status-toggle">
@@ -300,7 +332,16 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
       <div class="section-label">03 — Valor & Conta</div>
       <div class="form-grid">
         <div class="field"><label>Valor <span class="req">★</span></label>
-          <div class="valor-wrapper"><span class="valor-prefix">R$</span><input type="number" id="f_valor" placeholder="0,00" step="0.01" min="0"></div>
+          <div class="valor-wrapper"><span class="valor-prefix">R$</span><input type="number" id="f_valor" placeholder="0,00" onchange="atualizarParcelas()" step="0.01" min="0"></div>
+        </div>
+        <div class="field">
+          <label>Parcelas</label>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="number" id="f_parcelas" value="1" min="1" max="60"
+              style="width:70px;text-align:center;padding:10px;border-radius:var(--radius-sm);border:1.5px solid var(--cinza-light);font-size:15px;font-weight:700;color:var(--verde);"
+              onchange="atualizarParcelas()">
+            <span style="font-size:12px;color:var(--cinza);" id="parcelas-hint">à vista</span>
+          </div>
         </div>
         <div class="field"><label>Conta <span class="req" id="contaReq">★ (obrig. se PAGO)</span></label>
           <select id="f_conta"><option value="">Selecionar…</option><option>IVAN BASA</option><option>IVAN BB</option><option>IVAN BRADESCO</option><option>IVAN SICOOB</option><option>JOAO BB</option><option>JOAO SICOOB</option><option>NEILA BB</option><option>NEILA SICOOB</option></select>
@@ -340,6 +381,12 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
       <div class="section-label">05 — Histórico</div>
       <div class="field"><label>Histórico / Descrição</label><textarea id="f_historico" placeholder="Descreva o lançamento…" rows="3"></textarea></div>
     </div>
+    <!-- PREVIEW PARCELAS -->
+    <div id="parcelas-preview-box" class="parcelas-preview" style="display:none;">
+      <div class="parcelas-preview-title">📅 Parcelas que serão geradas</div>
+      <div class="parcelas-preview-list" id="parcelas-chips"></div>
+    </div>
+
     <!-- ANEXOS -->
     <div class="anexo-section">
       <div class="anexo-section-title">📎 Anexos — Boleto & Nota Fiscal</div>
@@ -505,6 +552,51 @@ async function seedJaneiro() {
     await sb(TABLE,{method:'POST',prefer:'return=minimal',body:JSON.stringify(JANEIRO.slice(i,i+sz))});
   }
 }
+
+
+// ══════════════════════════════════════════
+// PARCELAMENTO
+// ══════════════════════════════════════════
+function atualizarParcelas() {
+  const n = parseInt(document.getElementById('f_parcelas').value) || 1;
+  const hint = document.getElementById('parcelas-hint');
+  const box  = document.getElementById('parcelas-preview-box');
+  const chips = document.getElementById('parcelas-chips');
+
+  if(n <= 1) {
+    hint.textContent = 'à vista';
+    box.style.display = 'none';
+    return;
+  }
+  hint.textContent = n + 'x mensais';
+
+  const vencBase = document.getElementById('f_vencimento').value;
+  const valor = parseFloat(document.getElementById('f_valor').value) || 0;
+  const parcVal = valor > 0 ? (valor / n).toFixed(2) : null;
+
+  let chipsHTML = '';
+  for(let i = 0; i < Math.min(n, 12); i++) {
+    let label = (i+1) + '/' + n;
+    if(vencBase) {
+      const d = new Date(vencBase + 'T12:00:00');
+      d.setMonth(d.getMonth() + i);
+      label += ' — ' + d.toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit',year:'numeric'});
+    }
+    if(parcVal) label += ' — R$ ' + parseFloat(parcVal).toLocaleString('pt-BR',{minimumFractionDigits:2});
+    chipsHTML += '<span class="parcela-chip">' + label + '</span>';
+  }
+  if(n > 12) chipsHTML += '<span class="parcela-chip">+ ' + (n-12) + ' parcelas...</span>';
+
+  chips.innerHTML = chipsHTML;
+  box.style.display = '';
+}
+
+function calcProxVenc(baseDate, meses) {
+  const d = new Date(baseDate + 'T12:00:00');
+  d.setMonth(d.getMonth() + meses);
+  return d.toISOString().slice(0,10);
+}
+
 
 // ═══════════════════════
 // ANEXOS
@@ -837,6 +929,28 @@ function limparConciliacao() {
 }
 
 
+function clearForm() {
+  ['f_id','f_fornecedor','f_documento','f_historico'].forEach(function(id){
+    const el = document.getElementById(id); if(el) el.value='';
+  });
+  ['f_solicitante','f_conta','f_correntista','f_fazenda','f_safra','f_cultura','f_cg'].forEach(function(id){
+    const el = document.getElementById(id); if(el) el.value='';
+  });
+  document.getElementById('f_valor').value='';
+  document.getElementById('f_data_doc').value='';
+  document.getElementById('f_vencimento').value='';
+  document.getElementById('f_pagamento').value='';
+  document.getElementById('f_status').value='A PAGAR';
+  setStatus('A PAGAR', document.querySelectorAll('.status-btn')[0]);
+  document.getElementById('f_parcelas').value='1';
+  document.getElementById('parcelas-hint').textContent='a vista';
+  document.getElementById('parcelas-preview-box').style.display='none';
+  removerAnexo('boleto'); removerAnexo('nf');
+  document.getElementById('formTitle').textContent='Novo Lancamento';
+  document.getElementById('saveFeedback').style.opacity='0';
+}
+
+
 async function init() {
   setLoading(true,'CONECTANDO AO BANCO…');
   try {
@@ -863,590 +977,86 @@ function setStatus(val,btn) {
 }
 
 async function saveLancamento() {
-  const forn=document.getElementById('f_fornecedor').value.trim();
-  const sol=document.getElementById('f_solicitante').value;
-  const venc=document.getElementById('f_vencimento').value;
-  const val=parseFloat(document.getElementById('f_valor').value);
-  const conta=document.getElementById('f_conta').value;
-  const faz=document.getElementById('f_fazenda').value;
-  const cg=document.getElementById('f_cg').value;
-  const status=document.getElementById('f_status').value;
-  const pag=document.getElementById('f_pagamento').value;
-  if(!forn||!sol||!venc||isNaN(val)||val<=0||(status==='PAGO'&&!conta)||!faz||!cg){showToast('⚠ Preencha os campos obrigatórios (★)',true);return;}
-  if(status==='PAGO'&&!pag){showToast('⚠ Informe a data de pagamento',true);return;}
-  const obj={
-    fornecedor:forn.toUpperCase(),documento:document.getElementById('f_documento').value.trim(),
-    solicitante:sol,data_doc:document.getElementById('f_data_doc').value||null,
-    vencimento:venc,pagamento:pag||null,status,valor:val,conta,
-    correntista:document.getElementById('f_correntista').value,fazenda:faz,
-    safra:document.getElementById('f_safra').value,cultura:document.getElementById('f_cultura').value,
-    cg,lancador:currentUser||'—',historico:document.getElementById('f_historico').value.trim()
+  const n = parseInt(document.getElementById('f_parcelas').value) || 1;
+  const venc = document.getElementById('f_vencimento').value;
+  const valorTotal = parseFloat(document.getElementById('f_valor').value) || 0;
+  const status = document.getElementById('f_status').value || 'A PAGAR';
+  const editId = document.getElementById('f_id').value;
+
+  if(!document.getElementById('f_fornecedor').value.trim()) { showToast('Preencha o fornecedor', true); return; }
+  if(!document.getElementById('f_solicitante').value)       { showToast('Selecione o solicitante', true); return; }
+  if(!venc)                                                  { showToast('Informe o vencimento', true); return; }
+  if(!valorTotal)                                            { showToast('Informe o valor', true); return; }
+  if(status === 'PAGO' && !document.getElementById('f_conta').value) { showToast('Conta obrigatoria quando PAGO', true); return; }
+
+  const base = {
+    fornecedor:  document.getElementById('f_fornecedor').value.trim(),
+    documento:   document.getElementById('f_documento').value.trim(),
+    solicitante: document.getElementById('f_solicitante').value,
+    data_doc:    document.getElementById('f_data_doc').value || null,
+    pagamento:   document.getElementById('f_pagamento').value || null,
+    status:      status,
+    conta:       document.getElementById('f_conta').value,
+    correntista: document.getElementById('f_correntista').value,
+    fazenda:     document.getElementById('f_fazenda').value,
+    safra:       document.getElementById('f_safra').value,
+    cultura:     document.getElementById('f_cultura').value,
+    cg:          document.getElementById('f_cg').value,
+    lancador:    currentUser || '',
+    historico:   document.getElementById('f_historico').value.trim(),
   };
-  const btn=document.getElementById('btnSalvar');
-  btn.disabled=true; btn.textContent='Salvando…';
+
+  setLoading(true, n > 1 ? 'GERANDO ' + n + ' PARCELAS...' : 'SALVANDO...');
   try {
-    if(editingId) { await sb(`${TABLE}?id=eq.${editingId}`,{method:'PATCH',body:JSON.stringify(obj)}); editingId=null; showToast('✓ Atualizado!'); }
-    else {
-      const saved = await sb(TABLE,{method:'POST',body:JSON.stringify(obj)});
+    if(editId) {
+      const obj = Object.assign({}, base, { vencimento: venc, valor: valorTotal });
+      await sb(TABLE + '?id=eq.' + editId, { method:'PATCH', body: JSON.stringify(obj) });
+      const l = lancamentos.find(function(x){return x.id===parseInt(editId);});
+      if(l) Object.assign(l, obj);
+      showToast('Lancamento atualizado!');
+    } else if(n <= 1) {
+      const obj = Object.assign({}, base, { vencimento: venc, valor: valorTotal });
+      const saved = await sb(TABLE, { method:'POST', body: JSON.stringify(obj) });
       if(saved && saved[0] && (_arqs.boleto || _arqs.nf)) {
-        showToast('📎 Enviando anexos…');
+        showToast('Enviando anexos...');
         const lid = saved[0].id;
-        const [pb, pn] = await Promise.all([
-          uploadAnexo(_arqs.boleto, lid, 'boleto'),
-          uploadAnexo(_arqs.nf,     lid, 'nf')
-        ]);
+        const pb = await uploadAnexo(_arqs.boleto, lid, 'boleto');
+        const pn = await uploadAnexo(_arqs.nf, lid, 'nf');
         const upd = {};
         if(pb) upd.boleto_path = pb;
-        if(pn) upd.nf_path     = pn;
-        if(Object.keys(upd).length)
-          await sb(`${TABLE}?id=eq.${lid}`, {method:'PATCH', body:JSON.stringify(upd)});
+        if(pn) upd.nf_path = pn;
+        if(Object.keys(upd).length) await sb(TABLE + '?id=eq.' + lid, { method:'PATCH', body: JSON.stringify(upd) });
         removerAnexo('boleto'); removerAnexo('nf');
       }
-      showToast('✓ Lançamento salvo!');
+      showToast('Lancamento salvo!');
+    } else {
+      const parcVal = parseFloat((valorTotal / n).toFixed(2));
+      const ajuste  = parseFloat((valorTotal - parcVal * n).toFixed(2));
+      const promessas = [];
+      for(let i = 0; i < n; i++) {
+        const vencParc = calcProxVenc(venc, i);
+        const valorParc = i === n-1 ? parseFloat((parcVal + ajuste).toFixed(2)) : parcVal;
+        const docParc = base.documento ? base.documento + ' (' + (i+1) + '/' + n + ')' : (i+1) + '/' + n;
+        const obj = Object.assign({}, base, {
+          vencimento: vencParc,
+          valor: valorParc,
+          documento: docParc,
+          status: 'A PAGAR',
+        });
+        promessas.push(sb(TABLE, { method:'POST', body: JSON.stringify(obj) }));
+      }
+      await Promise.all(promessas);
+      showToast(n + ' parcelas geradas!');
     }
+    await loadData();
     clearForm();
-    const fb=document.getElementById('saveFeedback'); fb.classList.add('show'); setTimeout(()=>fb.classList.remove('show'),2500);
-    await loadData();
-  } catch(e) { showToast('⚠ Erro: '+e.message,true); }
-  finally { btn.disabled=false; btn.textContent='＋ Salvar Lançamento'; }
-}
-
-function clearForm() {
-  editingId=null;
-  document.getElementById('formTitle').textContent='Novo Lançamento';
-  ['f_fornecedor','f_documento','f_data_doc','f_vencimento','f_pagamento','f_valor','f_historico'].forEach(id=>document.getElementById(id).value='');
-  ['f_solicitante','f_conta','f_correntista','f_fazenda','f_cg'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('f_safra').value='SAFRA 2025/2026';
-  document.getElementById('f_cultura').value='SOJA';
-  document.getElementById('f_status').value='A PAGAR';
-  document.querySelectorAll('.status-btn').forEach(b=>b.classList.remove('active'));
-  document.querySelector('.status-btn.apagar').classList.add('active');
-}
-
-// ── PAINEL ──
-function populateCGFilter() {
-  const sel=document.getElementById('filter-cg'), cur=sel.value;
-  const cgs=[...new Set(lancamentos.map(l=>l.cg).filter(Boolean))].sort();
-  sel.innerHTML='<option value="">Todas</option>'+cgs.map(c=>`<option${c===cur?' selected':''}>${c}</option>`).join('');
-}
-
-function applyFilters() {
-  const search=document.getElementById('filter-search')?.value.toLowerCase()||'';
-  const status=document.getElementById('filter-status')?.value||'';
-  const fazenda=document.getElementById('filter-fazenda')?.value||'';
-  const cg=document.getElementById('filter-cg')?.value||'';
-  const mes=document.getElementById('filter-mes')?.value||'';
-  filtered=lancamentos.filter(l=>{
-    if(search&&!`${l.fornecedor||''} ${l.historico||''} ${l.documento||''}`.toLowerCase().includes(search)) return false;
-    if(status&&l.status!==status) return false;
-    if(fazenda&&l.fazenda!==fazenda) return false;
-    if(cg&&l.cg!==cg) return false;
-    if(mes&&l.vencimento&&l.vencimento.split('-')[1]!==mes) return false;
-    return true;
-  });
-  filtered.sort((a,b)=>{
-    let av=a[sortKey]||'',bv=b[sortKey]||'';
-    if(sortKey==='valor'){av=+av;bv=+bv;}
-    return av<bv?-sortDir:av>bv?sortDir:0;
-  });
-  renderTable(); renderStats();
-  document.getElementById('panel-subtitle').textContent=`${lancamentos.length} lançamentos no total — ${filtered.length} exibidos`;
-}
-
-function renderStats() {
-  const ap=filtered.filter(l=>l.status==='A PAGAR').reduce((s,l)=>s+(+l.valor||0),0);
-  const pg=filtered.filter(l=>l.status==='PAGO').reduce((s,l)=>s+(+l.valor||0),0);
-  document.getElementById('stat-total').textContent=filtered.length.toLocaleString('pt-BR');
-  document.getElementById('stat-valor').textContent='R$ '+(ap+pg).toLocaleString('pt-BR',{minimumFractionDigits:2});
-  document.getElementById('stat-apagar').textContent='R$ '+ap.toLocaleString('pt-BR',{minimumFractionDigits:2});
-  document.getElementById('stat-pago').textContent='R$ '+pg.toLocaleString('pt-BR',{minimumFractionDigits:2});
-}
-
-function renderTable() {
-  const tbody=document.getElementById('tableBody');
-  document.getElementById('table-count').textContent=filtered.length+' lançamentos';
-  document.getElementById('emptyState').style.display=filtered.length?'none':'block';
-  tbody.innerHTML=filtered.map(l=>`
-    <tr onclick="openDetail(${l.id})">
-      <td onclick="event.stopPropagation()"><input type="checkbox" class="row-check" data-id="${l.id}" onchange="checkSel()"></td>
-      <td class="mono" style="color:var(--cinza)">${l.codigo||String(l.id).padStart(4,'0')}</td>
-      <td style="font-weight:500">${esc(l.fornecedor)}</td>
-      <td class="mono">${fmtDate(l.vencimento)}</td>
-      <td class="mono" style="text-align:right">R$ ${(+l.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
-      <td><span class="badge ${l.status==='PAGO'?'badge-pago':'badge-apagar'}">${l.status}</span></td>
-      <td>${esc(l.fazenda)}</td>
-      <td style="font-size:12px;max-width:150px">${esc(l.cg)}</td>
-      <td style="font-size:12px">${esc(l.conta)}</td>
-      <td style="font-size:12px;color:var(--cinza)">${esc(l.lancador)}</td>
-      <td onclick="event.stopPropagation()" style="text-align:center">
-        <button class="btn btn-secondary" onclick="editLancamento(${l.id})" style="padding:4px 10px;font-size:11px">✎</button>
-      </td>
-    </tr>`).join('');
-}
-
-function sortTable(key) {
-  if(sortKey===key) sortDir*=-1; else {sortKey=key;sortDir=1;}
-  applyFilters();
-}
-function clearFilters() {
-  ['filter-search','filter-status','filter-fazenda','filter-cg','filter-mes'].forEach(id=>document.getElementById(id).value='');
-  applyFilters();
-}
-function toggleAll(cb) { document.querySelectorAll('.row-check').forEach(c=>c.checked=cb.checked); checkSel(); }
-function checkSel() {
-  const checks = document.querySelectorAll('.row-check:checked');
-  const any = checks.length > 0;
-  // Verificar se algum selecionado é A PAGAR
-  const ids = [...checks].map(c => +c.dataset.id);
-  const temAPagar = ids.some(id => {
-    const l = lancamentos.find(x => x.id === id);
-    return l && l.status === 'A PAGAR';
-  });
-  document.getElementById('btn-delete-sel').style.display = any ? 'flex' : 'none';
-  document.getElementById('btn-baixar-sel').style.display = temAPagar ? 'flex' : 'none';
-  const count = checks.length;
-  document.getElementById('btn-baixar-sel').textContent = `✓ Baixar ${count} selecionado${count>1?'s':''}`;
-}
-async function deleteSelected() {
-  const ids=[...document.querySelectorAll('.row-check:checked')].map(c=>+c.dataset.id);
-  if(!confirm(`Excluir ${ids.length} lançamento(s)?`)) return;
-  try {
-    const filter=ids.map(id=>`id.eq.${id}`).join(',');
-    await sb(`${TABLE}?or=(${filter})`,{method:'DELETE',prefer:'return=minimal'});
-    await loadData(); checkSel(); showToast(`🗑 ${ids.length} excluído(s)`);
-  } catch(e) { showToast('⚠ '+e.message,true); }
-}
-
-// ── MODAL ──
-function openDetail(id) {
-  const l=lancamentos.find(x=>x.id===id); if(!l) return;
-  document.getElementById('modalTitle').textContent=l.fornecedor||'—';
-  document.getElementById('modalId').textContent='ID '+(l.codigo||id);
-  document.getElementById('modalContent').innerHTML=`
-    <div class="detail-item"><div class="dl">Fornecedor</div><div class="dv">${esc(l.fornecedor)}</div></div>
-    <div class="detail-item"><div class="dl">Nº Documento</div><div class="dv">${esc(l.documento)||'—'}</div></div>
-    <div class="detail-item"><div class="dl">Solicitante</div><div class="dv">${esc(l.solicitante)}</div></div>
-    <div class="detail-item"><div class="dl">Data Documento</div><div class="dv">${fmtDate(l.data_doc)||'—'}</div></div>
-    <div class="detail-item"><div class="dl">Vencimento</div><div class="dv">${fmtDate(l.vencimento)||'—'}</div></div>
-    <div class="detail-item"><div class="dl">Pagamento</div><div class="dv">${fmtDate(l.pagamento)||'—'}</div></div>
-    <div class="detail-item"><div class="dl">Status</div><div class="dv"><span class="badge ${l.status==='PAGO'?'badge-pago':'badge-apagar'}">${l.status}</span></div></div>
-    <div class="detail-item"><div class="dl">Valor</div><div class="dv" style="font-weight:700;font-size:16px">R$ ${(+l.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</div></div>
-    <div class="detail-item"><div class="dl">Conta</div><div class="dv">${esc(l.conta)}</div></div>
-    <div class="detail-item"><div class="dl">Fazenda</div><div class="dv">${esc(l.fazenda)}</div></div>
-    <div class="detail-item"><div class="dl">Safra</div><div class="dv">${esc(l.safra)||'—'}</div></div>
-    <div class="detail-item"><div class="dl">Cultura</div><div class="dv">${esc(l.cultura)||'—'}</div></div>
-    <div class="detail-item"><div class="dl">Conta Gerencial</div><div class="dv">${esc(l.cg)}</div></div>
-    <div class="detail-item"><div class="dl">Correntista</div><div class="dv">${esc(l.correntista)||'—'}</div></div>
-    <div class="detail-item"><div class="dl">Lançador</div><div class="dv">${esc(l.lancador)||'—'}</div></div>
-    <div class="detail-item full"><div class="dl">Histórico</div><div class="dv" style="white-space:pre-wrap">${esc(l.historico)||'—'}</div></div>
-    ${(l.boleto_path||l.nf_path)?`
-    <div style="margin-top:18px;padding-top:18px;border-top:1px solid var(--cinza-light);">
-      <div style="font-size:11px;font-weight:700;color:var(--cinza);letter-spacing:.08em;margin-bottom:10px;">ANEXOS</div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;">
-        ${l.boleto_path?`<button class="btn-ver-anexo" onclick="abrirAnexo('${l.boleto_path}')">📄 Ver Boleto</button>`:''}
-        ${l.nf_path?`<button class="btn-ver-anexo" onclick="abrirAnexo('${l.nf_path}')">🧾 Ver NF / Recibo</button>`:''}
-      </div>
-    </div>`:''}
-  `;
-  document.getElementById('modalDeleteBtn').onclick=async()=>{
-    if(!confirm('Excluir?')) return;
-    try { await sb(`${TABLE}?id=eq.${id}`,{method:'DELETE',prefer:'return=minimal'}); await loadData(); closeModal(); showToast('🗑 Excluído'); }
-    catch(e) { showToast('⚠ '+e.message,true); }
-  };
-  document.getElementById('modalEditBtn').onclick=()=>{closeModal();editLancamento(id);};
-  document.getElementById('detailModal').classList.add('open');
-}
-function closeModal(){document.getElementById('detailModal').classList.remove('open');}
-document.getElementById('detailModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
-
-function editLancamento(id) {
-  const l=lancamentos.find(x=>x.id===id); if(!l) return;
-  editingId=id;
-  document.getElementById('formTitle').textContent='Editando Lançamento';
-  showView('form');
-  document.getElementById('f_fornecedor').value=l.fornecedor||'';
-  document.getElementById('f_documento').value=l.documento||'';
-  document.getElementById('f_solicitante').value=l.solicitante||'';
-  document.getElementById('f_data_doc').value=l.data_doc||'';
-  document.getElementById('f_vencimento').value=l.vencimento||'';
-  document.getElementById('f_pagamento').value=l.pagamento||'';
-  document.getElementById('f_valor').value=l.valor||'';
-  document.getElementById('f_conta').value=l.conta||'';
-  document.getElementById('f_correntista').value=l.correntista||'';
-  document.getElementById('f_fazenda').value=l.fazenda||'';
-  document.getElementById('f_safra').value=l.safra||'';
-  document.getElementById('f_cultura').value=l.cultura||'';
-  document.getElementById('f_cg').value=l.cg||'';
-  document.getElementById('f_historico').value=l.historico||'';
-  document.getElementById('f_status').value=l.status;
-  document.querySelectorAll('.status-btn').forEach(b=>b.classList.remove('active'));
-  document.querySelector(`.status-btn.${l.status==='PAGO'?'pago':'apagar'}`).classList.add('active');
-  window.scrollTo({top:0,behavior:'smooth'});
-}
-
-function exportXLSX() {
-  const wb = XLSX.utils.book_new();
-
-  // ── Cabeçalho ──
-  const headers = ['ID','FORNECEDOR','SOLICITANTE','Nº DOCUMENTO','DATA DOCUMENTO',
-    'COMPETÊNCIA','DATA VENCIMENTO','DATA PAGAMENTO','STATUS','VALOR',
-    'FAZENDA','SAFRA/CICLO','CULTURA','CONTA GERENCIAL','CORRENTISTA',
-    'LANÇADOR','CONTA','HISTÓRICO'];
-
-  // ── Dados ──
-  const rows = filtered.map((l,i) => [
-    l.codigo || String(l.id).padStart(4,'0'),
-    l.fornecedor || '',
-    l.solicitante || '',
-    l.documento || '',
-    fmtDate(l.data_doc) || '',
-    l.vencimento ? (l.vencimento.substring(0,7).replace('-','/')) : '',
-    fmtDate(l.vencimento) || '',
-    fmtDate(l.pagamento) || '',
-    l.status || '',
-    parseFloat(l.valor) || 0,
-    l.fazenda || '',
-    l.safra || '',
-    l.cultura || '',
-    l.cg || '',
-    l.correntista || '',
-    l.lancador || '',
-    l.conta || '',
-    l.historico || ''
-  ]);
-
-  const wsData = [headers, ...rows];
-  const ws = XLSX.utils.aoa_to_sheet(wsData);
-
-  // ── Larguras das colunas ──
-  ws['!cols'] = [
-    {wch:8},  // ID
-    {wch:30}, // FORNECEDOR
-    {wch:14}, // SOLICITANTE
-    {wch:18}, // Nº DOC
-    {wch:16}, // DATA DOC
-    {wch:12}, // COMPETÊNCIA
-    {wch:16}, // VENCIMENTO
-    {wch:16}, // PAGAMENTO
-    {wch:10}, // STATUS
-    {wch:16}, // VALOR
-    {wch:16}, // FAZENDA
-    {wch:18}, // SAFRA
-    {wch:12}, // CULTURA
-    {wch:36}, // CONTA GERENCIAL
-    {wch:18}, // CORRENTISTA
-    {wch:12}, // LANÇADOR
-    {wch:16}, // CONTA
-    {wch:50}, // HISTÓRICO
-  ];
-
-  // ── Estilo do cabeçalho ──
-  const headerStyle = {
-    font: {bold: true, color: {rgb: 'F5F0E8'}},
-    fill: {fgColor: {rgb: '1A3A2A'}},
-    alignment: {horizontal: 'center', vertical: 'center', wrapText: false},
-    border: {
-      bottom: {style: 'thin', color: {rgb: 'C8A84B'}}
-    }
-  };
-
-  // Aplicar estilo ao cabeçalho (linha 1)
-  headers.forEach((h, ci) => {
-    const cellRef = XLSX.utils.encode_cell({r:0, c:ci});
-    if (ws[cellRef]) ws[cellRef].s = headerStyle;
-  });
-
-  // ── Estilo das linhas de dados ──
-  rows.forEach((row, ri) => {
-    const status = row[8]; // STATUS
-    const isAPagar = status === 'A PAGAR';
-    
-    row.forEach((val, ci) => {
-      const cellRef = XLSX.utils.encode_cell({r: ri+1, c: ci});
-      if (!ws[cellRef]) return;
-
-      // Cor de fundo por status
-      const fillColor = isAPagar ? 'FFF3CD' : 'D4EDDA';
-      const fontColor = isAPagar ? '856404' : '155724';
-
-      ws[cellRef].s = {
-        fill: { fgColor: { rgb: fillColor } },
-        alignment: { vertical: 'center' },
-        border: {
-          bottom: {style: 'thin', color: {rgb: 'E8E0D0'}},
-          right:  {style: 'thin', color: {rgb: 'E8E0D0'}}
-        }
-      };
-
-      // Coluna STATUS com fonte colorida
-      if (ci === 8) {
-        ws[cellRef].s.font = { bold: true, color: { rgb: fontColor } };
-        ws[cellRef].s.alignment = { horizontal: 'center', vertical: 'center' };
-      }
-
-      // Coluna VALOR como número formatado
-      if (ci === 9 && typeof val === 'number') {
-        ws[cellRef].z = '#,##0.00';
-        ws[cellRef].s.alignment = { horizontal: 'right', vertical: 'center' };
-      }
-
-      // Colunas de data centralizadas
-      if ([4,5,6,7].includes(ci)) {
-        ws[cellRef].s.alignment = { horizontal: 'center', vertical: 'center' };
-      }
-    });
-  });
-
-  // ── Altura das linhas ──
-  ws['!rows'] = [{hpt: 22}]; // cabeçalho
-  rows.forEach(() => ws['!rows'].push({hpt: 18}));
-
-  // ── AutoFilter ──
-  ws['!autofilter'] = { ref: `A1:R${rows.length+1}` };
-
-  // ── Freeze primeira linha ──
-  ws['!freeze'] = { xSplit: 0, ySplit: 1, topLeftCell: 'A2', activePane: 'bottomLeft' };
-
-  XLSX.utils.book_append_sheet(wb, ws, 'LANÇAMENTOS');
-
-  // ── Aba de resumo por Conta Gerencial ──
-  const cgMap = {};
-  filtered.forEach(l => {
-    const cg = l.cg || '(sem classificação)';
-    if (!cgMap[cg]) cgMap[cg] = {total:0, pago:0, apagar:0, qtd:0};
-    cgMap[cg].total  += parseFloat(l.valor)||0;
-    cgMap[cg].qtd    += 1;
-    if (l.status === 'PAGO') cgMap[cg].pago += parseFloat(l.valor)||0;
-    else cgMap[cg].apagar += parseFloat(l.valor)||0;
-  });
-
-  const resumoData = [
-    ['CONTA GERENCIAL','QTD','VALOR TOTAL','PAGO','A PAGAR'],
-    ...Object.entries(cgMap)
-      .sort((a,b) => b[1].total - a[1].total)
-      .map(([cg, v]) => [cg, v.qtd, v.total, v.pago, v.apagar])
-  ];
-
-  const wsRes = XLSX.utils.aoa_to_sheet(resumoData);
-  wsRes['!cols'] = [{wch:38},{wch:8},{wch:18},{wch:18},{wch:18}];
-  resumoData[0].forEach((h,ci) => {
-    const ref = XLSX.utils.encode_cell({r:0,c:ci});
-    if(wsRes[ref]) wsRes[ref].s = {font:{bold:true,color:{rgb:'F5F0E8'}},fill:{fgColor:{rgb:'1A3A2A'}},alignment:{horizontal:'center'}};
-  });
-  for(let ri=1;ri<resumoData.length;ri++){
-    [2,3,4].forEach(ci=>{
-      const ref=XLSX.utils.encode_cell({r:ri,c:ci});
-      if(wsRes[ref]){wsRes[ref].z='#,##0.00';wsRes[ref].s={alignment:{horizontal:'right'}};}
-    });
-  }
-  XLSX.utils.book_append_sheet(wb, wsRes, 'RESUMO POR CG');
-
-  // ── Exportar ──
-  const date = new Date().toISOString().split('T')[0];
-  XLSX.writeFile(wb, `Lancamentos_GrupoFoco_${date}.xlsx`, {bookType:'xlsx', cellStyles:true});
-  showToast('↓ Excel exportado com sucesso!');
-}
-
-// ── UTILS ──
-function showView(v) {
-  document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
-  document.querySelectorAll('.nav-tab').forEach(el=>el.classList.remove('active'));
-  const viewEl = document.getElementById('view-'+v);
-  if(viewEl) viewEl.classList.add('active');
-  const tabs = document.querySelectorAll('.nav-tab');
-  const idx = v==='form'?0:v==='panel'?1:2;
-  if(tabs[idx]) tabs[idx].classList.add('active');
-  if(v==='panel') { applyFilters(); renderStats(); }
-}
-function setUser(u){currentUser=u;localStorage.setItem('gf_user',u);document.getElementById('f_lancador').value=u;}
-function setSyncState(state,text) {
-  document.getElementById('syncDot').className='sync-dot '+state;
-  const txt=document.getElementById('syncText');
-  txt.textContent=text;
-  txt.style.color=state==='online'?'rgba(39,174,96,0.8)':state==='error'?'rgba(192,57,43,0.8)':'rgba(200,168,75,0.8)';
-}
-function setLoading(show,text=''){
-  document.getElementById('loadingOverlay').classList.toggle('hidden',!show);
-  if(text) document.getElementById('loadingText').textContent=text;
-}
-function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-function fmtDate(d){
-  if(!d) return '';
-  const p=d.split('T')[0].split('-');
-  return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:d;
-}
-function showToast(msg,err=false){
-  const t=document.getElementById('toast');
-  t.textContent=msg; t.style.background=err?'var(--erro)':'var(--verde)';
-  t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3500);
-}
-
-
-function baixarSelecionados() {
-  const checks = [...document.querySelectorAll('.row-check:checked')];
-  const ids = checks.map(c => +c.dataset.id);
-  const apagar = ids.filter(id => {
-    const l = lancamentos.find(x => x.id === id);
-    return l && l.status === 'A PAGAR';
-  });
-  if (apagar.length === 0) { showToast('⚠ Nenhum lançamento A PAGAR selecionado', true); return; }
-  
-  document.getElementById('baixaMsgQtd').innerHTML = 
-    `<strong>${apagar.length}</strong> lançamento${apagar.length>1?'s':''} A PAGAR selecionado${apagar.length>1?'s':''} para baixa.`;
-  document.getElementById('baixaData').value = new Date().toISOString().split('T')[0];
-  document.getElementById('modalBaixa')._ids = apagar;
-  document.getElementById('modalBaixa').classList.add('open');
-}
-
-async function confirmarBaixa() {
-  const pagData = document.getElementById('baixaData').value;
-  if (!pagData) { showToast('⚠ Informe a data de pagamento', true); return; }
-  
-  const ids = document.getElementById('modalBaixa')._ids;
-  const btn = document.getElementById('btnConfirmarBaixa');
-  btn.disabled = true;
-  btn.textContent = 'Salvando…';
-  
-  try {
-    // Atualizar em lote — um por um pois Supabase não tem update em lote simples
-    let ok = 0;
-    for (const id of ids) {
-      await sb(`${TABLE}?id=eq.${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status: 'PAGO', pagamento: pagData })
-      });
-      ok++;
-      btn.textContent = `Salvando ${ok}/${ids.length}…`;
-    }
-    document.getElementById('modalBaixa').classList.remove('open');
-    await loadData();
-    checkSel();
-    showToast(`✓ ${ids.length} lançamento${ids.length>1?'s':''} baixado${ids.length>1?'s':''}!`);
+    showView('panel');
   } catch(e) {
-    showToast('⚠ Erro: ' + e.message, true);
+    showToast('Erro: ' + e.message, true);
+    console.error(e);
   } finally {
-    btn.disabled = false;
-    btn.textContent = '✓ Confirmar Baixa';
+    setLoading(false);
   }
 }
 
-init();
-</script>
-
-<!-- MODAL BAIXA EM MASSA -->
-<div class="modal-overlay" id="modalBaixa">
-  <div class="modal" style="max-width:480px;">
-    <div class="modal-header">
-      <div class="modal-title">Baixar Lançamentos</div>
-      <button class="modal-close" onclick="document.getElementById('modalBaixa').classList.remove('open')">✕</button>
-    </div>
-    <div class="modal-body">
-      <p style="font-size:14px;color:var(--cinza);margin-bottom:20px;" id="baixaMsgQtd"></p>
-      <div class="field">
-        <label>Data de Pagamento <span class="req">★</span></label>
-        <input type="date" id="baixaData" style="font-size:15px;">
-      </div>
-      <div style="margin-top:12px;padding:12px;background:var(--creme);border-radius:var(--radius-sm);font-family:'DM Mono',monospace;font-size:11px;color:var(--cinza);">
-        Todos os lançamentos <strong>A PAGAR</strong> selecionados serão marcados como <strong style="color:var(--sucesso)">PAGO</strong> com a data informada.
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="document.getElementById('modalBaixa').classList.remove('open')">Cancelar</button>
-      <button class="btn btn-primary" onclick="confirmarBaixa()" id="btnConfirmarBaixa">✓ Confirmar Baixa</button>
-    </div>
-  </div>
-</div>
-
-
-<!-- VIEW CONCILIAÇÃO -->
-<div id="view-conciliacao" class="view">
-<div class="panel-container">
-  <div class="panel-header">
-    <div>
-      <h1>Conciliação Bancária</h1>
-      <p id="concil-subtitle">Importe um extrato para confrontar com os lançamentos</p>
-    </div>
-    <div style="display:flex;gap:10px;">
-      <button class="btn btn-secondary" onclick="limparConciliacao()">↺ Limpar</button>
-    </div>
-  </div>
-
-  <!-- Upload -->
-  <div id="concil-upload-area" style="margin-bottom:28px;">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
-      <!-- Conta filtro -->
-      <div class="field">
-        <label style="font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--cinza);text-transform:uppercase;">Conta Bancária</label>
-        <select id="concil-conta" style="width:100%;padding:10px 12px;border-radius:var(--radius-sm);border:1.5px solid var(--cinza-light);background:var(--branco);font-size:14px;color:var(--verde);">
-          <option value="">Todas as contas</option>
-          <option>IVAN BASA</option><option>IVAN BB</option><option>IVAN BRADESCO</option>
-          <option>IVAN SICOOB</option><option>JOAO BB</option><option>JOAO SICOOB</option>
-          <option>NEILA BB</option><option>NEILA SICOOB</option>
-        </select>
-      </div>
-      <!-- Tolerância -->
-      <div class="field">
-        <label style="font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--cinza);text-transform:uppercase;">Tolerância de Valor (R$)</label>
-        <input type="number" id="concil-tolerancia" value="0.02" step="0.01" min="0"
-          style="width:100%;padding:10px 12px;border-radius:var(--radius-sm);border:1.5px solid var(--cinza-light);font-size:14px;color:var(--verde);">
-      </div>
-    </div>
-    <!-- Drop zone -->
-    <div id="concil-drop" class="anexo-section"
-         style="cursor:pointer;text-align:center;padding:40px 24px;"
-         onclick="document.getElementById('concil-file').click()"
-         ondragover="event.preventDefault();this.classList.add('drag-over')"
-         ondragleave="this.classList.remove('drag-over')"
-         ondrop="concilDrop(event)">
-      <input type="file" id="concil-file" accept=".ofx,.csv,.txt,.xlsx,.xls" style="display:none" onchange="concilCarregar(this.files[0])">
-      <div style="font-size:48px;margin-bottom:12px;">🏦</div>
-      <div style="font-size:16px;font-weight:700;color:var(--verde);margin-bottom:6px;">Importar Extrato Bancário</div>
-      <div style="font-size:13px;color:var(--cinza);">Arraste ou clique — OFX, CSV, TXT ou Excel (.xlsx/.xls)</div>
-    </div>
-  </div>
-
-  <!-- Resultado -->
-  <div id="concil-resultado" style="display:none;">
-    <!-- Resumo -->
-    <div class="stats-grid" style="margin-bottom:24px;">
-      <div class="stat-card"><div class="stat-label">Lançamentos no extrato</div><div class="stat-value" id="c-total">0</div></div>
-      <div class="stat-card" style="border-left-color:#22c55e;"><div class="stat-label">✅ Conciliados</div><div class="stat-value" style="color:#22c55e" id="c-ok">0</div></div>
-      <div class="stat-card" style="border-left-color:#f59e0b;"><div class="stat-label">⚠️ Duplicatas</div><div class="stat-value" style="color:#f59e0b" id="c-dup">0</div></div>
-      <div class="stat-card" style="border-left-color:#ef4444;"><div class="stat-label">❌ Sem match</div><div class="stat-value" style="color:#ef4444" id="c-sem">0</div></div>
-    </div>
-    <!-- Botão baixar -->
-    <div style="margin-bottom:20px;display:flex;align-items:center;gap:16px;">
-      <button class="btn btn-primary" id="btn-concil-baixar" onclick="concilBaixar()" style="display:none;">
-        ✓ Dar baixa nos <span id="c-baixar-qtd">0</span> conciliados
-      </button>
-      <span style="font-size:13px;color:var(--cinza);" id="concil-hint"></span>
-    </div>
-    <!-- Tabela -->
-    <div style="overflow-x:auto;">
-      <table class="data-table">
-        <thead><tr>
-          <th style="width:36px;"><input type="checkbox" id="concil-check-all" onchange="concilToggleAll(this.checked)"></th>
-          <th>Data Extrato</th>
-          <th>Descrição Extrato</th>
-          <th style="text-align:right">Valor</th>
-          <th>Match Lançamento</th>
-          <th>Status</th>
-          <th>Resultado</th>
-        </tr></thead>
-        <tbody id="concil-tbody"></tbody>
-      </table>
-    </div>
-  </div>
-</div>
-</div>
-
-<!-- VIEWER DE ANEXO -->
-<div class="viewer-overlay" id="viewerOverlay" onclick="if(event.target===this)fecharViewer()">
-  <div class="viewer-bar">
-    <span id="viewerNome" style="font-weight:600"></span>
-    <button onclick="fecharViewer()">✕ Fechar</button>
-  </div>
-  <div class="viewer-frame" id="viewerFrame"></div>
-</div>
-</body>
-</html>
+>
