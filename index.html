@@ -587,11 +587,12 @@ function fecharViewer() {
 }
 
 
+
 // ══════════════════════════════════════════
 // CONCILIAÇÃO BANCÁRIA
 // ══════════════════════════════════════════
-let _extrato = []; // linhas do extrato parseadas
-let _concilResult = []; // resultado do confronto
+let _extrato = [];
+let _concilResult = [];
 
 function concilDrop(e) {
   e.preventDefault();
@@ -602,63 +603,73 @@ function concilDrop(e) {
 
 async function concilCarregar(file) {
   if(!file) return;
-  showToast('⏳ Lendo extrato…');
+  showToast('\u23f3 Lendo extrato\u2026');
   try {
     const ext = file.name.split('.').pop().toLowerCase();
     if(ext === 'ofx') {
       _extrato = await parseOFX(file);
-    } else if(['xlsx','xls'].includes(ext)) {
+    } else if(ext === 'xlsx' || ext === 'xls') {
       _extrato = await parseExcelExtrato(file);
     } else {
       _extrato = await parseCSVExtrato(file);
     }
-    if(!_extrato.length) { showToast('⚠ Nenhum lançamento encontrado no extrato', true); return; }
-    showToast(`✓ ${_extrato.length} lançamentos no extrato`);
+    if(!_extrato.length) { showToast('\u26a0 Nenhum lan\u00e7amento encontrado no extrato', true); return; }
+    showToast('\u2713 ' + _extrato.length + ' lan\u00e7amentos no extrato');
     concilProcessar();
   } catch(e) {
-    showToast('⚠ Erro ao ler extrato: ' + e.message, true);
+    showToast('\u26a0 Erro ao ler extrato: ' + e.message, true);
     console.error(e);
   }
 }
 
-// Parser OFX
 async function parseOFX(file) {
   const text = await file.text();
   const rows = [];
-  const re = /<STMTTRN>([\s\S]*?)<\/STMTTRN>/gi;
-  let m;
-  while((m = re.exec(text)) !== null) {
-    const blk = m[1];
-    const val     = parseFloat((blk.match(/<TRNAMT>([-\d.]+)/i)||[])[1]||'0');
-    const memoArr = blk.match(/<MEMO>([^\r\n<]+)/i);
-    const nameArr = blk.match(/<NAME>([^\r\n<]+)/i);
-    const memo    = (memoArr ? memoArr[1] : (nameArr ? nameArr[1] : '')).trim();
-    const dtRaw   = ((blk.match(/<DTPOSTED>(\d+)/i)||[])[1]||'');
-    const dt      = dtRaw ? dtRaw.slice(0,4)+'-'+dtRaw.slice(4,6)+'-'+dtRaw.slice(6,8) : null;
-    if(val !== 0) rows.push({ data: dt, descricao: memo, valor: Math.abs(val) });
+  let pos = 0;
+  while(true) {
+    const s = text.indexOf('<STMTTRN>', pos);
+    if(s === -1) break;
+    const e2 = text.indexOf('</STMTTRN>', s);
+    if(e2 === -1) break;
+    const blk = text.slice(s+9, e2);
+    pos = e2 + 10;
+    // Extrair valor
+    const vi = blk.indexOf('<TRNAMT>');
+    const val = vi > -1 ? Math.abs(parseFloat(blk.slice(vi+8).split('<')[0].trim()) || 0) : 0;
+    if(val === 0) continue;
+    // Extrair memo/nome
+    let desc = '';
+    const mi = blk.indexOf('<MEMO>');
+    if(mi > -1) desc = blk.slice(mi+6).split('<')[0].trim();
+    if(!desc) { const ni = blk.indexOf('<NAME>'); if(ni>-1) desc = blk.slice(ni+6).split('<')[0].trim(); }
+    // Extrair data
+    const di = blk.indexOf('<DTPOSTED>');
+    let dt = null;
+    if(di > -1) {
+      const raw = blk.slice(di+10).split('<')[0].trim().slice(0,8);
+      if(raw.length===8) dt = raw.slice(0,4)+'-'+raw.slice(4,6)+'-'+raw.slice(6,8);
+    }
+    rows.push({ data: dt, descricao: desc, valor: val });
   }
   return rows;
 }
 
-// Parser CSV/TXT — tenta detectar colunas
 async function parseCSVExtrato(file) {
   const text = await file.text();
-  const linhas = text.split(/
-?
-/).filter(l => l.trim());
+  const linhas = text.split('\n').map(function(l){return l.replace('\r','');}).filter(function(l){return l.trim();});
   const rows = [];
-  for(const linha of linhas) {
-    const cols = linha.split(/[;,	]/);
-    // Procurar colunas com data e valor
+  for(let li = 0; li < linhas.length; li++) {
+    const linha = linhas[li];
+    const sep = linha.indexOf(';') > -1 ? ';' : linha.indexOf('\t') > -1 ? '\t' : ',';
+    const cols = linha.split(sep);
     let data = null, valor = null, desc = '';
-    for(const c of cols) {
-      const t = c.trim().replace(/"/g,'');
-      if(!data && /^\d{2}[\/\-]\d{2}[\/\-]\d{2,4}/.test(t)) {
-        const p = t.split(/[\/\-]/);
-        if(p.length===3) {
-          const y = p[2].length===2 ? '20'+p[2] : p[2];
-          data = p[2].length<=2 ? `${y}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`
-                                 : `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`;
+    for(let ci = 0; ci < cols.length; ci++) {
+      const t = cols[ci].trim().replace(/"/g,'');
+      if(!data) {
+        const pm = t.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{2,4})$/);
+        if(pm) {
+          const y = pm[3].length===2 ? '20'+pm[3] : pm[3];
+          data = y+'-'+pm[2].padStart(2,'0')+'-'+pm[1].padStart(2,'0');
         }
       }
       if(!valor) {
@@ -667,68 +678,61 @@ async function parseCSVExtrato(file) {
       }
       if(t.length > 4 && isNaN(parseFloat(t.replace(',','.')))) desc = t;
     }
-    if(data && valor) rows.push({ data, descricao: desc, valor });
+    if(data && valor) rows.push({ data: data, descricao: desc, valor: valor });
   }
   return rows;
 }
 
-// Parser Excel
 async function parseExcelExtrato(file) {
-  return new Promise((resolve, reject) => {
+  return new Promise(function(resolve, reject) {
     const reader = new FileReader();
-    reader.onload = e => {
+    reader.onload = function(e) {
       try {
         const wb = XLSX.read(e.target.result, { type:'array', cellDates:true });
         const ws = wb.Sheets[wb.SheetNames[0]];
         const data = XLSX.utils.sheet_to_json(ws, { header:1, defval:'' });
         const rows = [];
-        for(const row of data) {
+        for(let ri = 0; ri < data.length; ri++) {
+          const row = data[ri];
           let dt=null, val=null, desc='';
-          for(const cell of row) {
+          for(let ci = 0; ci < row.length; ci++) {
+            const cell = row[ci];
             if(cell instanceof Date) {
               dt = cell.toISOString().slice(0,10);
             } else if(typeof cell === 'number' && Math.abs(cell)>0.01 && Math.abs(cell)<10000000 && !val) {
               val = Math.abs(cell);
             } else if(typeof cell === 'string' && cell.length > 3) {
-              // Tentar parse de data string
               const dm = cell.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{2,4})$/);
               if(dm && !dt) {
                 const y = dm[3].length===2?'20'+dm[3]:dm[3];
-                dt = `${y}-${dm[2].padStart(2,'0')}-${dm[1].padStart(2,'0')}`;
-              } else if(!val) {
-                const n = parseFloat(cell.replace(/\./g,'').replace(',','.'));
-                if(!isNaN(n) && Math.abs(n)>0.01) val = Math.abs(n);
+                dt = y+'-'+dm[2].padStart(2,'0')+'-'+dm[1].padStart(2,'0');
               } else {
-                desc = cell;
+                const n = parseFloat(cell.replace(/\./g,'').replace(',','.'));
+                if(!isNaN(n) && Math.abs(n)>0.01 && !val) val = Math.abs(n);
+                else if(isNaN(n)) desc = cell;
               }
             }
           }
-          if(dt && val) rows.push({ data: dt, descricao: desc, valor: val });
+          if(dt && val) rows.push({ data:dt, descricao:desc, valor:val });
         }
         resolve(rows);
-      } catch(e) { reject(e); }
+      } catch(err) { reject(err); }
     };
-    reader.onerror = () => reject(new Error('Erro ao ler arquivo'));
+    reader.onerror = function() { reject(new Error('Erro ao ler arquivo')); };
     reader.readAsArrayBuffer(file);
   });
 }
 
-// Confronto extrato x lançamentos
 function concilProcessar() {
   const tol = parseFloat(document.getElementById('concil-tolerancia').value)||0.02;
   const contaFiltro = document.getElementById('concil-conta').value;
-
-  // Lançamentos A PAGAR filtrados pela conta selecionada
-  const candidatos = lancamentos.filter(l =>
-    l.status === 'A PAGAR' && (!contaFiltro || l.conta === contaFiltro)
-  );
-
-  _concilResult = _extrato.map(ext => {
-    // Buscar matches por valor (± tolerância) e data próxima (± 5 dias)
-    const matches = candidatos.filter(l => {
+  const candidatos = lancamentos.filter(function(l){
+    return l.status === 'A PAGAR' && (!contaFiltro || l.conta === contaFiltro);
+  });
+  _concilResult = _extrato.map(function(ext) {
+    const matches = candidatos.filter(function(l) {
       const difVal = Math.abs((+l.valor||0) - ext.valor);
       if(difVal > tol) return false;
-      // Verificar data se disponível
       if(ext.data && l.vencimento) {
         const d1 = new Date(ext.data), d2 = new Date(l.vencimento);
         const difDias = Math.abs((d1-d2)/(1000*60*60*24));
@@ -736,64 +740,56 @@ function concilProcessar() {
       }
       return true;
     });
-
-    if(matches.length === 0) return { ext, matches:[], tipo:'sem', selecionado:false };
-    if(matches.length === 1) return { ext, matches, tipo:'ok', selecionado:true, lancId: matches[0].id };
-    return { ext, matches, tipo:'dup', selecionado:false };
+    if(matches.length === 0) return { ext:ext, matches:[], tipo:'sem', selecionado:false };
+    if(matches.length === 1) return { ext:ext, matches:matches, tipo:'ok', selecionado:true, lancId:matches[0].id };
+    return { ext:ext, matches:matches, tipo:'dup', selecionado:false };
   });
-
   concilRenderizar();
 }
 
 function concilRenderizar() {
-  const ok  = _concilResult.filter(r=>r.tipo==='ok').length;
-  const dup = _concilResult.filter(r=>r.tipo==='dup').length;
-  const sem = _concilResult.filter(r=>r.tipo==='sem').length;
-  const sel = _concilResult.filter(r=>r.selecionado).length;
-
+  const ok  = _concilResult.filter(function(r){return r.tipo==='ok';}).length;
+  const dup = _concilResult.filter(function(r){return r.tipo==='dup';}).length;
+  const sem = _concilResult.filter(function(r){return r.tipo==='sem';}).length;
+  const sel = _concilResult.filter(function(r){return r.selecionado;}).length;
   document.getElementById('c-total').textContent = _concilResult.length;
   document.getElementById('c-ok').textContent  = ok;
   document.getElementById('c-dup').textContent = dup;
   document.getElementById('c-sem').textContent = sem;
   document.getElementById('c-baixar-qtd').textContent = sel;
-
   const btnBaixar = document.getElementById('btn-concil-baixar');
   btnBaixar.style.display = sel > 0 ? '' : 'none';
-  document.getElementById('concil-hint').textContent =
-    sel > 0 ? `${sel} lançamento(s) marcado(s) para baixa` : 'Marque os lançamentos para dar baixa';
-
+  document.getElementById('concil-hint').textContent = sel > 0
+    ? sel + ' lan\u00e7amento(s) marcado(s) para baixa'
+    : 'Marque os lan\u00e7amentos para dar baixa';
   const tbody = document.getElementById('concil-tbody');
-  tbody.innerHTML = _concilResult.map((r,i) => {
+  tbody.innerHTML = _concilResult.map(function(r,i) {
     const ext = r.ext;
     const badge = r.tipo==='ok'
-      ? '<span class="concil-badge concil-badge-ok">✅ Match único</span>'
+      ? '<span class="concil-badge concil-badge-ok">\u2705 Match \u00fanico</span>'
       : r.tipo==='dup'
-      ? '<span class="concil-badge concil-badge-dup">⚠️ Duplicata</span>'
-      : '<span class="concil-badge concil-badge-sem">❌ Sem match</span>';
-
+      ? '<span class="concil-badge concil-badge-dup">\u26a0\ufe0f Duplicata</span>'
+      : '<span class="concil-badge concil-badge-sem">\u274c Sem match</span>';
     const matchInfo = r.matches.length > 0
-      ? r.matches.map(m=>`<div style="font-size:12px"><strong>${m.codigo||m.id}</strong> — ${esc(m.fornecedor)} — R$ ${(+m.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>`).join('')
-      : '<span style="color:var(--cinza);font-size:12px">—</span>';
-
+      ? r.matches.map(function(m){return '<div style="font-size:12px"><strong>'+(m.codigo||m.id)+'</strong> \u2014 '+esc(m.fornecedor)+' \u2014 R$ '+(+m.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2})+'</div>';}).join('')
+      : '<span style="color:var(--cinza);font-size:12px">\u2014</span>';
     const chk = r.tipo !== 'sem'
-      ? `<input type="checkbox" ${r.selecionado?'checked':''} onchange="concilToggleItem(${i},this.checked)">`
+      ? '<input type="checkbox" '+(r.selecionado?'checked':'')+' onchange="concilToggleItem('+i+',this.checked)">'
       : '';
-
-    return `<tr class="concil-row-${r.tipo}">
-      <td>${chk}</td>
-      <td class="mono" style="white-space:nowrap">${fmtDate(ext.data)||'—'}</td>
-      <td style="font-size:12px;max-width:200px">${esc(ext.descricao)}</td>
-      <td class="mono" style="text-align:right">R$ ${ext.valor.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
-      <td>${matchInfo}</td>
-      <td><span class="badge ${r.matches[0]?.status==='PAGO'?'badge-pago':'badge-apagar'}">${r.matches[0]?.status||'—'}</span></td>
-      <td>${badge}</td>
-    </tr>`;
+    return '<tr class="concil-row-'+r.tipo+'">'
+      +'<td>'+chk+'</td>'
+      +'<td class="mono" style="white-space:nowrap">'+fmtDate(ext.data)+'</td>'
+      +'<td style="font-size:12px;max-width:200px">'+esc(ext.descricao)+'</td>'
+      +'<td class="mono" style="text-align:right">R$ '+ext.valor.toLocaleString('pt-BR',{minimumFractionDigits:2})+'</td>'
+      +'<td>'+matchInfo+'</td>'
+      +'<td><span class="badge '+(r.matches[0]&&r.matches[0].status==='PAGO'?'badge-pago':'badge-apagar')+'">'+(r.matches[0]?r.matches[0].status:'\u2014')+'</span></td>'
+      +'<td>'+badge+'</td>'
+      +'</tr>';
   }).join('');
-
   document.getElementById('concil-resultado').style.display = '';
   document.getElementById('concil-upload-area').style.display = 'none';
   document.getElementById('concil-subtitle').textContent =
-    `${_extrato.length} lançamentos no extrato — ${ok} conciliados, ${dup} duplicatas, ${sem} sem match`;
+    _extrato.length + ' lan\u00e7amentos no extrato \u2014 '+ok+' conciliados, '+dup+' duplicatas, '+sem+' sem match';
 }
 
 function concilToggleItem(i, checked) {
@@ -802,43 +798,34 @@ function concilToggleItem(i, checked) {
     if(checked && !_concilResult[i].lancId && _concilResult[i].matches.length>0)
       _concilResult[i].lancId = _concilResult[i].matches[0].id;
   }
-  // Atualizar contador
-  const sel = _concilResult.filter(r=>r.selecionado).length;
+  const sel = _concilResult.filter(function(r){return r.selecionado;}).length;
   document.getElementById('c-baixar-qtd').textContent = sel;
   document.getElementById('btn-concil-baixar').style.display = sel>0?'':'none';
-  document.getElementById('concil-hint').textContent = `${sel} lançamento(s) marcado(s) para baixa`;
+  document.getElementById('concil-hint').textContent = sel + ' lan\u00e7amento(s) marcado(s) para baixa';
 }
 
 function concilToggleAll(checked) {
-  _concilResult.forEach((r,i) => {
-    if(r.tipo !== 'sem') concilToggleItem(i, checked);
-  });
+  _concilResult.forEach(function(r,i){ if(r.tipo !== 'sem') concilToggleItem(i, checked); });
   concilRenderizar();
 }
 
 async function concilBaixar() {
-  const selecionados = _concilResult.filter(r=>r.selecionado && r.lancId);
+  const selecionados = _concilResult.filter(function(r){return r.selecionado && r.lancId;});
   if(!selecionados.length) return;
-  const dataPag = prompt('Data de pagamento (AAAA-MM-DD):',
-    new Date().toISOString().slice(0,10));
+  const dataPag = prompt('Data de pagamento (AAAA-MM-DD):', new Date().toISOString().slice(0,10));
   if(!dataPag) return;
-  showToast(`⏳ Dando baixa em ${selecionados.length} lançamentos…`);
+  showToast('\u23f3 Dando baixa em ' + selecionados.length + ' lan\u00e7amentos\u2026');
   try {
-    for(const r of selecionados) {
-      await sb(`${TABLE}?id=eq.${r.lancId}`, {
-        method:'PATCH',
-        body: JSON.stringify({ status:'PAGO', pagamento: dataPag })
-      });
-      // Atualizar localmente
-      const l = lancamentos.find(x=>x.id===r.lancId);
+    for(let i=0; i<selecionados.length; i++) {
+      const r = selecionados[i];
+      await sb(TABLE+'?id=eq.'+r.lancId, { method:'PATCH', body:JSON.stringify({ status:'PAGO', pagamento:dataPag }) });
+      const l = lancamentos.find(function(x){return x.id===r.lancId;});
       if(l) { l.status='PAGO'; l.pagamento=dataPag; }
     }
-    showToast(`✓ ${selecionados.length} lançamento(s) baixado(s)!`);
+    showToast('\u2713 ' + selecionados.length + ' lan\u00e7amento(s) baixado(s)!');
     limparConciliacao();
     await loadData();
-  } catch(e) {
-    showToast('⚠ Erro: '+e.message, true);
-  }
+  } catch(err) { showToast('\u26a0 Erro: '+err.message, true); }
 }
 
 function limparConciliacao() {
@@ -846,7 +833,7 @@ function limparConciliacao() {
   document.getElementById('concil-file').value = '';
   document.getElementById('concil-resultado').style.display = 'none';
   document.getElementById('concil-upload-area').style.display = '';
-  document.getElementById('concil-subtitle').textContent = 'Importe um extrato para confrontar com os lançamentos';
+  document.getElementById('concil-subtitle').textContent = 'Importe um extrato para confrontar com os lan\u00e7amentos';
 }
 
 
