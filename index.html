@@ -330,7 +330,7 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
     </div>
     <div class="form-section">
       <div class="section-label">03 — Valor & Conta</div>
-      <div class="form-grid">
+      <div class="form-grid" style="grid-template-columns:repeat(4,1fr);">
         <div class="field"><label>Valor <span class="req">★</span></label>
           <div class="valor-wrapper"><span class="valor-prefix">R$</span><input type="number" id="f_valor" placeholder="0,00" onchange="atualizarParcelas()" step="0.01" min="0"></div>
         </div>
