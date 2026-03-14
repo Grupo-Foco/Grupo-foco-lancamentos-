@@ -233,6 +233,243 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
   text-decoration: none;
 }
 .btn-ver-anexo:hover { background: var(--verde); color: var(--branco); }
+
+/* ══════════════════════════════════════════
+   RESPONSIVO MOBILE — max 768px
+══════════════════════════════════════════ */
+@media (max-width: 768px) {
+
+  /* ── HEADER ── */
+  header {
+    padding: 0 14px;
+    height: auto;
+    flex-wrap: wrap;
+    gap: 0;
+  }
+  .logo {
+    font-size: 15px;
+    padding: 10px 0 4px;
+    flex: 1;
+  }
+  .logo span { display: none; }
+
+  /* botão Sair no header */
+  header > div:last-child {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0 4px;
+  }
+  header > div:last-child button {
+    font-size: 11px;
+    padding: 5px 10px;
+  }
+  .sync-indicator { display: none; }
+  #nav-user { display: none !important; }
+
+  /* nav-tabs vira barra inferior fixa */
+  .nav-tabs {
+    order: 99;
+    width: 100%;
+    background: var(--verde);
+    border-top: 1px solid rgba(255,255,255,0.1);
+    display: flex;
+    gap: 0;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 200;
+    padding: 4px 8px 6px;
+    box-shadow: 0 -2px 12px rgba(0,0,0,0.25);
+  }
+  .nav-tab {
+    flex: 1;
+    padding: 10px 4px 8px;
+    font-size: 9px;
+    border-radius: 8px;
+    text-align: center;
+    letter-spacing: 0.04em;
+  }
+  .nav-tab.active {
+    background: var(--ouro);
+    color: var(--verde);
+  }
+
+  /* padding inferior para não ficar atrás da nav fixa */
+  body { padding-bottom: 68px; }
+
+  /* ── FORMULÁRIO ── */
+  .form-container {
+    margin: 16px auto;
+    padding: 0 12px;
+  }
+  .form-header h1 {
+    font-size: 24px;
+  }
+  .form-section {
+    padding: 18px 16px;
+  }
+
+  /* Todos os grids viram 1 coluna */
+  .form-grid,
+  .form-grid.four {
+    grid-template-columns: 1fr !important;
+    gap: 12px;
+  }
+
+  /* Exceto grids de 2 itens simples — ficam 2 colunas */
+  .form-grid.two-col {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .col-span-2 {
+    grid-column: span 1;
+  }
+
+  /* Status toggle */
+  .status-toggle { gap: 6px; }
+  .status-btn { font-size: 10px; padding: 10px 4px; }
+
+  /* Parcelas inline */
+  #f_parcelas { width: 60px !important; }
+
+  /* Ações do form */
+  .form-actions {
+    flex-direction: column;
+    gap: 10px;
+    padding: 16px;
+    align-items: stretch;
+  }
+  .form-actions > div {
+    flex-direction: column !important;
+    gap: 8px !important;
+    align-items: stretch !important;
+  }
+  .form-actions .btn, .form-actions button {
+    width: 100%;
+    justify-content: center;
+    font-size: 14px;
+    padding: 14px;
+  }
+  .save-feedback { justify-content: center; }
+
+  /* Parcelas preview */
+  .parcelas-preview { margin: 0 0 12px; }
+
+  /* ── ANEXOS ── */
+  .anexo-grid { grid-template-columns: 1fr; gap: 12px; }
+  .anexo-section { padding: 16px; }
+
+  /* ── PAINEL ── */
+  .panel-container {
+    margin: 16px auto;
+    padding: 0 12px;
+  }
+  .panel-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .panel-header h1 { font-size: 22px; }
+  .panel-header > div:last-child {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    width: 100%;
+  }
+  .panel-header .btn {
+    flex: 1;
+    justify-content: center;
+    padding: 10px 8px;
+    font-size: 12px;
+  }
+
+  /* Stats: 2 colunas */
+  .stats-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .stat-card { padding: 14px 16px; }
+  .stat-value { font-size: 18px; }
+  .stat-value.money { font-size: 14px; }
+
+  /* Filtros: coluna única */
+  .filters-bar {
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+  .filter-group { min-width: unset; flex: unset; width: 100%; }
+  .filter-search { min-width: unset; width: 100%; }
+  .filter-group select,
+  .filter-group input { padding: 10px 12px; font-size: 15px; }
+
+  /* Tabela: modo card horizontal com scroll */
+  .table-wrapper { border-radius: var(--radius); overflow: hidden; }
+  .table-toolbar {
+    padding: 10px 14px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .table-count { font-size: 10px; }
+
+  table { font-size: 12px; }
+  thead th { font-size: 8px; padding: 8px 10px; }
+  td { padding: 8px 10px; max-width: 140px; }
+
+  /* Esconde colunas menos importantes em mobile */
+  th:nth-child(7), td:nth-child(7),   /* fazenda */
+  th:nth-child(8), td:nth-child(8),   /* conta gerencial */
+  th:nth-child(9), td:nth-child(9),   /* conta */
+  th:nth-child(10), td:nth-child(10)  /* lancador */
+  { display: none; }
+
+  /* ── MODAL ── */
+  .modal {
+    width: 100%;
+    max-width: 100%;
+    max-height: 92vh;
+    border-radius: var(--radius) var(--radius) 0 0;
+    margin-top: auto;
+  }
+  .modal-overlay {
+    align-items: flex-end;
+  }
+  .modal-header { padding: 18px 18px 14px; }
+  .modal-body { padding: 16px 18px; }
+  .modal-footer { padding: 14px 18px; flex-wrap: wrap; gap: 8px; }
+  .modal-footer .btn { flex: 1; justify-content: center; }
+
+  .detail-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .detail-item.full { grid-column: span 2; }
+
+  /* ── TOAST ── */
+  .toast {
+    bottom: 80px; /* acima da nav bar */
+    right: 14px;
+    left: 14px;
+    font-size: 13px;
+    justify-content: center;
+  }
+
+  /* ── CONCILIAÇÃO ── */
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 400px) {
+  .form-header h1 { font-size: 20px; }
+  .stats-grid { grid-template-columns: 1fr; }
+  .detail-grid { grid-template-columns: 1fr; }
+  .detail-item.full { grid-column: span 1; }
+  .nav-tab { font-size: 8px; padding: 8px 2px; }
+}
 </style>
 </head>
 <body>
@@ -243,21 +480,7 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
 </div>
 
 <header>
-  <div style="display:flex;align-items:center;gap:12px;">
-    <button class="hamburger" id="hamburger" onclick="toggleMenu()" aria-label="Menu">
-      <span></span><span></span><span></span>
-    </button>
-    <div style="display:flex;align-items:center;gap:8px;">
-      <svg width="32" height="36" viewBox="0 0 100 115" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M88 8 C88 8 18 18 12 80 C12 80 42 28 88 8Z" fill="#8bc34a"/>
-        <path d="M82 22 C82 22 28 42 22 88 C22 88 58 48 82 22Z" fill="#4a7c2f"/>
-      </svg>
-      <div style="line-height:1.1;">
-        <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:19px;color:var(--ouro);letter-spacing:.06em;">FOCO</div>
-        <div style="font-family:'DM Mono',monospace;font-size:8px;color:rgba(255,255,255,.55);letter-spacing:.14em;text-transform:uppercase;">Agropecuária</div>
-      </div>
-    </div>
-  </div>
+  <div class="logo">◈ GRUPO FOCO <span>/ Lançamentos</span></div>
   <nav class="nav-tabs">
     <button class="nav-tab active" onclick="showView('form')">＋ Novo Lançamento</button>
     <button class="nav-tab" onclick="showView('panel')">⊞ Painel</button>
@@ -465,9 +688,7 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
         </tr></thead>
         <tbody id="tableBody"></tbody>
       </table>
-      <div id="emptyState" class="empty-state" style="display:none;"><div class="icon">◈</div>
-<div id="mobile-cards"></div>
-<p>Nenhum lançamento encontrado.</p></div>
+      <div id="emptyState" class="empty-state" style="display:none;"><div class="icon">◈</div><p>Nenhum lançamento encontrado.</p></div>
     </div>
   </div>
 </div>
@@ -997,53 +1218,6 @@ function extrairLancamentosPDF(texto) {
 }
 
 
-
-// ── MOBILE ──
-function toggleMenu() {
-  var nav = document.querySelector('.nav-tabs');
-  var btn = document.getElementById('hamburger');
-  nav.classList.toggle('open');
-  btn.classList.toggle('open');
-}
-
-// Fechar menu ao clicar em item
-document.querySelectorAll('.nav-tab').forEach(function(btn) {
-  btn.addEventListener('click', function() {
-    document.querySelector('.nav-tabs').classList.remove('open');
-    document.getElementById('hamburger').classList.remove('open');
-  });
-});
-
-function isMobile() { return window.innerWidth <= 768; }
-
-function renderCards() {
-  var container = document.getElementById('mobile-cards');
-  if(!container) return;
-  if(!filtered.length) { container.innerHTML = '<div style="text-align:center;color:var(--cinza);padding:40px;font-family:DM Mono,monospace;font-size:12px;">Nenhum lançamento encontrado</div>'; return; }
-  container.innerHTML = filtered.map(function(l) {
-    var statusClass = l.status === 'PAGO' ? 'pago' : 'apagar';
-    var statusLabel = l.status === 'PAGO' ? 'PAGO' : 'A PAGAR';
-    var venc = l.vencimento ? new Date(l.vencimento+'T12:00:00').toLocaleDateString('pt-BR') : '—';
-    var valor = (+l.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
-    var forn = (l.fornecedor||'').length > 28 ? (l.fornecedor||'').substring(0,28)+'…' : (l.fornecedor||'—');
-    return '<div class="mobile-card '+statusClass+'" onclick="openDetail('+l.id+')">' +
-      '<div class="mc-header">' +
-        '<div class="mc-fornecedor">'+esc(forn)+'</div>' +
-        '<span class="mc-status '+statusClass+'">'+statusLabel+'</span>' +
-      '</div>' +
-      '<div class="mc-row"><span>'+(l.codigo||String(l.id).padStart(4,'0'))+'</span><span>'+esc(l.fazenda||'—')+'</span></div>' +
-      '<div class="mc-row"><span>Venc: '+venc+'</span><span>'+esc(l.cg||'—')+'</span></div>' +
-      '<div class="mc-valor">R$ '+valor+'</div>' +
-    '</div>';
-  }).join('');
-}
-
-
-
-window.addEventListener('resize', function() {
-  if(isMobile()) { renderCards(); }
-});
-
 async function init() {
   setLoading(true,'CONECTANDO AO BANCO…');
   try {
@@ -1176,7 +1350,6 @@ function applyFilters() {
     return av<bv?-sortDir:av>bv?sortDir:0;
   });
   renderTable(); renderStats();
-  if(isMobile()) renderCards();
   document.getElementById('panel-subtitle').textContent=`${lancamentos.length} lançamentos no total — ${filtered.length} exibidos`;
 }
 
@@ -1480,7 +1653,6 @@ function showView(v) {
   document.querySelectorAll('.nav-tab').forEach(el=>el.classList.remove('active'));
   const viewEl = document.getElementById('view-'+v);
   if(viewEl) viewEl.classList.add('active');
-  if(v==='panel' && isMobile()) setTimeout(renderCards, 50);
   const tabs = document.querySelectorAll('.nav-tab');
   const idx = v==='form'?0:v==='panel'?1:2;
   if(tabs[idx]) tabs[idx].classList.add('active');
