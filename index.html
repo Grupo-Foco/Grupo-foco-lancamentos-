@@ -80,15 +80,22 @@
   </div>
   <script>
     var USERS = {
-      'rodolfo':'foco2026','ivan':'ivan2026','joao':'joao2026',
-      'adriana':'adriana2026','nirlany':'nirlany2026','renara':'renara2026',
-      'wenya':'wenya2026','henrique':'henrique2026'
+      'rodolfo':  { senha:'foco2026',     role:'gestor' },
+      'ivan':     { senha:'ivan2026',     role:'gestor' },
+      'joao':     { senha:'joao2026',     role:'gestor' },
+      'adriana':  { senha:'adriana2026',  role:'gestor' },
+      'nirlany':  { senha:'nirlany2026',  role:'funcionario' },
+      'renara':   { senha:'renara2026',   role:'funcionario' },
+      'wenya':    { senha:'wenya2026',    role:'funcionario' },
+      'henrique': { senha:'henrique2026', role:'funcionario' }
     };
     function login() {
       var u = (document.getElementById('u').value||'').trim().toLowerCase();
       var p = document.getElementById('p').value||'';
-      if(USERS[u] && USERS[u]===p) {
+      var user = USERS[u];
+      if(user && user.senha === p) {
         sessionStorage.setItem('gf_user', u.charAt(0).toUpperCase()+u.slice(1));
+        sessionStorage.setItem('gf_role', user.role);
         window.location.href = 'app.html';
       } else {
         var err = document.getElementById('err');
