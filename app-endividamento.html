@@ -274,6 +274,7 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
         <div class="role-tag" id="userRole">—</div>
       </div>
     </div>
+    <button onclick="window.location.href='app.html'" style="font-size:11px;padding:5px 13px;background:rgba(200,168,75,0.15);border:1px solid rgba(200,168,75,0.35);border-radius:6px;color:var(--ouro-light);cursor:pointer;font-family:'DM Mono',monospace;letter-spacing:0.04em;font-weight:600;transition:background .2s;margin-right:2px;" onmouseover="this.style.background='rgba(200,168,75,0.28)'" onmouseout="this.style.background='rgba(200,168,75,0.15)'">← Lançamentos</button>
     <button class="btn-sair" onclick="logout()">⎋ Sair</button>
   </div>
 </header>
@@ -648,7 +649,8 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
           <th onclick="sortLanc('valor_parcela')" style="text-align:right">Parcela</th>
           <th onclick="sortLanc('saldo_devedor')" style="text-align:right">Saldo Dev.</th>
           <th>Status</th>
-          <th>Pago em</th>
+          <th style="min-width:70px">Pago em</th>
+          <th style="width:90px;text-align:center">Ação</th>
         </tr></thead>
         <tbody id="tbody-lancamentos"></tbody>
       </table>
@@ -1145,7 +1147,7 @@ function abrirDetalheContrato(id) {
       +'<td class="mono" style="text-align:right">'+fmtMoeda(l.saldo_devedor)+'</td>'
       +'<td><span class="badge '+(l.status==='PAGO'?'badge-ativa':'badge-cp')+'">'+l.status+'</span></td>'
       +'<td class="mono">'+fmtData(l.data_pagamento)+'</td>'
-      +'<td>'+baixaBtn+'</td>'
+      +'<td style="text-align:center;white-space:nowrap">'+baixaBtn+'</td>'
       +'</tr>';
   }).join('');
   document.getElementById('modal-parcelas-tbody').innerHTML = tbodyHtml || '<tr><td colspan="8" style="text-align:center;color:var(--cinza);font-size:13px;padding:20px;">Nenhuma parcela cadastrada</td></tr>';
@@ -1225,7 +1227,7 @@ function renderLancamentos() {
   tbody.innerHTML = lancamentosFiltrados.map(function(l) {
     var vencida = l.status==='A PAGAR' && l.data_parcela < hojeStr;
     var baixaBtn = isGestor() && l.status==='A PAGAR'
-      ? '<button class="btn btn-warn btn-sm" onclick="event.stopPropagation();abrirBaixaInd('+l.id+')">↓ Baixar</button>'
+      ? '<button class="btn btn-warn" style="padding:4px 10px;font-size:10px;" onclick="event.stopPropagation();abrirBaixaInd('+l.id+')">↓ Baixa</button>'
       : '';
     return '<tr style="'+(vencida?'background:#fff9f9':'')+'">'
       +'<td onclick="event.stopPropagation()"><input type="checkbox" class="chk-l" data-id="'+l.id+'" onchange="checkSelLanc()"></td>'
@@ -1241,7 +1243,7 @@ function renderLancamentos() {
       +'<td class="mono" style="text-align:right;color:var(--cinza)">'+fmtMoeda(l.saldo_devedor)+'</td>'
       +'<td><span class="badge '+(l.status==='PAGO'?'badge-ativa':'badge-cp')+'">'+l.status+'</span></td>'
       +'<td class="mono">'+fmtData(l.data_pagamento)+'</td>'
-      +'<td>'+baixaBtn+'</td>'
+      +'<td style="text-align:center;white-space:nowrap">'+baixaBtn+'</td>'
       +'</tr>';
   }).join('');
   document.getElementById('empty-lancamentos').style.display = lancamentosFiltrados.length ? 'none' : 'block';
@@ -1543,7 +1545,11 @@ async function confirmarBaixaInd() {
 // EXPORT EXCEL
 // ══════════════════════════════════════════════════════
 function exportarExcel() {
-  var data = lancamentos.map(function(l) {
+  // Usar lançamentos filtrados quando há filtro ativo, senão todos
+  var fonte = lancamentosFiltrados && lancamentosFiltrados.length > 0 && lancamentosFiltrados.length < lancamentos.length
+    ? lancamentosFiltrados
+    : lancamentos;
+  var data = fonte.map(function(l) {
     return {
       'Titular': l.titular,
       'Banco': l.banco,
@@ -1566,7 +1572,13 @@ function exportarExcel() {
   XLSX.utils.book_append_sheet(wb, ws, 'Lançamentos');
 
   // Aba contratos
-  var dc = contratos.map(function(c) {
+  // Filtrar contratos pelos mesmos titulares/banco dos lançamentos filtrados
+  var titularesFiltrados = [...new Set(fonte.map(function(l){return l.titular;}))];
+  var bancosFiltrados = [...new Set(fonte.map(function(l){return l.banco;}))];
+  var contratosFonte = (fonte.length < lancamentos.length)
+    ? contratos.filter(function(c){ return titularesFiltrados.includes(c.titular) && bancosFiltrados.includes(c.banco); })
+    : contratos;
+  var dc = contratosFonte.map(function(c) {
     return {
       'Titular': c.titular,
       'Banco': c.banco,
@@ -1583,7 +1595,8 @@ function exportarExcel() {
   var ws2 = XLSX.utils.json_to_sheet(dc);
   XLSX.utils.book_append_sheet(wb, ws2, 'Contratos');
 
-  XLSX.writeFile(wb, 'Endividamento_GrupoFoco_'+new Date().toISOString().slice(0,10)+'.xlsx');
+  var sufixo = fonte.length < lancamentos.length ? '_filtrado_'+fonte.length+'parc' : '';
+  XLSX.writeFile(wb, 'Endividamento_GrupoFoco'+sufixo+'_'+new Date().toISOString().slice(0,10)+'.xlsx');
   showToast('✓ Exportado!');
 }
 
