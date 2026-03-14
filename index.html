@@ -36,7 +36,7 @@ header{background:var(--verde);padding:0 40px;display:flex;align-items:center;ju
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
 @keyframes spin{to{transform:rotate(360deg);}}
 .view{display:none;}.view.active{display:block !important;}
-.loading-overlay{position:fixed;inset:0;background:rgba(26,58,42,0.75);backdrop-filter:blur(6px);z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;}
+.loading-overlay{position:fixed;inset:0;background:rgba(26,58,42,0.75);backdrop-filter:blur(6px);z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;}
 .loading-overlay.hidden{display:none;}
 .spinner{width:44px;height:44px;border:3px solid rgba(200,168,75,0.3);border-top-color:var(--ouro);border-radius:50%;animation:spin 0.8s linear infinite;}
 .loading-text{font-family:'DM Mono',monospace;font-size:12px;color:var(--ouro-light);letter-spacing:0.12em;}
@@ -258,7 +258,7 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
   </div>
 
 
-<div class="loading-overlay" id="loadingOverlay">
+<div class="loading-overlay hidden" id="loadingOverlay">
   <div class="spinner"></div>
   <div class="loading-text" id="loadingText">CONECTANDO AO BANCO…</div>
 </div>
@@ -284,6 +284,10 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
     </div>
   </div>
 </header>
+<div class="loading-overlay hidden" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loadingText">CONECTANDO AO BANCO…</div>
+</div>
 
 <!-- FORMULÁRIO -->
 <div id="view-form" class="view active">
