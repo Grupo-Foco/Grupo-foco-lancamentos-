@@ -243,7 +243,12 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
 </div>
 
 <header>
-  <div class="logo">◈ GRUPO FOCO <span>/ Lançamentos</span></div>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <button class="hamburger" id="hamburger" onclick="toggleMenu()" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="logo">◈ GRUPO FOCO <span>/ Lançamentos</span></div>
+  </div>
   <nav class="nav-tabs">
     <button class="nav-tab active" onclick="showView('form')">＋ Novo Lançamento</button>
     <button class="nav-tab" onclick="showView('panel')">⊞ Painel</button>
@@ -451,7 +456,9 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
         </tr></thead>
         <tbody id="tableBody"></tbody>
       </table>
-      <div id="emptyState" class="empty-state" style="display:none;"><div class="icon">◈</div><p>Nenhum lançamento encontrado.</p></div>
+      <div id="emptyState" class="empty-state" style="display:none;"><div class="icon">◈</div>
+<div id="mobile-cards"></div>
+<p>Nenhum lançamento encontrado.</p></div>
     </div>
   </div>
 </div>
@@ -981,6 +988,53 @@ function extrairLancamentosPDF(texto) {
 }
 
 
+
+// ── MOBILE ──
+function toggleMenu() {
+  var nav = document.querySelector('.nav-tabs');
+  var btn = document.getElementById('hamburger');
+  nav.classList.toggle('open');
+  btn.classList.toggle('open');
+}
+
+// Fechar menu ao clicar em item
+document.querySelectorAll('.nav-tab').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    document.querySelector('.nav-tabs').classList.remove('open');
+    document.getElementById('hamburger').classList.remove('open');
+  });
+});
+
+function isMobile() { return window.innerWidth <= 768; }
+
+function renderCards() {
+  var container = document.getElementById('mobile-cards');
+  if(!container) return;
+  if(!filtered.length) { container.innerHTML = '<div style="text-align:center;color:var(--cinza);padding:40px;font-family:DM Mono,monospace;font-size:12px;">Nenhum lançamento encontrado</div>'; return; }
+  container.innerHTML = filtered.map(function(l) {
+    var statusClass = l.status === 'PAGO' ? 'pago' : 'apagar';
+    var statusLabel = l.status === 'PAGO' ? 'PAGO' : 'A PAGAR';
+    var venc = l.vencimento ? new Date(l.vencimento+'T12:00:00').toLocaleDateString('pt-BR') : '—';
+    var valor = (+l.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+    var forn = (l.fornecedor||'').length > 28 ? (l.fornecedor||'').substring(0,28)+'…' : (l.fornecedor||'—');
+    return '<div class="mobile-card '+statusClass+'" onclick="openDetail('+l.id+')">' +
+      '<div class="mc-header">' +
+        '<div class="mc-fornecedor">'+esc(forn)+'</div>' +
+        '<span class="mc-status '+statusClass+'">'+statusLabel+'</span>' +
+      '</div>' +
+      '<div class="mc-row"><span>'+(l.codigo||String(l.id).padStart(4,'0'))+'</span><span>'+esc(l.fazenda||'—')+'</span></div>' +
+      '<div class="mc-row"><span>Venc: '+venc+'</span><span>'+esc(l.cg||'—')+'</span></div>' +
+      '<div class="mc-valor">R$ '+valor+'</div>' +
+    '</div>';
+  }).join('');
+}
+
+
+
+window.addEventListener('resize', function() {
+  if(isMobile()) { renderCards(); }
+});
+
 async function init() {
   setLoading(true,'CONECTANDO AO BANCO…');
   try {
@@ -1113,6 +1167,7 @@ function applyFilters() {
     return av<bv?-sortDir:av>bv?sortDir:0;
   });
   renderTable(); renderStats();
+  if(isMobile()) renderCards();
   document.getElementById('panel-subtitle').textContent=`${lancamentos.length} lançamentos no total — ${filtered.length} exibidos`;
 }
 
@@ -1416,6 +1471,7 @@ function showView(v) {
   document.querySelectorAll('.nav-tab').forEach(el=>el.classList.remove('active'));
   const viewEl = document.getElementById('view-'+v);
   if(viewEl) viewEl.classList.add('active');
+  if(v==='panel' && isMobile()) setTimeout(renderCards, 50);
   const tabs = document.querySelectorAll('.nav-tab');
   const idx = v==='form'?0:v==='panel'?1:2;
   if(tabs[idx]) tabs[idx].classList.add('active');
