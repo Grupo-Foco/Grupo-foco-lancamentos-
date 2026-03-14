@@ -893,17 +893,16 @@ function fazerLogin() {
 }
 
 function verificarSessao() {
-  var user = localStorage.getItem('gf_user');
-  var ts   = parseInt(localStorage.getItem('gf_login_ts')||'0');
-  var oito_horas = 8 * 60 * 60 * 1000;
-  if(user && (Date.now() - ts) < oito_horas) {
-    currentUser = user;
-    document.getElementById('view-login').style.display = 'none';
-    init();
-  } else {
-    // Sessão expirada ou sem login — mostrar tela
-    document.getElementById('login-user').focus();
-  }
+  // Limpar qualquer sessão anterior para garantir que o login apareça
+  localStorage.removeItem('gf_user');
+  localStorage.removeItem('gf_login_ts');
+  // Mostrar tela de login
+  var loginView = document.getElementById('view-login');
+  if(loginView) loginView.style.display = 'flex';
+  setTimeout(function(){
+    var el = document.getElementById('login-user');
+    if(el) el.focus();
+  }, 100);
 }
 
 function fazerLogout() {
