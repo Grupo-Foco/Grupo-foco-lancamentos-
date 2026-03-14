@@ -699,12 +699,23 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
     </div>
     <div class="modal-body">
       <p style="font-size:14px;color:var(--cinza);margin-bottom:16px;" id="baixa-msg">—</p>
-      <div class="field">
-        <label>Data de Pagamento <span class="req">★</span></label>
-        <input type="date" id="baixa-data">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        <div class="field">
+          <label>Data de Pagamento <span class="req">★</span></label>
+          <input type="date" id="baixa-data">
+        </div>
+        <div class="field">
+          <label>Valor Pago (R$) — opcional</label>
+          <div class="valor-wrap">
+            <span class="valor-pre">R$</span>
+            <input type="number" id="baixa-valor" step="0.01" min="0" placeholder="Manter previsto"
+              style="padding-left:36px;" title="Deixe vazio para manter o valor previsto de cada parcela">
+          </div>
+        </div>
       </div>
-      <div style="margin-top:12px;padding:12px;background:var(--creme);border-radius:var(--radius-sm);font-family:'DM Mono',monospace;font-size:11px;color:var(--cinza);">
-        Os lançamentos <strong>A PAGAR</strong> selecionados serão marcados como <strong style="color:var(--sucesso);">PAGO</strong>.
+      <div style="margin-top:12px;padding:10px 12px;background:var(--creme);border-radius:var(--radius-sm);font-family:'DM Mono',monospace;font-size:10px;color:var(--cinza);">
+        Parcelas <strong>A PAGAR</strong> selecionadas → <strong style="color:var(--sucesso);">PAGO</strong>.
+        Se informar valor, ele será aplicado a todas. Sem valor, mantém o previsto de cada parcela.
       </div>
     </div>
     <div class="modal-footer">
@@ -723,9 +734,22 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
     </div>
     <div class="modal-body">
       <div class="detail-grid" style="grid-template-columns:1fr 1fr;margin-bottom:16px;" id="baixa-ind-detalhe"></div>
-      <div class="field">
-        <label>Data de Pagamento <span class="req">★</span></label>
-        <input type="date" id="baixa-ind-data">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:4px;">
+        <div class="field">
+          <label>Data de Pagamento <span class="req">★</span></label>
+          <input type="date" id="baixa-ind-data">
+        </div>
+        <div class="field">
+          <label>Valor Pago (R$) <span class="req">★</span></label>
+          <div class="valor-wrap">
+            <span class="valor-pre">R$</span>
+            <input type="number" id="baixa-ind-valor" step="0.01" min="0" placeholder="0,00"
+              style="padding-left:36px;" title="Deixe igual ao previsto se não houver diferença">
+          </div>
+          <span style="font-family:'DM Mono',monospace;font-size:9px;color:var(--cinza);margin-top:3px;">
+            Previsto: <span id="baixa-ind-valor-prev" style="color:var(--verde-light);">—</span>
+          </span>
+        </div>
       </div>
     </div>
     <div class="modal-footer">
@@ -1489,20 +1513,27 @@ function abrirBaixaInd(id) {
     di('Contrato', l.numero_contrato) + di('Vencimento', fmtData(l.data_parcela)) +
     di('Valor', fmtMoeda(l.valor_parcela)) + di('Modalidade', l.modalidade);
   document.getElementById('baixa-ind-data').value = new Date().toISOString().slice(0,10);
+  document.getElementById('baixa-ind-valor').value = l.valor_parcela ? (+l.valor_parcela).toFixed(2) : '';
+  document.getElementById('baixa-ind-valor-prev').textContent = fmtMoeda(l.valor_parcela);
   document.getElementById('modalBaixaInd').classList.add('open');
 }
 
 async function confirmarBaixa() {
   var dataPag = document.getElementById('baixa-data').value;
   if(!dataPag) { showToast('⚠ Informe a data', 'warn'); return; }
+  var valorPagoStr = document.getElementById('baixa-valor').value;
+  var valorPago = valorPagoStr ? parseFloat(valorPagoStr) : null;
+  if(valorPagoStr && (isNaN(valorPago) || valorPago < 0)) { showToast('⚠ Valor inválido', 'warn'); return; }
   var btn = document.getElementById('btn-confirmar-baixa');
   btn.disabled = true; btn.textContent = 'Salvando…';
   try {
     for(var i=0;i<baixaIds.length;i++) {
       var id = baixaIds[i];
-      try { await sb(TB_LANCAMENTOS+'?id=eq.'+id, {method:'PATCH', body:JSON.stringify({status:'PAGO',data_pagamento:dataPag})}); } catch(e){}
+      var patch = {status:'PAGO', data_pagamento:dataPag};
+      if(valorPago !== null) patch.valor_parcela = valorPago;
+      try { await sb(TB_LANCAMENTOS+'?id=eq.'+id, {method:'PATCH', body:JSON.stringify(patch)}); } catch(e){}
       var l = lancamentos.find(function(x){return x.id===id;});
-      if(l) { l.status='PAGO'; l.data_pagamento=dataPag; }
+      if(l) { l.status='PAGO'; l.data_pagamento=dataPag; if(valorPago!==null) l.valor_parcela=valorPago; }
       btn.textContent = 'Salvando '+(i+1)+'/'+baixaIds.length+'…';
     }
     fecharModal('modalBaixa');
@@ -1520,12 +1551,17 @@ async function confirmarBaixa() {
 async function confirmarBaixaInd() {
   var dataPag = document.getElementById('baixa-ind-data').value;
   if(!dataPag) { showToast('⚠ Informe a data', 'warn'); return; }
+  var valorPagoStr = document.getElementById('baixa-ind-valor').value;
+  var valorPago = valorPagoStr ? parseFloat(valorPagoStr) : null;
+  if(valorPagoStr && (isNaN(valorPago) || valorPago < 0)) { showToast('⚠ Valor inválido', 'warn'); return; }
   var btn = document.getElementById('btn-confirmar-baixa-ind');
   btn.disabled = true; btn.textContent = 'Salvando…';
   try {
-    try { await sb(TB_LANCAMENTOS+'?id=eq.'+baixaIndId, {method:'PATCH', body:JSON.stringify({status:'PAGO',data_pagamento:dataPag})}); } catch(e){}
+    var patch = {status:'PAGO', data_pagamento:dataPag};
+    if(valorPago !== null) patch.valor_parcela = valorPago;
+    try { await sb(TB_LANCAMENTOS+'?id=eq.'+baixaIndId, {method:'PATCH', body:JSON.stringify(patch)}); } catch(e){}
     var l = lancamentos.find(function(x){return x.id===baixaIndId;});
-    if(l) { l.status='PAGO'; l.data_pagamento=dataPag; }
+    if(l) { l.status='PAGO'; l.data_pagamento=dataPag; if(valorPago!==null) l.valor_parcela=valorPago; }
     fecharModal('modalBaixaInd');
     // Se detalhe do contrato está aberto, atualiza
     if(document.getElementById('modalDetalhe').classList.contains('open') && contratoAtualId) {
