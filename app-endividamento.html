@@ -907,7 +907,7 @@ function renderDashboard() {
   var hojeStr = hoje.toISOString().slice(0,10);
 
   var abertos = lancamentos.filter(function(l){ return l.status === 'A PAGAR'; });
-  var saldo = contratos.reduce(function(s,c){ return s + (+c.saldo_devedor||0); }, 0);
+  var saldo = lancamentos.reduce(function(s,l){ return s + (+l.saldo_devedor||0); }, 0);
   var parc2026 = lancamentos.filter(function(l){ return l.ano === 'ANO 2026' && l.status === 'A PAGAR'; });
   var val2026 = parc2026.reduce(function(s,l){ return s + (+l.valor_parcela||0); }, 0);
   var prox60 = abertos.filter(function(l){ return l.data_parcela <= d60str; });
@@ -935,8 +935,8 @@ function renderAlertas(abertos, hojeStr, d60str) {
   var html = '';
   var vencidas = abertos.filter(function(l){ return l.data_parcela < hojeStr; });
   var prox30 = abertos.filter(function(l){ return l.data_parcela >= hojeStr && l.data_parcela <= new Date(new Date().getTime()+30*864e5).toISOString().slice(0,10); });
-  var valAbr = lancamentos.filter(function(l){ return l.ano==='ANO 2026' && l.mes_parcela===4; }).reduce(function(s,l){return s+(+l.valor_parcela||0);},0);
-  var valMai = lancamentos.filter(function(l){ return l.ano==='ANO 2026' && l.mes_parcela===5; }).reduce(function(s,l){return s+(+l.valor_parcela||0);},0);
+  var valAbr = lancamentos.filter(function(l){ return l.ano==='ANO 2026' && l.mes_parcela===4 && l.status==='A PAGAR'; }).reduce(function(s,l){return s+(+l.valor_parcela||0);},0);
+  var valMai = lancamentos.filter(function(l){ return l.ano==='ANO 2026' && l.mes_parcela===5 && l.status==='A PAGAR'; }).reduce(function(s,l){return s+(+l.valor_parcela||0);},0);
 
   if(vencidas.length > 0) {
     var valVenc = vencidas.reduce(function(s,l){return s+(+l.valor_parcela||0);},0);
@@ -984,7 +984,7 @@ function renderChartCat() {
   var cats = ['Investimento','Custeio','Aditivo','CPR'];
   var colors = ['#2d5c3f','#c8a84b','#c0392b','#8a8a7a'];
   var data = cats.map(function(c) {
-    return contratos.filter(function(x){return x.categoria===c;}).reduce(function(s,x){return s+(+x.saldo_devedor||0);},0)/1e6;
+    return lancamentos.filter(function(x){return x.categoria===c;}).reduce(function(s,x){return s+(+x.saldo_devedor||0);},0)/1e6;
   });
   chartsInstances['chartCat'] = new Chart(document.getElementById('chartCat'), {
     type:'doughnut',
@@ -1020,10 +1020,10 @@ function renderBarsBanco() {
   var bancos = ['BB','BRADESCO','BASA','ITAU','CNH','CEF','JD','SICOOB'];
   var colors = ['#2d5c3f','#7F77DD','#5DCAA5','#EF9F27','#D85A30','#378ADD','#C0DD97','#D3D1C7'];
   var dados = bancos.map(function(b) {
-    return contratos.filter(function(c){return c.banco===b;}).reduce(function(s,c){return s+(+c.saldo_devedor||0);},0);
+    return lancamentos.filter(function(l){return l.banco===b;}).reduce(function(s,l){return s+(+l.saldo_devedor||0);},0);
   }).filter(function(v){return v>0;});
   var bancosAtivos = bancos.filter(function(b) {
-    return contratos.some(function(c){return c.banco===b&&(+c.saldo_devedor||0)>0;});
+    return lancamentos.some(function(l){return l.banco===b&&(+l.saldo_devedor||0)>0;});
   });
   var max = Math.max.apply(null, dados);
   var html = bancosAtivos.map(function(b,i) {
@@ -1039,13 +1039,13 @@ function renderBarsTitular() {
   var cats = ['Investimento','Custeio','Aditivo','CPR'];
   var colors = {'Investimento':'#2d5c3f','Custeio':'#c8a84b','Aditivo':'#c0392b','CPR':'#8a8a7a'};
   var html = titulares.map(function(t) {
-    var total = contratos.filter(function(c){return c.titular===t;}).reduce(function(s,c){return s+(+c.saldo_devedor||0);},0);
+    var total = lancamentos.filter(function(l){return l.titular===t;}).reduce(function(s,l){return s+(+l.saldo_devedor||0);},0);
     var nContr = contratos.filter(function(c){return c.titular===t;}).length;
     if(total === 0) return '';
-    var maxTotal = contratos.reduce(function(mx,c){return (+c.saldo_devedor||0)>mx?(+c.saldo_devedor||0):mx;},0)*4;
+    var maxTotal = lancamentos.reduce(function(mx,l){return (+l.saldo_devedor||0)>mx?(+l.saldo_devedor||0):mx;},0)*4;
     var barPct = maxTotal > 0 ? (total/maxTotal*100) : 0;
     var catBars = cats.map(function(cat) {
-      var v = contratos.filter(function(c){return c.titular===t&&c.categoria===cat;}).reduce(function(s,c){return s+(+c.saldo_devedor||0);},0);
+      var v = lancamentos.filter(function(l){return l.titular===t&&l.categoria===cat;}).reduce(function(s,l){return s+(+l.saldo_devedor||0);},0);
       var pct = total > 0 ? (v/total*100) : 0;
       return pct > 0 ? '<div style="height:6px;width:'+pct+'%;background:'+colors[cat]+';display:inline-block;border-radius:2px;margin-right:2px;" title="'+cat+': '+fmtMoeda(v)+'"></div>' : '';
     }).join('');
