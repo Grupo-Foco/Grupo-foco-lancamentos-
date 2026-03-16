@@ -484,7 +484,7 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
 <header>
   <div class="logo">◈ GRUPO FOCO <span>/ Lançamentos</span></div>
   <nav class="nav-tabs">
-    <button class="nav-tab active" onclick="showView('form')">＋ Novo Lançamento</button>
+    <button class="nav-tab active" onclick="showView('form');resetAnexos()">＋ Novo Lançamento</button>
     <button class="nav-tab" onclick="showView('panel')">⊞ Painel</button>
     <button class="nav-tab" id="nav-conciliacao" onclick="showView('conciliacao')">⇄ Conciliação</button>
   </nav>
@@ -625,7 +625,7 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
       </table>
     </div>
     <div class="form-actions">
-      <button class="btn btn-secondary" onclick="clearForm()">↺ Limpar</button>
+      <button class="btn btn-secondary" onclick="clearForm();resetAnexos()">↺ Limpar</button>
       <div style="display:flex;align-items:center;gap:16px;">
       <span id="nav-user" style="font-size:11px;color:rgba(255,255,255,.7);font-family:'DM Mono',monospace;"></span>
       <button onclick="sessionStorage.removeItem('gf_user');window.location.href='index.html';" 
@@ -1323,7 +1323,10 @@ function clearForm() {
   var pf=document.getElementById('f_parcelas');if(pf)pf.value='1';
   var ph=document.getElementById('parcelas-hint');if(ph)ph.textContent='à vista';
   var pb=document.getElementById('parcelas-preview-box');if(pb)pb.style.display='none';
-  // Limpar anexos sempre que o formulário for limpo ou reaberto
+}
+
+// Limpa visualmente os boxes de anexo sem interferir com uploads em andamento
+function resetAnexos() {
   removerAnexo('boleto'); removerAnexo('nf');
 }
 
