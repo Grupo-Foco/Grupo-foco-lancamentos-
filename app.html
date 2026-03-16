@@ -488,18 +488,13 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
     <button class="nav-tab" onclick="showView('panel')">⊞ Painel</button>
     <button class="nav-tab" id="nav-conciliacao" onclick="showView('conciliacao')">⇄ Conciliação</button>
   </nav>
-  <div style="display:flex;align-items:center;gap:10px;">
+  <div style="display:flex;align-items:center;gap:16px;">
     <div class="sync-indicator">
       <div class="sync-dot" id="syncDot"></div>
       <span id="syncText" style="color:rgba(245,240,232,0.5)">—</span>
     </div>
     <span id="nav-user" style="font-size:12px;color:rgba(255,255,255,.7);font-family:'DM Mono',monospace;letter-spacing:.05em;"></span>
-    <button id="btn-endividamento" onclick="abrirEndividamento()"
-      style="display:none;font-size:11px;padding:6px 14px;background:rgba(200,168,75,0.18);border:1px solid rgba(200,168,75,0.45);border-radius:8px;color:var(--ouro-light);cursor:pointer;font-family:'DM Mono',monospace;letter-spacing:.05em;font-weight:600;transition:background .2s;"
-      onmouseover="this.style.background='rgba(200,168,75,0.32)'" onmouseout="this.style.background='rgba(200,168,75,0.18)'">
-      ◈ Endividamento
-    </button>
-    <button onclick="sessionStorage.removeItem('gf_user');sessionStorage.removeItem('gf_role');window.location.href='index.html';"
+    <button onclick="sessionStorage.removeItem('gf_user');window.location.href='index.html';"
       style="font-size:12px;padding:6px 16px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:8px;color:white;cursor:pointer;font-family:'DM Mono',monospace;letter-spacing:.05em;transition:background .2s;"
       onmouseover="this.style.background='rgba(255,255,255,.25)'" onmouseout="this.style.background='rgba(255,255,255,.15)'">
       ⎋ Sair
@@ -559,7 +554,7 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
           <select id="f_conta"><option value="">Selecionar…</option><option>IVAN BASA</option><option>IVAN BB</option><option>IVAN BRADESCO</option><option>IVAN SICOOB</option><option>JOAO BB</option><option>JOAO SICOOB</option><option>NEILA BB</option><option>NEILA SICOOB</option></select>
         </div>
         <div class="field"><label>Correntista <span class="req">★</span></label>
-          <select id="f_correntista"><option value="">Selecionar…</option><option>AVIÃO AGRÍCOLA</option><option>AVIÃO COMERCIAL</option><option>CAMINHÃO</option><option>COLHEITADEIRA</option><option>OUTROS</option><option>PLANTADEIRA</option><option>PULVERIZADOR</option><option>TRATOR</option></select>
+          <select id="f_correntista"><option value="">Selecionar…</option><option>AVIÃO AGRÍCOLA</option><option>AVIÃO COMERCIAL</option><option>CAMINHÃO</option><option>COLHEITADEIRA</option><option>OUTROS</option><option>PIVÔ</option><option>PLANTADEIRA</option><option>PULVERIZADOR</option><option>TRATOR</option></select>
         </div>
       </div>
     </div>
@@ -1107,19 +1102,7 @@ function limparConciliacao() {
 
 // Verificar sessão
 var currentUser = sessionStorage.getItem('gf_user') || '';
-var currentRole = sessionStorage.getItem('gf_role') || 'funcionario';
 if(!currentUser) { window.location.href = 'index.html'; }
-
-// Mostrar botão Endividamento apenas para gestores
-if(currentRole === 'gestor') {
-  var btnEndiv = document.getElementById('btn-endividamento');
-  if(btnEndiv) btnEndiv.style.display = '';
-}
-
-function abrirEndividamento() {
-  if(!sessionStorage.getItem('gf_role')) { sessionStorage.setItem('gf_role', 'gestor'); }
-  window.location.href = 'app-endividamento.html';
-}
 
 
 function atualizarParcelas() {
@@ -1340,6 +1323,8 @@ function clearForm() {
   var pf=document.getElementById('f_parcelas');if(pf)pf.value='1';
   var ph=document.getElementById('parcelas-hint');if(ph)ph.textContent='à vista';
   var pb=document.getElementById('parcelas-preview-box');if(pb)pb.style.display='none';
+  // Limpar anexos sempre que o formulário for limpo ou reaberto
+  removerAnexo('boleto'); removerAnexo('nf');
 }
 
 // ── PAINEL ──
@@ -1481,6 +1466,8 @@ document.getElementById('detailModal').addEventListener('click',e=>{if(e.target=
 function editLancamento(id) {
   const l=lancamentos.find(x=>x.id===id); if(!l) return;
   editingId=id;
+  // Limpar anexos de lançamentos anteriores antes de carregar o novo
+  removerAnexo('boleto'); removerAnexo('nf');
   document.getElementById('formTitle').textContent='Editando Lançamento';
   showView('form');
   document.getElementById('f_fornecedor').value=l.fornecedor||'';
