@@ -1296,9 +1296,36 @@ async function saveLancamento() {
   };
   const btn=document.getElementById('btnSalvar');
   btn.disabled=true; btn.textContent='Salvando…';
+  // Verificar se há parcelas múltiplas
+  var nParc = parseInt(document.getElementById('f_parcelas').value) || 1;
   try {
-    if(editingId) { await sb(`${TABLE}?id=eq.${editingId}`,{method:'PATCH',body:JSON.stringify(obj)}); editingId=null; showToast('✓ Atualizado!'); }
-    else {
+    if(editingId) {
+      await sb(`${TABLE}?id=eq.${editingId}`,{method:'PATCH',body:JSON.stringify(obj)});
+      editingId=null; showToast('✓ Atualizado!');
+    } else if(nParc > 1) {
+      // Salvar múltiplas parcelas — fazer upload dos anexos primeiro se houver
+      var boletoPb = null, nfPb = null;
+      if(_arqs.boleto || _arqs.nf) {
+        showToast('📎 Enviando anexos…');
+        // Upload temporário: salva uma linha primeiro só para pegar o path dos anexos
+        const tmpSaved = await sb(TABLE,{method:'POST',body:JSON.stringify(obj)});
+        if(tmpSaved && tmpSaved[0]) {
+          const lid = tmpSaved[0].id;
+          const [pb, pn] = await Promise.all([
+            uploadAnexo(_arqs.boleto, lid, 'boleto'),
+            uploadAnexo(_arqs.nf,     lid, 'nf')
+          ]);
+          boletoPb = pb; nfPb = pn;
+          // Deletar essa linha temporária — as parcelas serão salvas com os paths corretos
+          await sb(`${TABLE}?id=eq.${lid}`, {method:'DELETE'});
+          removerAnexo('boleto'); removerAnexo('nf');
+        }
+      }
+      showToast('💾 Salvando ' + nParc + ' parcelas…');
+      await salvarParcelas(obj, nParc, boletoPb, nfPb);
+      showToast('✓ ' + nParc + ' parcelas salvas!');
+    } else {
+      // Parcela única
       const saved = await sb(TABLE,{method:'POST',body:JSON.stringify(obj)});
       if(saved && saved[0] && (_arqs.boleto || _arqs.nf)) {
         showToast('📎 Enviando anexos…');
