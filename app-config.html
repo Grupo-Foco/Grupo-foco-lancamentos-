@@ -226,43 +226,39 @@ input.inp:focus,select.inp:focus{border-color:var(--verde);}
 
   <!-- TAB: ACESSOS -->
   <div id="tab-acessos" class="section">
+
+    <!-- Legenda dos perfis -->
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px;">
+      <div style="background:rgba(200,168,75,.1);border:1.5px solid rgba(200,168,75,.3);border-radius:10px;padding:14px 20px;flex:1;min-width:200px;">
+        <div style="font-weight:700;font-size:13px;color:#7a5f10;margin-bottom:8px;">◈ GESTOR — todas as permissões</div>
+        <div style="font-size:11px;color:var(--cinza);font-family:'DM Mono',monospace;">Acesso total ao sistema. Permissões individuais abaixo não se aplicam.</div>
+      </div>
+      <div style="background:rgba(26,58,42,.07);border:1.5px solid rgba(26,58,42,.15);border-radius:10px;padding:14px 20px;flex:1;min-width:200px;">
+        <div style="font-weight:700;font-size:13px;color:var(--verde);margin-bottom:8px;">◦ FUNCIONÁRIO — permissões básicas + extras abaixo</div>
+        <div style="font-size:11px;color:var(--cinza);font-family:'DM Mono',monospace;">Pode lançar e ver painel. Funcionalidades extras são liberadas individualmente.</div>
+      </div>
+    </div>
+
+    <!-- Tabela de permissões por usuário -->
     <div class="card">
       <div class="card-head">
-        <h3>Perfis de acesso</h3>
-        <span style="font-size:11px;color:var(--cinza);font-family:'DM Mono',monospace;">Clique no perfil para alternar</span>
+        <h3>Permissões por usuário</h3>
+        <span style="font-size:11px;color:var(--cinza);font-family:'DM Mono',monospace;">Clique nos toggles para liberar/bloquear</span>
       </div>
-      <div class="card-body">
-        <div style="margin-bottom:20px;">
-          <div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:16px;">
-            <div style="background:rgba(200,168,75,.1);border:1.5px solid rgba(200,168,75,.3);border-radius:10px;padding:14px 20px;flex:1;min-width:200px;">
-              <div style="font-weight:700;font-size:14px;color:#7a5f10;margin-bottom:6px;">◈ GESTOR</div>
-              <ul style="font-size:12px;color:var(--cinza);list-style:none;display:flex;flex-direction:column;gap:3px;">
-                <li>✓ Lançar e editar registros</li>
-                <li>✓ Acessar Painel e Conciliação</li>
-                <li>✓ Acessar Endividamento</li>
-                <li>✓ Exportar Excel</li>
-                <li>✓ Excluir registros</li>
-                <li>✓ Acessar Configurações</li>
-              </ul>
-            </div>
-            <div style="background:rgba(26,58,42,.07);border:1.5px solid rgba(26,58,42,.15);border-radius:10px;padding:14px 20px;flex:1;min-width:200px;">
-              <div style="font-weight:700;font-size:14px;color:var(--verde);margin-bottom:6px;">◦ FUNCIONÁRIO</div>
-              <ul style="font-size:12px;color:var(--cinza);list-style:none;display:flex;flex-direction:column;gap:3px;">
-                <li>✓ Lançar registros</li>
-                <li>✓ Acessar Painel</li>
-                <li>✗ Endividamento</li>
-                <li>✗ Excluir registros</li>
-                <li>✗ Conciliação</li>
-                <li>✗ Configurações</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-        <table>
+      <div style="overflow-x:auto;">
+        <table id="perm-table">
           <thead>
-            <tr><th>Usuário</th><th>Login</th><th>Perfil atual</th><th>Alterar para</th></tr>
+            <tr>
+              <th style="min-width:130px;">Usuário</th>
+              <th style="text-align:center;min-width:80px;">Perfil</th>
+              <th style="text-align:center;min-width:110px;">Conciliação</th>
+              <th style="text-align:center;min-width:110px;">Endividamento</th>
+              <th style="text-align:center;min-width:100px;">Excluir reg.</th>
+              <th style="text-align:center;min-width:100px;">Exportar XLS</th>
+              <th style="text-align:center;min-width:90px;">Configurações</th>
+            </tr>
           </thead>
-          <tbody id="access-tbody"></tbody>
+          <tbody id="perm-tbody"></tbody>
         </table>
       </div>
     </div>
@@ -344,7 +340,7 @@ document.getElementById('sub-text').textContent = 'Logado como ' + currentUser +
 
 // ─── Supabase (para relatório) ───
 const SB_URL  = 'https://zdckrfthpfpnzcxzaghd.supabase.co';
-const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkY2tyZnRocGZwbnpjeHphZ2hkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzkzMDE5NTQsImV4cCI6MjA1NDg3Nzk1NH0.JLdLDwYHaVAARvd9LVBjmJoJ9YWqU9RjdIGMvRYvd7c';
+const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkY2tyZnRocGZwbnpjeHphZ2hkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzNDIzOTksImV4cCI6MjA4ODkxODM5OX0.940y3Nhso4mHjSr8L1D_eRoQUH6Yg5uiqZ6sg4qRD7Y';
 const TABLE   = 'lancamentos';
 
 async function sb(path, opts) {
@@ -358,15 +354,31 @@ async function sb(path, opts) {
 }
 
 // ─── STORAGE DE USUÁRIOS ───
+// Permissões disponíveis para funcionários (gestores têm tudo automaticamente)
+var PERMS_DEF = {
+  conciliacao:  { label: 'Conciliação',   desc: 'Aba de conciliação bancária' },
+  endividamento:{ label: 'Endividamento', desc: 'Dashboard de endividamento' },
+  excluir:      { label: 'Excluir reg.', desc: 'Excluir lançamentos' },
+  exportar:     { label: 'Exportar XLS', desc: 'Download de planilha Excel' },
+  configuracoes:{ label: 'Configurações', desc: 'Acessar esta página' }
+};
+
 function getUsers() {
   var stored = localStorage.getItem('gf_users_v2');
-  if(stored) return JSON.parse(stored);
+  if(stored) {
+    var u = JSON.parse(stored);
+    // garantir campo perms em todos os usuários
+    Object.keys(u).forEach(function(k){
+      if(!u[k].perms) u[k].perms = {};
+    });
+    return u;
+  }
   // Default inicial
   var defaults = {};
   var senhas = {rodolfo:'foco2026',ivan:'ivan2026',joao:'joao2026',adriana:'adriana2026',nirlany:'nirlany2026',renara:'renara2026',wenya:'wenya2026',henrique:'henrique2026'};
   var roles = {rodolfo:'gestor',ivan:'gestor',joao:'gestor',adriana:'gestor',nirlany:'funcionario',renara:'funcionario',wenya:'funcionario',henrique:'funcionario'};
   USERS_BASE.forEach(function(u) {
-    defaults[u] = { login: u, nome: u.charAt(0).toUpperCase()+u.slice(1), senha: senhas[u]||'foco2026', role: roles[u]||'funcionario', ativo: true };
+    defaults[u] = { login: u, nome: u.charAt(0).toUpperCase()+u.slice(1), senha: senhas[u]||'foco2026', role: roles[u]||'funcionario', ativo: true, perms: {} };
   });
   localStorage.setItem('gf_users_v2', JSON.stringify(defaults));
   return defaults;
@@ -493,24 +505,63 @@ function alterarMinhaSenha() {
 }
 
 // ═══════════════════════════════════════════════════
-// TAB ACESSOS
+// TAB ACESSOS — permissões individuais por usuário
 // ═══════════════════════════════════════════════════
-function renderAccessTable() {
-  var tbody = document.getElementById('access-tbody');
+
+// Permissões disponíveis (chave → label)
+var PERMS_DEF = {
+  conciliacao:  'Conciliação',
+  endividamento:'Endividamento',
+  excluir:      'Excluir reg.',
+  exportar:     'Exportar XLS',
+  configuracoes:'Configurações'
+};
+
+function renderPermTable() {
+  var tbody = document.getElementById('perm-tbody');
+  var permKeys = Object.keys(PERMS_DEF);
   tbody.innerHTML = Object.values(USERS).map(function(u) {
+    var isGestor = u.role === 'gestor';
     var isMe = u.login === currentLogin;
+
+    var roleCell = '<td style="text-align:center">' +
+      (isMe
+        ? '<span class="badge ' + u.role + '">' + (isGestor?'◈ Gestor':'◦ Func.') + '</span>'
+        : '<select class="role-select" onchange="alterarRole('' + u.login + '',this.value)">' +
+            '<option value="gestor"' + (isGestor?' selected':'') + '>◈ Gestor</option>' +
+            '<option value="funcionario"' + (!isGestor?' selected':'') + '>◦ Func.</option>' +
+          '</select>') +
+      '</td>';
+
+    var permCells = permKeys.map(function(pk) {
+      var hasPerm = isGestor || (u.perms && u.perms[pk]);
+      var dis = isGestor ? 'disabled title="Gestor tem acesso total"' : '';
+      return '<td style="text-align:center">' +
+        '<label class="toggle">' +
+          '<input type="checkbox"' + (hasPerm?' checked':'') + ' ' + dis +
+            ' onchange="togglePerm('' + u.login + '','' + pk + '',this.checked)">' +
+          '<span class="toggle-slider"></span>' +
+        '</label>' +
+        (isGestor ? '<div style="font-size:9px;color:var(--cinza);font-family:'DM Mono',monospace;margin-top:2px;">auto</div>' : '') +
+      '</td>';
+    }).join('');
+
     return '<tr>' +
-      '<td><strong>' + u.nome + '</strong></td>' +
-      '<td class="mono">' + u.login + '</td>' +
-      '<td><span class="badge ' + u.role + '">' + (u.role==='gestor'?'◈ Gestor':'◦ Funcionário') + '</span></td>' +
-      '<td>' + (isMe ? '<span style="font-size:11px;color:var(--cinza);font-family:\'DM Mono\',monospace;">Seu acesso</span>' :
-        '<select class="role-select" onchange="alterarRole(\'' + u.login + '\',this.value)">' +
-          '<option value="gestor"' + (u.role==='gestor'?' selected':'') + '>◈ Gestor</option>' +
-          '<option value="funcionario"' + (u.role==='funcionario'?' selected':'') + '>◦ Funcionário</option>' +
-        '</select>') +
-      '</td></tr>';
+      '<td><strong>' + u.nome + '</strong><br><span style="font-size:11px;color:var(--cinza);font-family:'DM Mono',monospace;">' + u.login + '</span></td>' +
+      roleCell + permCells +
+    '</tr>';
   }).join('');
 }
+
+function togglePerm(login, perm, valor) {
+  if(!USERS[login].perms) USERS[login].perms = {};
+  USERS[login].perms[perm] = valor;
+  saveUsers(USERS);
+  toast('✓ Permissão "' + PERMS_DEF[perm] + '" ' + (valor?'liberada para ':'removida de ') + USERS[login].nome);
+}
+
+// compatibilidade com chamadas antigas
+function renderAccessTable() { renderPermTable(); }
 
 // ═══════════════════════════════════════════════════
 // TAB RELATÓRIO
@@ -529,14 +580,13 @@ async function carregarRelatorio() {
 }
 
 function renderRelatorio() {
-  // Agrupar por lancador
   var grupos = {};
   relData.forEach(function(l) {
     var user = (l.lancador || 'Desconhecido').trim();
     if(!grupos[user]) grupos[user] = { total:0, apagar:0, pago:0, valor:0, ultimo:'' };
     grupos[user].total++;
     if(l.status === 'A PAGAR') grupos[user].apagar++;
-    if(l.status === 'PAGO') grupos[user].pago++;
+    if(l.status === 'PAGO')    grupos[user].pago++;
     grupos[user].valor += parseFloat(l.valor) || 0;
     if(!grupos[user].ultimo || l.vencimento > grupos[user].ultimo) grupos[user].ultimo = l.vencimento || '';
   });
@@ -544,19 +594,17 @@ function renderRelatorio() {
   var lista = Object.entries(grupos).sort(function(a,b){ return b[1].total - a[1].total; });
   var maxTotal = lista.length ? lista[0][1].total : 1;
 
-  // Stats gerais
-  var totalReg = relData.length;
-  var totalVal = relData.reduce(function(s,l){ return s + (parseFloat(l.valor)||0); }, 0);
+  var totalReg    = relData.length;
+  var totalVal    = relData.reduce(function(s,l){ return s + (parseFloat(l.valor)||0); }, 0);
   var totalApagar = relData.filter(function(l){ return l.status === 'A PAGAR'; }).length;
   var totalPago   = relData.filter(function(l){ return l.status === 'PAGO'; }).length;
 
   document.getElementById('rel-stats').innerHTML =
-    box('Total de registros', totalReg, '1.292 no banco') +
+    box('Total de registros', totalReg, '') +
     box('Valor total', 'R$ ' + totalVal.toLocaleString('pt-BR',{minimumFractionDigits:2}), '') +
     box('A pagar', totalApagar, totalReg ? Math.round(totalApagar/totalReg*100) + '%' : '') +
     box('Pago', totalPago, totalReg ? Math.round(totalPago/totalReg*100) + '%' : '');
 
-  // Barras
   document.getElementById('rel-bars').innerHTML = lista.map(function(e) {
     var pct = Math.round(e[1].total / maxTotal * 100);
     return '<div class="bar-row">' +
@@ -566,7 +614,6 @@ function renderRelatorio() {
     '</div>';
   }).join('');
 
-  // Tabela
   var fmt = new Intl.DateTimeFormat('pt-BR');
   document.getElementById('rel-tbody').innerHTML = lista.map(function(e) {
     var u = e[0], d = e[1];
@@ -596,14 +643,16 @@ function exportarRelatorio() {
     if(!grupos[user]) grupos[user] = { total:0, apagar:0, pago:0, valor:0, ultimo:'' };
     grupos[user].total++;
     if(l.status === 'A PAGAR') grupos[user].apagar++;
-    if(l.status === 'PAGO') grupos[user].pago++;
+    if(l.status === 'PAGO')    grupos[user].pago++;
     grupos[user].valor += parseFloat(l.valor) || 0;
     if(!grupos[user].ultimo || l.vencimento > grupos[user].ultimo) grupos[user].ultimo = l.vencimento || '';
   });
-  var csv = 'Usuário,Total,A Pagar,Pago,Valor Total,Último Lançamento\n';
+  var csv = 'Usuário,Total,A Pagar,Pago,Valor Total,Último Lançamento
+';
   Object.entries(grupos).sort(function(a,b){return b[1].total-a[1].total;}).forEach(function(e) {
     var d = e[1];
-    csv += [e[0], d.total, d.apagar, d.pago, d.valor.toFixed(2).replace('.',','), d.ultimo].join(',') + '\n';
+    csv += [e[0], d.total, d.apagar, d.pago, d.valor.toFixed(2).replace('.',','), d.ultimo].join(',') + '
+';
   });
   var a = document.createElement('a');
   a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
@@ -621,7 +670,7 @@ function sair() {
 // ─── INIT ───
 renderUsuarios();
 renderSenhaSelects();
-renderAccessTable();
+renderPermTable();
 </script>
 </body>
 </html>

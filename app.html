@@ -486,7 +486,7 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
   <nav class="nav-tabs">
     <button class="nav-tab active" onclick="showView('form');resetAnexos()">＋ Novo Lançamento</button>
     <button class="nav-tab" onclick="showView('panel')">⊞ Painel</button>
-    <button class="nav-tab" id="nav-conciliacao" onclick="showView('conciliacao')">⇄ Conciliação</button>
+    <button class="nav-tab" id="nav-conciliacao" onclick="showView('conciliacao')" style="display:none">⇄ Conciliação</button>
   </nav>
   <div style="display:flex;align-items:center;gap:16px;">
     <div class="sync-indicator">
@@ -1107,13 +1107,48 @@ var currentUser = sessionStorage.getItem('gf_user') || '';
 var currentRole = sessionStorage.getItem('gf_role') || 'funcionario';
 if(!currentUser) { window.location.href = 'index.html'; }
 
-// Mostrar botão Endividamento apenas para gestores
-if(currentRole === 'gestor') {
-  var btnEndiv = document.getElementById('btn-endividamento');
-  if(btnEndiv) btnEndiv.style.display = '';
-  var btnConf = document.getElementById('btn-config');
-  if(btnConf) btnConf.style.display = '';
+// Carregar permissões individuais do usuário
+function getUserPerms() {
+  var stored = localStorage.getItem('gf_users_v2');
+  if(!stored) return null;
+  var users = JSON.parse(stored);
+  var login = currentUser.toLowerCase();
+  return users[login] ? users[login].perms || {} : {};
 }
+
+function hasPerm(perm) {
+  if(currentRole === 'gestor') return true;
+  var perms = getUserPerms();
+  return perms && perms[perm] === true;
+}
+
+// Aplicar visibilidade de botões conforme role + permissões individuais
+(function applyPermissions() {
+  var btnEndiv = document.getElementById('btn-endividamento');
+  var btnConf  = document.getElementById('btn-config');
+  if(hasPerm('endividamento') && btnEndiv) btnEndiv.style.display = '';
+  if(hasPerm('configuracoes') && btnConf)  btnConf.style.display  = '';
+  // Conciliação: mostrar na nav apenas se tiver permissão
+  if(hasPerm('conciliacao')) {
+    var navConcil = document.getElementById('nav-conciliacao');
+    if(navConcil) navConcil.style.display = '';
+  }
+  // Exportar Excel: ocultar se não tiver permissão
+  if(!hasPerm('exportar')) {
+    document.querySelectorAll('[onclick*="exportar"], [onclick*="download"], [onclick*="Excel"]').forEach(function(el){
+      el.style.display = 'none';
+    });
+  }
+  // Excluir: ocultar botões de exclusão se não tiver permissão
+  if(!hasPerm('excluir')) {
+    document.addEventListener('click', function(e) {
+      if(e.target && e.target.dataset && e.target.dataset.excluir) {
+        e.stopPropagation(); e.preventDefault();
+        showToast && showToast('Sem permissão para excluir', true);
+      }
+    }, true);
+  }
+})();
 
 function abrirEndividamento() {
   if(!sessionStorage.getItem('gf_role')) { sessionStorage.setItem('gf_role', 'gestor'); }
