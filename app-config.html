@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Grupo Foco — Configurações</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&family=IBM+Plex+Mono:wght@600;700&display=swap" rel="stylesheet">
 <style>
 :root {
   --verde:#1a3a2a; --verde-mid:#2d5a3d; --verde-light:#3d7a52;
@@ -328,10 +328,19 @@ input.inp:focus,select.inp:focus{border-color:var(--verde);}
 var USERS_BASE = ['rodolfo','ivan','joao','adriana','nirlany','renara','wenya','henrique'];
 
 var currentUser = sessionStorage.getItem('gf_user') || '';
-var currentRole = sessionStorage.getItem('gf_role') || 'funcionario';
 var currentLogin = currentUser.toLowerCase();
 
-// Bloquear acesso para não-gestores
+// Se não tiver role salvo (index.html antigo), inferir pelo login
+var GESTORES_DEFAULT = ['rodolfo','ivan','joao','adriana'];
+var currentRole = sessionStorage.getItem('gf_role') ||
+  (GESTORES_DEFAULT.indexOf(currentLogin) >= 0 ? 'gestor' : 'funcionario');
+
+// Salvar role inferido para uso posterior
+if(!sessionStorage.getItem('gf_role') && currentRole) {
+  sessionStorage.setItem('gf_role', currentRole);
+}
+
+// Bloquear acesso para não-gestores e não-logados
 if(!currentUser) { window.location.href = 'index.html'; }
 if(currentRole !== 'gestor') { window.location.href = 'app.html'; }
 
