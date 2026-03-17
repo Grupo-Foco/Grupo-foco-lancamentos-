@@ -72,8 +72,8 @@ header{background:var(--verde);padding:0 32px;display:flex;align-items:center;ju
 .stat-card.ok{border-left-color:var(--sucesso);}
 .stat-card.danger{border-left-color:var(--erro);}
 .stat-label{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--cinza);margin-bottom:6px;}
-.stat-value{font-family:'Syne',sans-serif;font-weight:800;font-size:28px;color:var(--verde);}
-.stat-value.money{font-size:22px;letter-spacing:-0.02em;}
+.stat-value{font-family:'Syne',sans-serif;font-weight:800;font-size:28px;color:var(--verde);white-space:nowrap;}
+.stat-value.money{font-size:clamp(14px,1.5vw,22px);letter-spacing:-0.02em;white-space:nowrap;}
 .stat-sub{font-family:'DM Mono',monospace;font-size:10px;color:var(--cinza);margin-top:4px;}
 
 /* ── FILTROS ── */

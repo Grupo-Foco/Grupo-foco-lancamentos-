@@ -363,25 +363,36 @@ var PERMS_DEF = {
   configuracoes:{ label: 'Configurações', desc: 'Acessar esta página' }
 };
 
+var SENHAS_DEF = {rodolfo:'foco2026',ivan:'ivan2026',joao:'joao2026',adriana:'adriana2026',nirlany:'nirlany2026',renara:'renara2026',wenya:'wenya2026',henrique:'henrique2026'};
+var ROLES_DEF  = {rodolfo:'gestor',ivan:'gestor',joao:'gestor',adriana:'gestor',nirlany:'funcionario',renara:'funcionario',wenya:'funcionario',henrique:'funcionario'};
+
 function getUsers() {
   var stored = localStorage.getItem('gf_users_v2');
+  var base = {};
+
   if(stored) {
-    var u = JSON.parse(stored);
-    // garantir campo perms em todos os usuários
-    Object.keys(u).forEach(function(k){
-      if(!u[k].perms) u[k].perms = {};
-    });
-    return u;
+    try { base = JSON.parse(stored); } catch(e) { base = {}; }
   }
-  // Default inicial
-  var defaults = {};
-  var senhas = {rodolfo:'foco2026',ivan:'ivan2026',joao:'joao2026',adriana:'adriana2026',nirlany:'nirlany2026',renara:'renara2026',wenya:'wenya2026',henrique:'henrique2026'};
-  var roles = {rodolfo:'gestor',ivan:'gestor',joao:'gestor',adriana:'gestor',nirlany:'funcionario',renara:'funcionario',wenya:'funcionario',henrique:'funcionario'};
-  USERS_BASE.forEach(function(u) {
-    defaults[u] = { login: u, nome: u.charAt(0).toUpperCase()+u.slice(1), senha: senhas[u]||'foco2026', role: roles[u]||'funcionario', ativo: true, perms: {} };
+
+  // Construir objeto normalizado — garante que TODOS os 8 usuários existem
+  // e que cada um tem os campos obrigatórios (login, nome, senha, role, perms)
+  var result = {};
+  USERS_BASE.forEach(function(login) {
+    var saved = base[login] || {};
+    // Suporta formato antigo {senha, role} e novo {login, nome, senha, role, perms}
+    result[login] = {
+      login : login,
+      nome  : saved.nome  || (login.charAt(0).toUpperCase() + login.slice(1)),
+      senha : saved.senha || SENHAS_DEF[login] || 'foco2026',
+      role  : saved.role  || ROLES_DEF[login]  || 'funcionario',
+      ativo : saved.ativo !== false,
+      perms : saved.perms || {}
+    };
   });
-  localStorage.setItem('gf_users_v2', JSON.stringify(defaults));
-  return defaults;
+
+  // Salvar versão normalizada
+  localStorage.setItem('gf_users_v2', JSON.stringify(result));
+  return result;
 }
 
 function saveUsers(users) {
