@@ -79,23 +79,42 @@
     <div class="footer">Grupo Foco &copy; 2026</div>
   </div>
   <script>
-    var USERS = {
-      'rodolfo':  { senha:'foco2026',     role:'gestor' },
-      'ivan':     { senha:'ivan2026',     role:'gestor' },
-      'joao':     { senha:'joao2026',     role:'gestor' },
-      'adriana':  { senha:'adriana2026',  role:'gestor' },
-      'nirlany':  { senha:'nirlany2026',  role:'funcionario' },
-      'renara':   { senha:'renara2026',   role:'funcionario' },
-      'wenya':    { senha:'wenya2026',    role:'funcionario' },
-      'henrique': { senha:'henrique2026', role:'funcionario' }
+    // Usuários base — senhas e roles podem ser sobrescritos pelo app-config via localStorage
+    var USERS_DEFAULT = {
+      rodolfo:{senha:'foco2026',role:'gestor'},
+      ivan:{senha:'ivan2026',role:'gestor'},
+      joao:{senha:'joao2026',role:'gestor'},
+      adriana:{senha:'adriana2026',role:'gestor'},
+      nirlany:{senha:'nirlany2026',role:'funcionario'},
+      renara:{senha:'renara2026',role:'funcionario'},
+      wenya:{senha:'wenya2026',role:'funcionario'},
+      henrique:{senha:'henrique2026',role:'funcionario'}
     };
+
+    function getUsers() {
+      var stored = localStorage.getItem('gf_users_v2');
+      if(stored) return JSON.parse(stored);
+      return null;
+    }
+
     function login() {
       var u = (document.getElementById('u').value||'').trim().toLowerCase();
       var p = document.getElementById('p').value||'';
-      var user = USERS[u];
-      if(user && user.senha === p) {
-        sessionStorage.setItem('gf_user', u.charAt(0).toUpperCase()+u.slice(1));
-        sessionStorage.setItem('gf_role', user.role);
+      var stored = getUsers();
+      var senha, role;
+      if(stored && stored[u]) {
+        senha = stored[u].senha;
+        role  = stored[u].role || 'funcionario';
+      } else if(USERS_DEFAULT[u]) {
+        senha = USERS_DEFAULT[u].senha;
+        role  = USERS_DEFAULT[u].role;
+      } else {
+        senha = null;
+      }
+      if(senha && p === senha) {
+        var nome = u.charAt(0).toUpperCase() + u.slice(1);
+        sessionStorage.setItem('gf_user', nome);
+        sessionStorage.setItem('gf_role', role);
         window.location.href = 'app.html';
       } else {
         var err = document.getElementById('err');
