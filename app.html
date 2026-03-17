@@ -725,6 +725,7 @@ const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 const TABLE  = 'lancamentos';
 
 let lancamentos=[], filtered=[], sortKey='vencimento', sortDir=1, editingId=null;
+let _editBoleto=null, _editNf=null; // paths já salvos no registro sendo editado
 // currentUser definido pelo check de sessão abaixo
 if(currentUser){ document.getElementById('userSelect').value=currentUser; document.getElementById('f_lancador').value=currentUser; }
 
@@ -1338,8 +1339,11 @@ async function saveLancamento() {
   var nParc = parseInt(document.getElementById('f_parcelas').value) || 1;
   try {
     if(editingId) {
+      // Preservar paths existentes se não foi selecionado arquivo novo
+      if(_editBoleto && !_arqs.boleto) obj.boleto_path = _editBoleto;
+      if(_editNf     && !_arqs.nf)     obj.nf_path     = _editNf;
       await sb(`${TABLE}?id=eq.${editingId}`,{method:'PATCH',body:JSON.stringify(obj)});
-      // Upload de anexos na edição (se o usuário selecionou novos arquivos)
+      // Upload de novos anexos se o usuário selecionou
       if(_arqs.boleto || _arqs.nf) {
         showToast('📎 Enviando anexos…');
         const eid = editingId;
@@ -1357,6 +1361,7 @@ async function saveLancamento() {
       } else {
         editingId = null;
       }
+      _editBoleto = null; _editNf = null;
       showToast('✓ Atualizado!');
     } else if(nParc > 1) {
       // Salvar múltiplas parcelas — fazer upload dos anexos primeiro se houver
@@ -1408,6 +1413,14 @@ async function saveLancamento() {
 
 function clearForm() {
   editingId=null;
+  _editBoleto=null; _editNf=null;
+  // Restaurar label dos boxes de anexo
+  ['boleto','nf'].forEach(function(slot){
+    var lbl = document.getElementById('lbl_'+slot);
+    if(lbl) lbl.style.display = '';
+    var box = document.getElementById('box_'+slot);
+    if(box) { box.classList.remove('tem-arquivo'); box.style.borderColor=''; }
+  });
   document.getElementById('formTitle').textContent='Novo Lançamento';
   ['f_fornecedor','f_documento','f_data_doc','f_vencimento','f_pagamento','f_valor','f_historico'].forEach(id=>document.getElementById(id).value='');
   ['f_solicitante','f_conta','f_correntista','f_fazenda','f_cg'].forEach(id=>document.getElementById(id).value='');
@@ -1565,8 +1578,25 @@ document.getElementById('detailModal').addEventListener('click',e=>{if(e.target=
 function editLancamento(id) {
   const l=lancamentos.find(x=>x.id===id); if(!l) return;
   editingId=id;
-  // Limpar anexos de lançamentos anteriores antes de carregar o novo
+  // Limpar anexos do lançamento anterior
   removerAnexo('boleto'); removerAnexo('nf');
+  _editBoleto = l.boleto_path || null;
+  _editNf     = l.nf_path     || null;
+  // Mostrar indicador visual se já tem arquivo salvo
+  if(_editBoleto) {
+    var nomeB = _editBoleto.split('/').pop().split('?')[0];
+    document.getElementById('nome_boleto').textContent = '📎 ' + nomeB;
+    document.getElementById('lbl_boleto').style.display = 'none';
+    document.getElementById('box_boleto').classList.add('tem-arquivo');
+    document.getElementById('box_boleto').style.borderColor = '#3d7a52';
+  }
+  if(_editNf) {
+    var nomeN = _editNf.split('/').pop().split('?')[0];
+    document.getElementById('nome_nf').textContent = '📎 ' + nomeN;
+    document.getElementById('lbl_nf').style.display = 'none';
+    document.getElementById('box_nf').classList.add('tem-arquivo');
+    document.getElementById('box_nf').style.borderColor = '#3d7a52';
+  }
   document.getElementById('formTitle').textContent='Editando Lançamento';
   showView('form');
   document.getElementById('f_fornecedor').value=l.fornecedor||'';
