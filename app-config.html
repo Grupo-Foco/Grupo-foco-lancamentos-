@@ -439,8 +439,18 @@ function showTab(name) {
 // ═══════════════════════════════════════════════════
 function renderUsuarios() {
   var grid = document.getElementById('user-grid');
-  var users = Object.values(USERS);
+  if(!grid) return;
+  // Normalizar usuários antes de renderizar
+  var users = Object.values(USERS).map(function(u) {
+    return {
+      login : u.login || '?',
+      nome  : u.nome  || (u.login ? u.login.charAt(0).toUpperCase()+u.login.slice(1) : 'Usuário'),
+      role  : u.role  || 'funcionario',
+      perms : u.perms || {}
+    };
+  });
   document.getElementById('total-users').textContent = users.length + ' usuário(s)';
+  if(!users.length) { grid.innerHTML = '<p style="color:var(--cinza);padding:8px;">Nenhum usuário.</p>'; return; }
   grid.innerHTML = users.map(function(u) {
     return '<div class="user-card">' +
       '<div class="user-card-head">' +
@@ -529,13 +539,6 @@ function alterarMinhaSenha() {
 // ═══════════════════════════════════════════════════
 
 // Permissões disponíveis (chave → label)
-var PERMS_DEF = {
-  conciliacao:  'Conciliação',
-  endividamento:'Endividamento',
-  excluir:      'Excluir reg.',
-  exportar:     'Exportar XLS',
-  configuracoes:'Configurações'
-};
 
 function renderPermTable() {
   var tbody = document.getElementById('perm-tbody');
@@ -688,9 +691,9 @@ function sair() {
 }
 
 // ─── INIT ───
-renderUsuarios();
-renderSenhaSelects();
-renderPermTable();
+try { renderUsuarios(); } catch(e) { console.error('renderUsuarios:', e); }
+try { renderSenhaSelects(); } catch(e) { console.error('renderSenhaSelects:', e); }
+try { renderPermTable(); } catch(e) { console.error('renderPermTable:', e); }
 </script>
 </body>
 </html>
