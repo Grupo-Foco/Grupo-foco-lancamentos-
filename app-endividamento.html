@@ -876,11 +876,47 @@ function atualizarCategoria() {
 // ══════════════════════════════════════════════════════
 // CARGA DE DADOS
 // ══════════════════════════════════════════════════════
+// Chave de armazenamento local das baixas
+const LS_BAIXAS = 'gf_endiv_baixas_v1';
+
+function salvarBaixasLocal() {
+  // Salva somente os lançamentos que foram pagos (status + data_pagamento + valor_parcela + juros_pagos)
+  var pagos = {};
+  lancamentos.forEach(function(l) {
+    if(l.status === 'PAGO') {
+      pagos[l.id] = {
+        status: 'PAGO',
+        data_pagamento: l.data_pagamento || '',
+        valor_parcela: l.valor_parcela,
+        juros_pagos: l.juros_pagos || null
+      };
+    }
+  });
+  localStorage.setItem(LS_BAIXAS, JSON.stringify(pagos));
+}
+
+function aplicarBaixasLocal() {
+  // Aplica baixas salvas em localStorage sobre os dados carregados
+  try {
+    var stored = localStorage.getItem(LS_BAIXAS);
+    if(!stored) return;
+    var pagos = JSON.parse(stored);
+    lancamentos.forEach(function(l) {
+      if(pagos[l.id]) {
+        l.status = pagos[l.id].status;
+        l.data_pagamento = pagos[l.id].data_pagamento;
+        if(pagos[l.id].valor_parcela !== undefined) l.valor_parcela = pagos[l.id].valor_parcela;
+        if(pagos[l.id].juros_pagos !== null) l.juros_pagos = pagos[l.id].juros_pagos;
+      }
+    });
+  } catch(e) {}
+}
+
 async function loadAll() {
   setSyncState('syncing', 'Carregando…');
   setLoading(true, 'CARREGANDO DADOS…');
   try {
-    // Tenta carregar das tabelas Supabase, se não existirem usa dados embutidos
+    // Carrega dados base (Supabase ou demo)
     try {
       const [c, l] = await Promise.all([
         sb(`${TB_CONTRATOS}?order=titular.asc&limit=500`),
@@ -890,10 +926,12 @@ async function loadAll() {
       lancamentos = l;
       setSyncState('online', `${contratos.length} contratos`);
     } catch(e) {
-      // Tabelas não existem ainda — carrega dados demo da planilha
+      // Tabelas não existem — carrega dados demo da planilha
       carregarDadosDemo();
-      setSyncState('online', `${contratos.length} contratos (demo)`);
+      setSyncState('online', `${contratos.length} contratos`);
     }
+    // Sempre aplica baixas salvas localmente sobre os dados carregados
+    aplicarBaixasLocal();
     renderDashboard();
     renderContratos();
     renderLancamentos();
@@ -1572,6 +1610,7 @@ async function confirmarBaixa() {
       btn.textContent = 'Salvando '+(i+1)+'/'+baixaIds.length+'…';
     }
     fecharModal('modalBaixa');
+    salvarBaixasLocal();
     renderLancamentos();
     renderContratos();
     renderDashboard();
@@ -1602,6 +1641,7 @@ async function confirmarBaixaInd() {
     var l = lancamentos.find(function(x){return x.id===baixaIndId;});
     if(l) { l.status='PAGO'; l.data_pagamento=dataPag; if(valorPago!==null) l.valor_parcela=valorPago; }
     fecharModal('modalBaixaInd');
+    salvarBaixasLocal();
     // Se detalhe do contrato está aberto, atualiza
     if(document.getElementById('modalDetalhe').classList.contains('open') && contratoAtualId) {
       abrirDetalheContrato(contratoAtualId);
