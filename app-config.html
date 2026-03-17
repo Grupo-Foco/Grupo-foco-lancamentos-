@@ -594,7 +594,16 @@ var relData = [];
 async function carregarRelatorio() {
   document.getElementById('rel-tbody').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--cinza);">Carregando…</td></tr>';
   try {
-    var data = await sb(TABLE + '?select=lancador,status,valor,vencimento&order=vencimento.desc', {});
+    // Buscar todos os lançamentos com paginação (Supabase retorna 1000 por default)
+    var data = [];
+    var offset = 0;
+    var pageSize = 1000;
+    while(true) {
+      var page = await sb(TABLE + '?select=lancador,status,valor,vencimento&order=vencimento.desc&limit=' + pageSize + '&offset=' + offset, {});
+      data = data.concat(page);
+      if(page.length < pageSize) break;
+      offset += pageSize;
+    }
     relData = data || [];
     renderRelatorio();
   } catch(e) {
