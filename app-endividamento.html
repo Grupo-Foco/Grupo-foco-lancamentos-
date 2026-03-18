@@ -1116,7 +1116,10 @@ function renderContratos() {
       +'<td><span class="badge badge-'+c.categoria.toLowerCase().replace(' ','')+'">'+c.categoria+'</span></td>'
       +'<td><span class="badge '+(c.tipo==='CURTO PRAZO'?'badge-cp':'badge-lp')+'">'+c.tipo+'</span></td>'
       +'<td class="mono" style="text-align:right">'+(+c.taxa*100).toFixed(2)+'%</td>'
-      +'<td class="mono" style="text-align:right">'+fmtMoeda(c.saldo_devedor)+'</td>'
+      +'<td class="mono" style="text-align:right">'+fmtMoeda(
+        lancamentos.filter(function(l){return l.contrato_id===c.id&&l.status==='A PAGAR';})
+                   .reduce(function(s,l){return s+(+l.valor_parcela||0);},0)
+      )+'</td>'
       +'<td class="mono" style="color:'+(vencida?'var(--erro)':'')+'">'+fmtData(c.data_fim)+'</td>'
       +'<td><button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();abrirDetalheContrato('+c.id+')">Ver</button></td>'
       +'</tr>';
@@ -1160,7 +1163,11 @@ function abrirDetalheContrato(id) {
     di('Categoria', '<span class="badge badge-'+c.categoria.toLowerCase().replace(' ','')+'">'+c.categoria+'</span>'),
     di('Tipo', '<span class="badge '+(c.tipo==='CURTO PRAZO'?'badge-cp':'badge-lp')+'">'+c.tipo+'</span>'),
     di('Taxa a.a.', (c.taxa*100).toFixed(2)+'%'),
-    di('Saldo Devedor', fmtMoeda(c.saldo_devedor)),
+    di('Saldo Devedor (A Pagar)', fmtMoeda(
+      lancamentos
+        .filter(function(l){ return l.contrato_id===c.id && l.status==='A PAGAR'; })
+        .reduce(function(s,l){ return s+(+l.valor_parcela||0); }, 0)
+    )),
     di('Periodicidade', c.periodicidade),
     di('Moeda', c.moeda),
     di('Contratação', fmtData(c.data_contrato)),
