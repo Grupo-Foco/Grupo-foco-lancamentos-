@@ -628,6 +628,26 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
     </div>
   </div>
 
+  <!-- KPIs de totais filtrados -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px;">
+    <div class="stat-card" style="border-left-color:var(--verde-light);padding:14px 18px;">
+      <div class="stat-label">PARCELAS FILTRADAS</div>
+      <div class="stat-value" id="lkpi-count" style="font-size:22px;">—</div>
+    </div>
+    <div class="stat-card ouro" style="padding:14px 18px;">
+      <div class="stat-label">TOTAL A DESEMBOLSAR</div>
+      <div class="stat-value money" id="lkpi-total" style="font-size:clamp(13px,1.3vw,19px);white-space:nowrap;">—</div>
+    </div>
+    <div class="stat-card danger" style="padding:14px 18px;">
+      <div class="stat-label">A PAGAR</div>
+      <div class="stat-value money" id="lkpi-apagar" style="font-size:clamp(13px,1.3vw,19px);white-space:nowrap;">—</div>
+    </div>
+    <div class="stat-card ok" style="padding:14px 18px;">
+      <div class="stat-label">PAGO</div>
+      <div class="stat-value money" id="lkpi-pago" style="font-size:clamp(13px,1.3vw,19px);white-space:nowrap;">—</div>
+    </div>
+  </div>
+
   <div class="table-wrapper">
     <div class="table-toolbar">
       <span class="table-count" id="lanc-count">—</span>
@@ -1269,6 +1289,15 @@ function renderLancamentos() {
 
   document.getElementById('lanc-count').textContent = lancamentosFiltrados.length + ' lançamento(s)';
   document.getElementById('lanc-subtitle').textContent = lancamentos.length + ' total — ' + lancamentosFiltrados.length + ' exibidos';
+
+  // ── KPIs de totais filtrados ──
+  var totalVal  = lancamentosFiltrados.reduce(function(s,l){ return s+(+l.valor_parcela||0); }, 0);
+  var apagarVal = lancamentosFiltrados.filter(function(l){ return l.status==='A PAGAR'; }).reduce(function(s,l){ return s+(+l.valor_parcela||0); }, 0);
+  var pagoVal   = lancamentosFiltrados.filter(function(l){ return l.status==='PAGO'; }).reduce(function(s,l){ return s+(+l.valor_parcela||0); }, 0);
+  document.getElementById('lkpi-count').textContent  = lancamentosFiltrados.length.toLocaleString('pt-BR');
+  document.getElementById('lkpi-total').textContent  = fmtMoeda(totalVal);
+  document.getElementById('lkpi-apagar').textContent = fmtMoeda(apagarVal);
+  document.getElementById('lkpi-pago').textContent   = fmtMoeda(pagoVal);
 
   var hojeStr = new Date().toISOString().slice(0,10);
   var tbody = document.getElementById('tbody-lancamentos');
