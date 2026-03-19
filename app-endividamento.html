@@ -942,7 +942,8 @@ function renderDashboard() {
   var hojeStr = hoje.toISOString().slice(0,10);
 
   var abertos = lancamentos.filter(function(l){ return l.status === 'A PAGAR'; });
-  var saldo = lancamentos.reduce(function(s,l){ return s + (+l.saldo_devedor||0); }, 0);
+  // Saldo devedor = soma das parcelas ainda A PAGAR (atualiza conforme baixas)
+  var saldo = abertos.reduce(function(s,l){ return s + (+l.valor_parcela||0); }, 0);
   var parc2026 = lancamentos.filter(function(l){ return l.ano === 'ANO 2026' && l.status === 'A PAGAR'; });
   var val2026 = parc2026.reduce(function(s,l){ return s + (+l.valor_parcela||0); }, 0);
   var prox60 = abertos.filter(function(l){ return l.data_parcela <= d60str; });
