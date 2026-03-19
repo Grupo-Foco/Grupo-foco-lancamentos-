@@ -452,7 +452,26 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
   }
   .detail-item.full { grid-column: span 2; }
 
-  /* ── TOAST ── */
+  /* ── AUTOCOMPLETE FORNECEDOR ── */
+.forn-wrap { position: relative; }
+.forn-dropdown {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 200;
+  background: var(--branco); border: 1.5px solid var(--cinza-light);
+  border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.13);
+  max-height: 260px; overflow-y: auto; display: none;
+}
+.forn-dropdown.show { display: block; }
+.forn-item {
+  padding: 10px 14px; cursor: pointer; border-bottom: 1px solid var(--cinza-light);
+  transition: background 0.15s;
+}
+.forn-item:last-child { border-bottom: none; }
+.forn-item:hover, .forn-item.selected { background: var(--creme); }
+.forn-item-nome { font-weight: 600; font-size: 13px; color: var(--verde); }
+.forn-item-cnpj { font-size: 11px; color: var(--cinza); font-family: 'DM Mono', monospace; margin-top: 2px; }
+.forn-item-new { color: var(--ouro); font-style: italic; }
+
+/* ── TOAST ── */
   .toast {
     bottom: 80px; /* acima da nav bar */
     right: 14px;
@@ -515,7 +534,19 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
     <div class="form-section">
       <div class="section-label">01 — Identificação</div>
       <div class="form-grid">
-        <div class="field"><label>Fornecedor <span class="req">★</span></label><input type="text" id="f_fornecedor" placeholder="Nome do fornecedor" autocomplete="off"></div>
+        <div class="field" style="grid-column:span 2;">
+  <label>Fornecedor <span class="req">★</span></label>
+  <div class="forn-wrap">
+    <input type="text" id="f_fornecedor" placeholder="Digite o nome do fornecedor…" autocomplete="off"
+      oninput="buscaFornecedor(this.value)" onkeydown="navFornDropdown(event)" onblur="fecharFornDropdown(300)">
+    <div class="forn-dropdown" id="forn-dropdown"></div>
+  </div>
+</div>
+<div class="field">
+  <label>CNPJ / CPF</label>
+  <input type="text" id="f_cnpj" placeholder="00.000.000/0000-00" maxlength="18"
+    oninput="mascaraCNPJ(this)">
+</div>
         <div class="field"><label>Nº Documento</label><input type="text" id="f_documento" placeholder="NF, boleto, chave Pix…"></div>
         <div class="field"><label>Solicitante <span class="req">★</span></label>
           <select id="f_solicitante"><option value="">Selecionar…</option><option>ADRIANA</option><option>CARLOS</option><option>EDER</option><option>IVAN</option><option>JOÃO</option><option>JOVANILDO</option><option>NEILA</option><option>NIRLANY</option><option>RENARA</option><option>SARAH</option><option>WENYA</option></select>
@@ -726,6 +757,8 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
 const SB_URL = 'https://zdckrfthpfpnzcxzaghd.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkY2tyZnRocGZwbnpjeHphZ2hkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzNDIzOTksImV4cCI6MjA4ODkxODM5OX0.940y3Nhso4mHjSr8L1D_eRoQUH6Yg5uiqZ6sg4qRD7Y';
 const TABLE  = 'lancamentos';
+const TABLE_FORNEC = 'fornecedores';
+let fornecedoresBD = []; // cache local da tabela de fornecedores
 
 let lancamentos=[], filtered=[], sortKey='vencimento', sortDir=1, editingId=null;
 let _editBoleto=null, _editNf=null; // paths já salvos no registro sendo editado
@@ -747,6 +780,131 @@ async function sb(path, opts={}) {
   const t=await r.text(); return t?JSON.parse(t):[];
 }
 
+
+// ══════════════════════════════════════════════════════
+// FORNECEDORES — autocomplete + banco de dados
+// ══════════════════════════════════════════════════════
+async function carregarFornecedores() {
+  try {
+    const data = await sb(`${TABLE_FORNEC}?order=nome.asc&limit=2000`);
+    fornecedoresBD = data || [];
+  } catch(e) {
+    fornecedoresBD = []; // silencioso — tabela pode não existir ainda
+  }
+}
+
+function mascaraCNPJ(input) {
+  let v = input.value.replace(/\D/g,'');
+  if(v.length <= 11) { // CPF
+    v = v.replace(/(\d{3})(\d)/,'$1.$2')
+         .replace(/(\d{3})(\d)/,'$1.$2')
+         .replace(/(\d{3})(\d{1,2})$/,'$1-$2');
+  } else { // CNPJ
+    v = v.replace(/^(\d{2})(\d)/,'$1.$2')
+         .replace(/^(\d{2})\.(\d{3})(\d)/,'$1.$2.$3')
+         .replace(/\.(\d{3})(\d)/,'.$1/$2')
+         .replace(/(\d{4})(\d)/,'$1-$2');
+  }
+  input.value = v;
+}
+
+let _fornIdx = -1;
+function buscaFornecedor(query) {
+  _fornIdx = -1;
+  const dd = document.getElementById('forn-dropdown');
+  const q = query.trim().toLowerCase();
+  if(q.length < 2) { dd.innerHTML=''; dd.classList.remove('show'); return; }
+
+  // Buscar no cache local
+  const matches = fornecedoresBD.filter(function(f) {
+    return (f.nome||'').toLowerCase().includes(q) ||
+           (f.cnpj||'').replace(/\D/g,'').includes(q.replace(/\D/g,''));
+  }).slice(0, 8);
+
+  let html = '';
+  matches.forEach(function(f, i) {
+    html += `<div class="forn-item" data-idx="${i}" data-nome="${esc(f.nome)}" data-cnpj="${esc(f.cnpj||'')}"
+      onmousedown="selecionarFornecedor('${esc(f.nome)}','${esc(f.cnpj||'')}')">
+      <div class="forn-item-nome">${esc(f.nome)}</div>
+      <div class="forn-item-cnpj">${f.cnpj ? '📋 '+f.cnpj : '— sem CNPJ'}</div>
+    </div>`;
+  });
+
+  // Opção de cadastrar novo se não houver match exato
+  const nomeUpper = query.trim().toUpperCase();
+  const jaExiste = fornecedoresBD.some(function(f){ return (f.nome||'').toUpperCase() === nomeUpper; });
+  if(!jaExiste && query.trim().length >= 2) {
+    html += `<div class="forn-item forn-item-new" onmousedown="usarNovoFornecedor('${esc(query.trim())}')">
+      <div class="forn-item-nome forn-item-new">+ Usar "${esc(query.trim())}" como novo fornecedor</div>
+      <div class="forn-item-cnpj">Será salvo ao confirmar o lançamento</div>
+    </div>`;
+  }
+
+  dd.innerHTML = html;
+  dd.classList.toggle('show', html.length > 0);
+}
+
+function selecionarFornecedor(nome, cnpj) {
+  document.getElementById('f_fornecedor').value = nome;
+  if(cnpj) document.getElementById('f_cnpj').value = cnpj;
+  fecharFornDropdown(0);
+}
+
+function usarNovoFornecedor(nome) {
+  document.getElementById('f_fornecedor').value = nome;
+  fecharFornDropdown(0);
+}
+
+function fecharFornDropdown(delay) {
+  setTimeout(function() {
+    const dd = document.getElementById('forn-dropdown');
+    if(dd) { dd.innerHTML=''; dd.classList.remove('show'); }
+  }, delay);
+}
+
+function navFornDropdown(e) {
+  const dd = document.getElementById('forn-dropdown');
+  const items = dd.querySelectorAll('.forn-item');
+  if(!items.length) return;
+  if(e.key === 'ArrowDown') {
+    e.preventDefault();
+    _fornIdx = Math.min(_fornIdx+1, items.length-1);
+  } else if(e.key === 'ArrowUp') {
+    e.preventDefault();
+    _fornIdx = Math.max(_fornIdx-1, 0);
+  } else if(e.key === 'Enter' && _fornIdx >= 0) {
+    e.preventDefault();
+    items[_fornIdx].dispatchEvent(new MouseEvent('mousedown'));
+    return;
+  } else if(e.key === 'Escape') {
+    fecharFornDropdown(0); return;
+  }
+  items.forEach(function(it,i){ it.classList.toggle('selected', i===_fornIdx); });
+  if(items[_fornIdx]) items[_fornIdx].scrollIntoView({block:'nearest'});
+}
+
+async function salvarFornecedorSeNovo(nome, cnpj) {
+  if(!nome) return;
+  const nomeUpper = nome.toUpperCase();
+  // Verificar se já existe no cache
+  const existe = fornecedoresBD.some(function(f){ return (f.nome||'').toUpperCase() === nomeUpper; });
+  if(existe) {
+    // Se tem CNPJ novo, atualizar
+    if(cnpj) {
+      const forn = fornecedoresBD.find(function(f){ return (f.nome||'').toUpperCase() === nomeUpper; });
+      if(forn && !forn.cnpj && cnpj) {
+        try { await sb(`${TABLE_FORNEC}?id=eq.${forn.id}`,{method:'PATCH',body:JSON.stringify({cnpj:cnpj})}); } catch(e){}
+      }
+    }
+    return;
+  }
+  // Cadastrar novo fornecedor
+  try {
+    const novo = await sb(TABLE_FORNEC, {method:'POST', body:JSON.stringify({nome:nomeUpper, cnpj:cnpj||null})});
+    if(novo && novo[0]) fornecedoresBD.push(novo[0]);
+  } catch(e) { console.warn('Fornecedor não salvo:', e.message); }
+}
+
 async function loadData() {
   setSyncState('syncing','Carregando…');
   try {
@@ -756,6 +914,7 @@ async function loadData() {
     setSyncState('online',`${lancamentos.length} registros`);
     applyFilters(); 
     populateCGFilter();
+    await carregarFornecedores();
     const el = document.getElementById('panel-subtitle');
     if(el) el.textContent=`${lancamentos.length} lançamentos no total — ${filtered.length} exibidos`;
   } catch(e) { setSyncState('error','Erro'); showToast('⚠ '+e.message,true); }
@@ -1304,6 +1463,8 @@ function setStatus(val,btn) {
 
 async function saveLancamento() {
   const forn=document.getElementById('f_fornecedor').value.trim();
+  const cnpjForn=document.getElementById('f_cnpj').value.trim();
+  await salvarFornecedorSeNovo(forn, cnpjForn);
   const sol=document.getElementById('f_solicitante').value;
   const venc=document.getElementById('f_vencimento').value;
   const val=parseFloat(document.getElementById('f_valor').value);
@@ -1329,7 +1490,7 @@ async function saveLancamento() {
   if(status==='PAGO'&&!conta){showToast('Conta obrigatoria quando PAGO',true);return;}
   if(status==='PAGO'&&!pag){showToast('⚠ Informe a data de pagamento',true);return;}
   const obj={
-    fornecedor:forn.toUpperCase(),documento:document.getElementById('f_documento').value.trim(),
+    fornecedor:forn.toUpperCase(),cnpj:document.getElementById('f_cnpj').value.trim(),documento:document.getElementById('f_documento').value.trim(),
     solicitante:sol,data_doc:document.getElementById('f_data_doc').value||null,
     vencimento:venc,pagamento:pag||null,status,valor:val,conta,
     correntista:document.getElementById('f_correntista').value,fazenda:faz,
@@ -1425,7 +1586,7 @@ function clearForm() {
     if(box) { box.classList.remove('tem-arquivo'); box.style.borderColor=''; }
   });
   document.getElementById('formTitle').textContent='Novo Lançamento';
-  ['f_fornecedor','f_documento','f_data_doc','f_vencimento','f_pagamento','f_valor','f_historico'].forEach(id=>document.getElementById(id).value='');
+  ['f_fornecedor','f_cnpj','f_documento','f_data_doc','f_vencimento','f_pagamento','f_valor','f_historico'].forEach(id=>document.getElementById(id).value='');
   ['f_solicitante','f_conta','f_correntista','f_fazenda','f_cg'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('f_safra').value='SAFRA 2025/2026';
   document.getElementById('f_cultura').value='SOJA';
@@ -1605,6 +1766,7 @@ function editLancamento(id) {
   document.getElementById('formTitle').textContent='Editando Lançamento';
   showView('form');
   document.getElementById('f_fornecedor').value=l.fornecedor||'';
+  document.getElementById('f_cnpj').value=l.cnpj||'';
   document.getElementById('f_documento').value=l.documento||'';
   document.getElementById('f_solicitante').value=l.solicitante||'';
   document.getElementById('f_data_doc').value=l.data_doc||'';
