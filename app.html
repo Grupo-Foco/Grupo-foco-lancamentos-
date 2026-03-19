@@ -815,10 +815,17 @@ function buscaFornecedor(query) {
   const q = query.trim().toLowerCase();
   if(q.length < 2) { dd.innerHTML=''; dd.classList.remove('show'); return; }
 
-  // Buscar no cache local
+  // Só mostrar se há fornecedores carregados
+  if(!fornecedoresBD.length) { dd.innerHTML=''; dd.classList.remove('show'); return; }
+
+  // Filtrar: nome começa com a query OU contém palavra que começa com a query
   const matches = fornecedoresBD.filter(function(f) {
-    return (f.nome||'').toLowerCase().includes(q) ||
-           (f.cnpj||'').replace(/\D/g,'').includes(q.replace(/\D/g,''));
+    const nome = (f.nome||'').toLowerCase();
+    const cnpjNum = (f.cnpj||'').replace(/[^0-9]/g,'');
+    const qNum = q.replace(/[^0-9]/g,'');
+    return nome.startsWith(q) ||
+           nome.split(' ').some(function(p){ return p.startsWith(q); }) ||
+           (qNum.length >= 4 && cnpjNum.includes(qNum));
   }).slice(0, 8);
 
   let html = '';
