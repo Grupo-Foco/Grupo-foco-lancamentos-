@@ -1353,8 +1353,14 @@ function atualizarParcelas() {
     rows += '<tr>' +
       '<td><span class="parcela-num">' + (i+1) + '/' + n + '</span></td>' +
       '<td><input type="date" class="parcela-input-date" id="parc_venc_' + i + '" value="' + vencParc + '"></td>' +
-      '<td><span class="parcela-val">R$ ' + valorParc.toLocaleString('pt-BR',{minimumFractionDigits:2}) + '</span>' +
-      '<input type="hidden" id="parc_val_' + i + '" value="' + valorParc + '"></td>' +
+      '<td style="min-width:130px;">' +
+        '<div style="display:flex;align-items:center;gap:4px;">' +
+          '<span style="font-size:12px;color:var(--cinza);font-family:DM Mono,monospace;">R$</span>' +
+          '<input type="number" step="0.01" min="0" class="parcela-input-date" id="parc_val_' + i + '" ' +
+            'value="' + valorParc + '" ' +
+            'style="width:100%;padding:6px 8px;font-family:DM Mono,monospace;font-size:13px;text-align:right;">' +
+        '</div>' +
+      '</td>' +
       '</tr>';
   }
   tbody.innerHTML = rows;
@@ -1497,7 +1503,7 @@ async function saveLancamento() {
   if(status==='PAGO'&&!conta){showToast('Conta obrigatoria quando PAGO',true);return;}
   if(status==='PAGO'&&!pag){showToast('⚠ Informe a data de pagamento',true);return;}
   const obj={
-    fornecedor:forn.toUpperCase(),cnpj:document.getElementById('f_cnpj').value.trim(),documento:document.getElementById('f_documento').value.trim(),
+    fornecedor:forn.toUpperCase(),documento:document.getElementById('f_documento').value.trim(),
     solicitante:sol,data_doc:document.getElementById('f_data_doc').value||null,
     vencimento:venc,pagamento:pag||null,status,valor:val,conta,
     correntista:document.getElementById('f_correntista').value,fazenda:faz,
