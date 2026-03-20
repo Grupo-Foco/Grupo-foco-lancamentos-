@@ -2067,13 +2067,16 @@ function baixarSelecionados() {
   document.getElementById('baixaMsgQtd').innerHTML = 
     `<strong>${apagar.length}</strong> lançamento${apagar.length>1?'s':''} A PAGAR selecionado${apagar.length>1?'s':''} para baixa.`;
   document.getElementById('baixaData').value = new Date().toISOString().split('T')[0];
+  document.getElementById('baixaConta').value = '';
   document.getElementById('modalBaixa')._ids = apagar;
   document.getElementById('modalBaixa').classList.add('open');
 }
 
 async function confirmarBaixa() {
-  const pagData = document.getElementById('baixaData').value;
-  if (!pagData) { showToast('⚠ Informe a data de pagamento', true); return; }
+  const pagData  = document.getElementById('baixaData').value;
+  const baixaConta = document.getElementById('baixaConta').value;
+  if (!pagData)    { showToast('⚠ Informe a data de pagamento', true); return; }
+  if (!baixaConta) { showToast('⚠ Selecione a conta de pagamento', true); return; }
   
   const ids = document.getElementById('modalBaixa')._ids;
   const btn = document.getElementById('btnConfirmarBaixa');
@@ -2086,7 +2089,7 @@ async function confirmarBaixa() {
     for (const id of ids) {
       await sb(`${TABLE}?id=eq.${id}`, {
         method: 'PATCH',
-        body: JSON.stringify({ status: 'PAGO', pagamento: pagData })
+        body: JSON.stringify({ status: 'PAGO', pagamento: pagData, conta: baixaConta })
       });
       ok++;
       btn.textContent = `Salvando ${ok}/${ids.length}…`;
@@ -2115,12 +2118,30 @@ init();
     </div>
     <div class="modal-body">
       <p style="font-size:14px;color:var(--cinza);margin-bottom:20px;" id="baixaMsgQtd"></p>
-      <div class="field">
-        <label>Data de Pagamento <span class="req">★</span></label>
-        <input type="date" id="baixaData" style="font-size:15px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:4px;">
+        <div class="field">
+          <label>Data de Pagamento <span class="req">★</span></label>
+          <input type="date" id="baixaData" style="font-size:15px;">
+        </div>
+        <div class="field">
+          <label>Conta <span class="req">★</span></label>
+          <select id="baixaConta" style="font-size:14px;">
+            <option value="">Selecionar…</option>
+            <option>ADRIANA BB</option>
+            <option>IVAN BASA</option>
+            <option>IVAN BB</option>
+            <option>IVAN BRADESCO</option>
+            <option>IVAN SICOOB</option>
+            <option>JOAO BB</option>
+            <option>JOAO SICOOB</option>
+            <option>NEILA BB</option>
+            <option>NEILA SICOOB</option>
+            <option>OUTROS</option>
+          </select>
+        </div>
       </div>
       <div style="margin-top:12px;padding:12px;background:var(--creme);border-radius:var(--radius-sm);font-family:'DM Mono',monospace;font-size:11px;color:var(--cinza);">
-        Todos os lançamentos <strong>A PAGAR</strong> selecionados serão marcados como <strong style="color:var(--sucesso)">PAGO</strong> com a data informada.
+        Todos os lançamentos <strong>A PAGAR</strong> selecionados serão marcados como <strong style="color:var(--sucesso)">PAGO</strong> com a data e conta informadas.
       </div>
     </div>
     <div class="modal-footer">
