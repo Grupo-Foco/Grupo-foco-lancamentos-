@@ -125,12 +125,27 @@ input.inp:focus,select.inp:focus{border-color:var(--verde);}
 .access-item{display:flex;align-items:center;justify-content:space-between;background:var(--creme);border-radius:8px;padding:12px 16px;}
 .access-label{font-size:13px;font-weight:600;}
 .access-desc{font-size:11px;color:var(--cinza);font-family:DM Mono,monospace;margin-top:2px;}
-.toggle{position:relative;width:38px;height:22px;cursor:pointer;}
+.toggle{position:relative;width:48px;height:26px;cursor:pointer;}
 .toggle input{opacity:0;width:0;height:0;}
-.toggle-slider{position:absolute;inset:0;background:#ccc;border-radius:11px;transition:.3s;}
-.toggle-slider:before{content:'';position:absolute;width:16px;height:16px;left:3px;bottom:3px;background:white;border-radius:50%;transition:.3s;}
-.toggle input:checked + .toggle-slider{background:var(--verde);}
-.toggle input:checked + .toggle-slider:before{transform:translateX(16px);}
+.toggle-slider{
+  position:absolute;inset:0;background:#d9534f;border-radius:13px;
+  transition:background .25s,box-shadow .25s;
+  box-shadow:inset 0 1px 3px rgba(0,0,0,.2);
+}
+.toggle-slider:before{
+  content:'';position:absolute;width:20px;height:20px;
+  left:3px;bottom:3px;background:white;border-radius:50%;
+  transition:transform .25s;box-shadow:0 1px 4px rgba(0,0,0,.25);
+}
+.toggle input:checked + .toggle-slider{background:#27ae60;box-shadow:inset 0 1px 3px rgba(0,0,0,.15),0 0 0 2px rgba(39,174,96,.2);}
+.toggle input:checked + .toggle-slider:before{transform:translateX(22px);}
+.toggle input:disabled + .toggle-slider{opacity:0.4;cursor:not-allowed;}
+/* Label ao lado do toggle mostrando estado */
+.toggle-wrap{display:flex;align-items:center;gap:6px;justify-content:center;}
+.toggle-label{font-family:DM Mono,monospace;font-size:10px;font-weight:600;min-width:28px;}
+.toggle input:checked ~ .toggle-label{color:var(--verde);}
+.toggle-wrap .toggle-label{color:#bbb;}
+.toggle-wrap:has(input:checked) .toggle-label{color:var(--verde);}
 
 @media(max-width:600px){
   .page{padding:20px 12px;}
@@ -563,6 +578,7 @@ function renderPermTable() {
         '<label class="toggle">' +
           '<input type="checkbox"' + (hasPerm?' checked':'') + ' ' + dis +
             ' onchange="togglePerm(\'' + u.login + '\',\'' + pk + '\',this.checked)">' +
+          '<span class="toggle-label">' + (hasPerm?'ON':'OFF') + '</span>' +
           '<span class="toggle-slider"></span>' +
         '</label>' +
         (isGestor ? '<div style="font-size:9px;color:var(--cinza);font-family:DM Mono,monospace;margin-top:2px;">auto</div>' : '') +
