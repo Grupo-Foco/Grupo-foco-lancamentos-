@@ -1374,12 +1374,23 @@ function calcProxVenc(baseDate, meses) {
 }
 
 function salvarParcelas(base, n, boletoPb, nfPb) {
+  // Ler TODOS os valores do DOM antes de qualquer operação assíncrona
+  // (o DOM pode ser limpo durante uploads)
+  var parcDados = [];
+  for(var j = 0; j < n; j++) {
+    var vi = document.getElementById('parc_venc_' + j);
+    var li = document.getElementById('parc_val_'  + j);
+    var vp = vi ? vi.value : base.vencimento;
+    // Calcular valor padrão da parcela caso o input esteja vazio
+    var parcValPadrao = parseFloat((base.valor / n).toFixed(2));
+    var lv = li && li.value !== '' ? parseFloat(li.value) : parcValPadrao;
+    if(isNaN(lv) || lv <= 0) lv = parcValPadrao;
+    parcDados.push({ venc: vp, valor: lv });
+  }
   var promessas = [];
   for(var i = 0; i < n; i++) {
-    var vencInput = document.getElementById('parc_venc_' + i);
-    var valInput  = document.getElementById('parc_val_' + i);
-    var vencParc  = vencInput ? vencInput.value : base.vencimento;
-    var valorParc = valInput  ? parseFloat(valInput.value) : base.valor;
+    var vencParc  = parcDados[i].venc;
+    var valorParc = parcDados[i].valor;
     var docBase   = base.documento || '';
     var docParc   = docBase ? docBase + ' (' + (i+1) + '/' + n + ')' : (i+1) + '/' + n;
     var obj = {};
