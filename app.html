@@ -1087,75 +1087,80 @@ async function concilCarregar(file) {
   }
 }
 
-// ── Extrair PDF via IA (Claude API) ──
+// ── Extrair PDF via PDF.js (local, sem API externa) ──
 async function concilExtrairPDF(file) {
-  document.getElementById('concil-progress-msg').textContent = '🤖 Extraindo transações com IA…';
+  document.getElementById('concil-progress-msg').textContent = '📄 Lendo PDF…';
   document.getElementById('concil-progress-bar').style.width = '30%';
 
-  // Converter PDF para base64
-  var base64 = await new Promise(function(res, rej) {
-    var reader = new FileReader();
-    reader.onload = function(e) { res(e.target.result.split(',')[1]); };
-    reader.onerror = rej;
-    reader.readAsDataURL(file);
-  });
-
-  document.getElementById('concil-progress-bar').style.width = '50%';
-  document.getElementById('concil-progress-msg').textContent = '🤖 IA analisando extrato bancário…';
-
-  var response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 4000,
-      messages: [{
-        role: 'user',
-        content: [
-          {
-            type: 'document',
-            source: { type: 'base64', media_type: 'application/pdf', data: base64 }
-          },
-          {
-            type: 'text',
-            text: `Extraia TODAS as transações de débito (saídas de dinheiro) deste extrato bancário.
-Retorne APENAS um JSON array no formato:
-[{"data":"YYYY-MM-DD","descricao":"descrição original","valor":123.45}]
-- data: formato YYYY-MM-DD
-- descricao: texto original da transação
-- valor: valor numérico positivo (só débitos/saídas)
-Inclua SOMENTE débitos (pagamentos, transferências, tarifas). Ignore créditos/entradas.
-Retorne APENAS o JSON, sem texto adicional.`
-          }
-        ]
-      }]
-    })
-  });
-
-  var data = await response.json();
-  document.getElementById('concil-progress-bar').style.width = '75%';
-
-  var texto = (data.content || []).map(function(c){ return c.text || ''; }).join('');
-  // Limpar possíveis marcadores de código
-  texto = texto.replace(/```json|```/g, '').trim();
-
-  var transacoes;
+  var texto = '';
   try {
-    transacoes = JSON.parse(texto);
-  } catch(e) {
-    // Tentar extrair o array do texto
-    var m = texto.match(/\[[\s\S]*\]/);
-    if(m) transacoes = JSON.parse(m[0]);
-    else throw new Error('IA não retornou JSON válido');
-  }
+    if(typeof pdfjsLib !== 'undefined') {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      var arrayBuffer = await file.arrayBuffer();
+      var pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+      for(var p = 1; p <= pdf.numPages; p++) {
+        var page = await pdf.getPage(p);
+        var content = await page.getTextContent();
+        var linhas = {};
+        content.items.forEach(function(item) {
+          var y = Math.round(item.transform[5]);
+          if(!linhas[y]) linhas[y] = [];
+          linhas[y].push(item.str);
+        });
+        Object.keys(linhas).sort(function(a,b){return b-a;}).forEach(function(y) {
+          texto += linhas[y].join(' ') + '\n';
+        });
+      }
+    }
+  } catch(e) { console.warn('PDF.js:', e); }
 
-  return transacoes.map(function(t) {
-    return {
-      data: t.data || '',
-      descricao: t.descricao || t.desc || '',
-      valor: Math.abs(parseFloat(t.valor) || 0)
-    };
-  }).filter(function(t){ return t.valor > 0; });
+  document.getElementById('concil-progress-bar').style.width = '60%';
+  document.getElementById('concil-progress-msg').textContent = '🔍 Extraindo transações…';
+
+  var resultado = concilParsearTexto(texto);
+  if(!resultado.length) resultado = extrairLancamentosPDF(texto);
+
+  document.getElementById('concil-progress-bar').style.width = '90%';
+  return resultado;
+}
+
+// ── Parser regex para extratos bancários brasileiros ──
+function concilParsearTexto(texto) {
+  var result = [];
+  var linhas = texto.split('\n');
+  var reData  = /(\d{2}[\/\-]\d{2}[\/\-]\d{2,4})/;
+  var reValor = /(-?\d{1,3}(?:\.\d{3})*,\d{2})/g;
+
+  linhas.forEach(function(linha) {
+    linha = linha.trim();
+    if(!linha || linha.length < 8) return;
+    var mData = linha.match(reData);
+    if(!mData) return;
+    var valores = [];
+    var m; reValor.lastIndex = 0;
+    while((m = reValor.exec(linha)) !== null) {
+      var v = parseFloat(m[1].replace(/\./g,'').replace(',','.'));
+      if(!isNaN(v) && Math.abs(v) > 0) valores.push(Math.abs(v));
+    }
+    if(!valores.length) return;
+    var valor = Math.max.apply(null, valores);
+    if(valor <= 0 || valor > 100000000) return;
+    var partes = mData[1].replace(/-/g,'/').split('/');
+    var ano = partes[2];
+    if(ano && ano.length === 2) ano = '20' + ano;
+    var dataISO = (ano||new Date().getFullYear()) + '-' + partes[1].padStart(2,'0') + '-' + partes[0].padStart(2,'0');
+    var desc = linha.replace(reData,'').replace(reValor,'').replace(/\s+/g,' ').trim().substring(0,60);
+    if(!desc || desc.length < 2) desc = 'Transação ' + mData[1];
+    result.push({ data: dataISO, descricao: desc, valor: valor });
+  });
+
+  var vistos = new Set();
+  return result.filter(function(r) {
+    var chave = r.data + '|' + r.valor;
+    if(vistos.has(chave)) return false;
+    vistos.add(chave);
+    return true;
+  });
 }
 
 // ── Processar match extrato × sistema ──
