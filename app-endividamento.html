@@ -720,7 +720,7 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
     </div>
     <div class="modal-body">
       <p style="font-size:14px;color:var(--cinza);margin-bottom:16px;" id="baixa-msg">—</p>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;">
         <div class="field">
           <label>Data de Pagamento <span class="req">★</span></label>
           <input type="date" id="baixa-data">
@@ -740,6 +740,21 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
             <input type="number" id="baixa-juros" step="0.01" min="0" placeholder="0,00"
               style="padding-left:36px;" title="Valor de juros dentro do total pago (informativo)">
           </div>
+        </div>
+        <div class="field">
+          <label>Conta <span class="req">★</span></label>
+          <select id="baixa-conta">
+            <option value="">Selecionar…</option>
+            <option>ADRIANA BB</option>
+            <option>IVAN BASA</option>
+            <option>IVAN BB</option>
+            <option>IVAN BRADESCO</option>
+            <option>IVAN SICOOB</option>
+            <option>JOAO BB</option>
+            <option>JOAO SICOOB</option>
+            <option>NEILA BB</option>
+            <option>NEILA SICOOB</option>
+          </select>
         </div>
       </div>
       <div style="margin-top:12px;padding:10px 12px;background:var(--creme);border-radius:var(--radius-sm);font-family:'DM Mono',monospace;font-size:10px;color:var(--cinza);">
@@ -763,7 +778,7 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
     </div>
     <div class="modal-body">
       <div class="detail-grid" style="grid-template-columns:1fr 1fr;margin-bottom:16px;" id="baixa-ind-detalhe"></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:4px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;margin-top:4px;">
         <div class="field">
           <label>Data de Pagamento <span class="req">★</span></label>
           <input type="date" id="baixa-ind-data">
@@ -789,6 +804,17 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
           <span style="font-family:'DM Mono',monospace;font-size:9px;color:var(--cinza);margin-top:3px;">
             Amortização: <span id="baixa-ind-amort">—</span>
           </span>
+        </div>
+        <div class="field">
+          <label>Conta <span class="req">★</span></label>
+          <select id="baixa-ind-conta">
+            <option value="">Selecionar…</option>
+            <option>ADRIANA BB</option><option>IVAN BASA</option>
+            <option>IVAN BB</option><option>IVAN BRADESCO</option>
+            <option>IVAN SICOOB</option><option>JOAO BB</option>
+            <option>JOAO SICOOB</option><option>NEILA BB</option>
+            <option>NEILA SICOOB</option>
+          </select>
         </div>
       </div>
     </div>
@@ -1616,7 +1642,8 @@ async function confirmarBaixa() {
   try {
     for(var i=0;i<baixaIds.length;i++) {
       var id = baixaIds[i];
-      var patch = {status:'PAGO', data_pagamento:dataPag};
+      var contaMassa=(document.getElementById('baixa-conta')?.value||'');
+      var patch={conta:contaMassa||undefined,status:'PAGO', data_pagamento:dataPag};
       if(valorPago !== null) patch.valor_parcela = valorPago;
       if(juros !== null) patch.juros_pagos = juros;
       await sb(TB_LANCAMENTOS+'?id=eq.'+id, {method:'PATCH', body:JSON.stringify(patch)});
@@ -1648,7 +1675,9 @@ async function confirmarBaixaInd() {
   var btn = document.getElementById('btn-confirmar-baixa-ind');
   btn.disabled = true; btn.textContent = 'Salvando…';
   try {
+    var contaInd = document.getElementById('baixa-ind-conta')?.value||'';
     var patch = {status:'PAGO', data_pagamento:dataPag};
+    if(contaInd) patch.conta = contaInd;
     if(valorPago !== null) patch.valor_parcela = valorPago;
     if(juros !== null) patch.juros_pagos = juros;
     await sb(TB_LANCAMENTOS+'?id=eq.'+baixaIndId, {method:'PATCH', body:JSON.stringify(patch)});

@@ -629,7 +629,7 @@ async function carregarRelatorio() {
 function renderRelatorio() {
   var grupos = {};
   relData.forEach(function(l) {
-    var user = (l.lancador || 'Desconhecido').trim();
+    var user = (l.lancador || 'Desconhecido').trim().toUpperCase();
     if(!grupos[user]) grupos[user] = { total:0, apagar:0, pago:0, valor:0, ultimo:'' };
     grupos[user].total++;
     if(l.status === 'A PAGAR') grupos[user].apagar++;
@@ -686,7 +686,7 @@ function exportarRelatorio() {
   if(!relData.length) { toast('Nenhum dado para exportar', true); return; }
   var grupos = {};
   relData.forEach(function(l) {
-    var user = (l.lancador || 'Desconhecido').trim();
+    var user = (l.lancador || 'Desconhecido').trim().toUpperCase();
     if(!grupos[user]) grupos[user] = { total:0, apagar:0, pago:0, valor:0, ultimo:'' };
     grupos[user].total++;
     if(l.status === 'A PAGAR') grupos[user].apagar++;

@@ -852,7 +852,7 @@ function buscaFornecedor(query) {
 }
 
 function selecionarFornecedor(nome, cnpj) {
-  document.getElementById('f_fornecedor').value = nome;
+  document.getElementById('f_fornecedor').value = nome.toUpperCase();
   if(cnpj) document.getElementById('f_cnpj').value = cnpj;
   fecharFornDropdown(0);
 }
@@ -1077,8 +1077,8 @@ async function concilCarregar(file) {
     document.getElementById('concil-resultado').style.display = '';
     document.getElementById('concil-subtitle').textContent =
       _extrato.length + ' transações extraídas • ' +
-      (dataIni ? 'a partir de ' + fmtData(dataIni) : '') +
-      (dataFim ? ' até ' + fmtData(dataFim) : '');
+      (dataIni ? 'a partir de ' + fmtDate(dataIni) : '') +
+      (dataFim ? ' até ' + fmtDate(dataFim) : '');
 
   } catch(e) {
     document.getElementById('concil-progress').style.display = 'none';
@@ -1291,12 +1291,12 @@ function concilRenderizar() {
         : 'background:#fef2f2;';
 
     // Coluna EXTRATO
-    var extData = r.ext ? fmtData(r.ext.data) : '—';
+    var extData = r.ext ? fmtDate(r.ext.data) : '—';
     var extDesc = r.ext ? esc(r.ext.descricao.substring(0,45)) : '—';
     var extVal  = r.ext ? fmtR(r.ext.valor) : '—';
 
     // Coluna SISTEMA
-    var sysData   = r.lanc ? fmtData(r.lanc.vencimento) : '—';
+    var sysData   = r.lanc ? fmtDate(r.lanc.vencimento) : '—';
     var sysForn   = r.lanc ? esc((r.lanc.fornecedor||'').substring(0,30)) : '—';
     var sysVal    = r.lanc ? fmtR(+r.lanc.valor||0) : '—';
     var sysStatus = r.lanc
@@ -1374,6 +1374,12 @@ function limparConciliacao() {
 var currentUser = sessionStorage.getItem('gf_user') || '';
 var currentRole = sessionStorage.getItem('gf_role') || 'funcionario';
 if(!currentUser) { window.location.href = 'index.html'; }
+(function initContaBlock(){
+  var el=document.getElementById('f_conta');
+  if(el){el.disabled=true;el.style.opacity='0.45';}
+  var r=document.getElementById('contaReq');
+  if(r) r.textContent='(preenchido ao dar baixa)';
+})();
 
 // Carregar permissões individuais do usuário
 function getUserPerms() {
@@ -1580,7 +1586,16 @@ function setStatus(val,btn) {
   document.getElementById('f_status').value=val;
   document.querySelectorAll('.status-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  if(val==='A PAGAR') document.getElementById('f_pagamento').value='';
+  var contaEl = document.getElementById('f_conta');
+  var reqEl   = document.getElementById('contaReq');
+  if(val==='A PAGAR') {
+    document.getElementById('f_pagamento').value='';
+    if(contaEl){ contaEl.value=''; contaEl.disabled=true; contaEl.style.opacity='0.45'; }
+    if(reqEl) reqEl.textContent='(preenchido ao dar baixa)';
+  } else {
+    if(contaEl){ contaEl.disabled=false; contaEl.style.opacity='1'; }
+    if(reqEl) reqEl.textContent='★ (obrig. se PAGO)';
+  }
 }
 
 async function saveLancamento() {
