@@ -1166,9 +1166,16 @@ function concilParsearTexto(texto) {
     linha = linha.trim();
     if(!linha || linha.length < 8) return;
 
-    // ── Ignorar créditos: linhas com (+) ou que indicam entrada ──
-    if(/\(\+\)/.test(linha)) return;  // marcador explícito de crédito
-    if(/^\+/.test(linha)) return;       // linha começa com +
+    // ── Ignorar créditos: só processar débitos (-) ──
+    // O extrato BB marca débitos com (-) e créditos com (+)
+    var temDebito  = /\(-\)/.test(linha);
+    var temCredito = /\(\+\)/.test(linha);
+    // Se tem (+) em qualquer lugar da linha → ignorar (crédito/receita)
+    if(temCredito) return;
+    // Se o banco usa marcadores (-)/( +): exigir que seja débito
+    // Se não tem nenhum marcador, aceitar (alguns formatos não usam marcadores)
+    // Ignorar também linhas de saldo
+    if(/s\s*a\s*l\s*d\s*o/i.test(linha)) return;
 
     var mData = linha.match(reData);
     if(!mData) return;
