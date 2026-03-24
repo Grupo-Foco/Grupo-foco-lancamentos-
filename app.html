@@ -746,7 +746,38 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal()">Fechar</button>
       <button class="btn btn-danger" id="modalDeleteBtn">🗑 Excluir</button>
-      <button class="btn btn-primary" id="modalEditBtn">✎ Editar</button>
+      <button class="btn btn-secondary" id="modalEditBtn">✎ Editar</button>
+      <button class="btn btn-primary" id="modalBaixarBtn" style="display:none;background:#22c55e;border-color:#22c55e;">✓ Baixar</button>
+    </div>
+    <!-- Painel de baixa inline — aparece ao clicar Baixar -->
+    <div id="modalBaixarPanel" style="display:none;padding:16px 24px;background:#f0fdf4;border-top:1px solid #bbf7d0;">
+      <div style="font-size:12px;font-weight:700;color:#15803d;letter-spacing:.06em;margin-bottom:10px;text-transform:uppercase;">Confirmar Pagamento</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:end;">
+        <div class="field" style="margin:0;">
+          <label style="font-size:11px;color:var(--cinza);">Data de Pagamento ★</label>
+          <input type="date" id="modalBaixarData" style="font-size:14px;width:100%;">
+        </div>
+        <div class="field" style="margin:0;">
+          <label style="font-size:11px;color:var(--cinza);">Conta ★</label>
+          <select id="modalBaixarConta" style="font-size:14px;width:100%;">
+            <option value="">Selecionar…</option>
+            <option>ADRIANA BB</option>
+            <option>IVAN BASA</option>
+            <option>IVAN BB</option>
+            <option>IVAN BRADESCO</option>
+            <option>IVAN SICOOB</option>
+            <option>JOAO BB</option>
+            <option>JOAO SICOOB</option>
+            <option>NEILA BB</option>
+            <option>NEILA SICOOB</option>
+            <option>OUTROS</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-secondary" onclick="fecharBaixarPanel()" style="font-size:13px;padding:8px 14px;">Cancelar</button>
+          <button class="btn btn-primary" onclick="confirmarBaixaModal()" style="font-size:13px;padding:8px 14px;background:#15803d;border-color:#15803d;">✓ Confirmar</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -1878,9 +1909,54 @@ function openDetail(id) {
     catch(e) { showToast('⚠ '+e.message,true); }
   };
   document.getElementById('modalEditBtn').onclick=()=>{closeModal();editLancamento(id);};
+  // Botão BAIXAR — só para A PAGAR
+  var btnBaixar = document.getElementById('modalBaixarBtn');
+  var panel = document.getElementById('modalBaixarPanel');
+  if(l.status === 'A PAGAR') {
+    btnBaixar.style.display = '';
+    btnBaixar.onclick = function() {
+      panel.style.display = panel.style.display === 'none' ? '' : 'none';
+      if(panel.style.display !== 'none') {
+        // Preencher data com hoje
+        document.getElementById('modalBaixarData').value = new Date().toISOString().split('T')[0];
+        document.getElementById('modalBaixarConta').value = '';
+        document.getElementById('modalBaixarPanel')._lancId = id;
+      }
+    };
+  } else {
+    btnBaixar.style.display = 'none';
+    panel.style.display = 'none';
+  }
   document.getElementById('detailModal').classList.add('open');
 }
-function closeModal(){document.getElementById('detailModal').classList.remove('open');}
+function closeModal(){
+  document.getElementById('detailModal').classList.remove('open');
+  fecharBaixarPanel();
+}
+function fecharBaixarPanel(){
+  document.getElementById('modalBaixarPanel').style.display='none';
+}
+async function confirmarBaixaModal() {
+  var dataPag  = document.getElementById('modalBaixarData').value;
+  var conta    = document.getElementById('modalBaixarConta').value;
+  var lancId   = document.getElementById('modalBaixarPanel')._lancId;
+  if(!dataPag) { showToast('⚠ Informe a data de pagamento', true); return; }
+  if(!conta)   { showToast('⚠ Selecione a conta', true); return; }
+  var btn = document.querySelector('#modalBaixarPanel button:last-child');
+  btn.disabled = true; btn.textContent = 'Salvando…';
+  try {
+    await sb(TABLE + '?id=eq.' + lancId, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'PAGO', pagamento: dataPag, conta: conta })
+    });
+    await loadData();
+    closeModal();
+    showToast('✓ Lançamento baixado como PAGO!');
+  } catch(e) {
+    showToast('⚠ Erro: ' + e.message, true);
+    btn.disabled = false; btn.textContent = '✓ Confirmar';
+  }
+}
 document.getElementById('detailModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
 
 function editLancamento(id) {
