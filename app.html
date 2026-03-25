@@ -718,6 +718,7 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
           <th onclick="sortTable('vencimento')">Vencimento</th>
           <th onclick="sortTable('valor')">Valor</th>
           <th onclick="sortTable('status')">Status</th>
+          <th style="width:56px;text-align:center;" title="Anexos: B=Boleto, NF=Nota Fiscal">Docs</th>
           <th onclick="sortTable('fazenda')">Fazenda</th>
           <th onclick="sortTable('cg')">Conta Gerencial</th>
           <th onclick="sortTable('conta')">Conta</th>
@@ -1832,10 +1833,15 @@ function renderTable() {
     <tr onclick="openDetail(${l.id})">
       <td onclick="event.stopPropagation()"><input type="checkbox" class="row-check" data-id="${l.id}" onchange="checkSel()"></td>
       <td class="mono" style="color:var(--cinza)">${l.codigo||String(l.id).padStart(4,'0')}</td>
-      <td style="font-weight:500">${esc(l.fornecedor)}</td>
+      <td style="font-weight:500;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(l.fornecedor)}">${esc(l.fornecedor)}</td>
       <td class="mono">${fmtDate(l.vencimento)}</td>
       <td class="mono" style="text-align:right">R$ ${(+l.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
       <td><span class="badge ${l.status==='PAGO'?'badge-pago':'badge-apagar'}">${l.status}</span></td>
+      <td style="text-align:center;font-size:10px;font-weight:700;letter-spacing:.03em;white-space:nowrap;">
+        ${l.boleto_path?'<span title="Boleto anexado" style="display:inline-block;background:#1a3d2b;color:#f5f0e8;border-radius:4px;padding:2px 5px;margin:1px;">B</span>':''}
+        ${l.nf_path?'<span title="Nota Fiscal anexada" style="display:inline-block;background:#b45309;color:#fff;border-radius:4px;padding:2px 4px;margin:1px;">NF</span>':''}
+        ${(!l.boleto_path&&!l.nf_path)?'<span style="color:#ccc;">—</span>':''}
+      </td>
       <td>${esc(l.fazenda)}</td>
       <td style="font-size:12px;max-width:150px">${esc(l.cg)}</td>
       <td style="font-size:12px">${esc(l.conta)}</td>
