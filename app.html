@@ -1641,7 +1641,21 @@ async function gerarReciboPDF(dados) {
 
   // Localização e data
   y += linhas3.length * 6.5 + 16;
-  var cidadeData = (dados.fazenda ? dados.fazenda : 'Local') + ', ' + dataFmt + '.';
+  // Mapa fazenda → cidade para o recibo
+  var _fazCidade = {
+    'SANTA ANGELINA': 'Brejinho de Nazaré',
+    'MAYARA':         'Padre Bernardo',
+    'LAGEADO':        'Edealina',
+    'SÃO BENTO':      'Edealina',
+    'SAO BENTO':      'Edealina',
+    'BRASIL':         'Peixe',
+    'ESCRITÓRIO - GO':'Edealina',
+    'ESCRITORIO - GO':'Edealina',
+    'RATEIO':         ''
+  };
+  var fazKey = (dados.fazenda || '').toUpperCase().trim();
+  var cidade = (fazKey in _fazCidade) ? _fazCidade[fazKey] : (dados.fazenda || '');
+  var cidadeData = (cidade ? cidade + ', ' : '') + dataFmt + '.';
   doc.text(cidadeData, margin, y);
 
   // Linha de assinatura
@@ -2132,6 +2146,40 @@ async function saveLancamento() {
   if(!cg){showToast('Selecione a conta gerencial',true);return;}
   if(status==='PAGO'&&!conta){showToast('Conta obrigatoria quando PAGO',true);return;}
   if(status==='PAGO'&&!pag){showToast('⚠ Informe a data de pagamento',true);return;}
+
+  // ── Verificar duplicata (apenas em novo lançamento) ──
+  if (!editingId) {
+    var fornUpper = forn.toUpperCase();
+    var duplicatas = lancamentos.filter(function(l) {
+      if ((l.fornecedor||'').toUpperCase() !== fornUpper) return false;
+      if (String(+l.valor) !== String(val)) return false;
+      if ((l.vencimento||'') !== venc) return false;
+      return true;
+    });
+    if (duplicatas.length > 0) {
+      var ids = duplicatas.map(function(l){ return '#' + l.id; }).join(', ');
+      var confirmar = confirm(
+        '⚠ ATENÇÃO — Possível lançamento duplicado!
+
+' +
+        'Já existe(m) lançamento(s) com:
+' +
+        '  • Fornecedor: ' + fornUpper + '
+' +
+        '  • Valor: R$ ' + val.toLocaleString('pt-BR',{minimumFractionDigits:2}) + '
+' +
+        '  • Vencimento: ' + venc.split('-').reverse().join('/') + '
+
+' +
+        'ID(s) encontrado(s): ' + ids + '
+
+' +
+        'Deseja salvar mesmo assim?'
+      );
+      if (!confirmar) return;
+    }
+  }
+
   const obj={
     fornecedor:forn.toUpperCase(),documento:document.getElementById('f_documento').value.trim(),
     cnpj:document.getElementById('f_cnpj').value.trim()||null,
