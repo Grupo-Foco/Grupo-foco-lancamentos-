@@ -1111,14 +1111,22 @@ async function gerarEAbrirReciboDetail(id) {
   if (!l) { showToast('⚠ Lançamento não encontrado', true); return; }
   showToast('⏳ Gerando recibo…');
   try {
+    // Buscar CNPJ do cadastro de fornecedores se não estiver no lançamento
+    var cnpjUsado = l.cnpj || '';
+    if (!cnpjUsado && l.fornecedor) {
+      var forn = fornecedoresBD.find(function(f){
+        return (f.nome||'').toUpperCase() === (l.fornecedor||'').toUpperCase();
+      });
+      if (forn && forn.cnpj) cnpjUsado = forn.cnpj;
+    }
     var blob = await gerarReciboPDF({
-      fornecedor: l.fornecedor,
-      cnpj: l.cnpj || '',
+      fornecedor: l.fornecedor || '',
+      cnpj: cnpjUsado,
       valor: +l.valor || 0,
-      dataDoc: l.data_doc,
-      venc: l.vencimento,
-      fazenda: l.fazenda,
-      historico: l.historico,
+      dataDoc: l.data_doc || '',
+      venc: l.vencimento || '',
+      fazenda: l.fazenda || '',
+      historico: l.historico || '',
       forma: l.forma_pagamento || 'PIX'
     });
     // Tentar salvar no storage para próximas aberturas
@@ -2103,6 +2111,7 @@ async function saveLancamento() {
   if(status==='PAGO'&&!pag){showToast('⚠ Informe a data de pagamento',true);return;}
   const obj={
     fornecedor:forn.toUpperCase(),documento:document.getElementById('f_documento').value.trim(),
+    cnpj:document.getElementById('f_cnpj').value.trim()||null,
     solicitante:sol,data_doc:document.getElementById('f_data_doc').value||null,
     vencimento:venc,pagamento:pag||null,status,valor:val,conta,
     correntista:document.getElementById('f_correntista').value,fazenda:faz,
@@ -2121,6 +2130,22 @@ async function saveLancamento() {
       if(_editNf     && !_arqs.nf)     obj.nf_path     = _editNf;
       await sb(`${TABLE}?id=eq.${editingId}`,{method:'PATCH',body:JSON.stringify(obj)});
       // Upload de novos anexos se o usuário selecionou
+      // Na edição, regerar recibo com dados atualizados se for PIX/CHEQUE
+      var forma_ed = obj.forma_pagamento || 'BOLETO';
+      if (forma_ed === 'PIX' || forma_ed === 'CHEQUE') {
+        try {
+          _reciboBlob = await gerarReciboPDF({
+            fornecedor: obj.fornecedor,
+            cnpj: obj.cnpj || '',
+            valor: obj.valor,
+            dataDoc: obj.data_doc,
+            venc: obj.vencimento,
+            fazenda: obj.fazenda,
+            historico: obj.historico,
+            forma: forma_ed
+          });
+        } catch(e) { console.warn('Recibo edição:', e); }
+      }
       if(_arqs.boleto || _arqs.nf || _reciboBlob) {
         showToast('📎 Enviando anexos…');
         const eid = editingId;
@@ -2168,22 +2193,40 @@ async function saveLancamento() {
     } else {
       // Parcela única
       const saved = await sb(TABLE,{method:'POST',body:JSON.stringify(obj)});
-      if(saved && saved[0] && (_arqs.boleto || _arqs.nf || _reciboBlob)) {
-        showToast('📎 Enviando anexos…');
-        const lid = saved[0].id;
-        const [pb, pn, pr] = await Promise.all([
-          uploadAnexo(_arqs.boleto, lid, 'boleto'),
-          uploadAnexo(_arqs.nf,     lid, 'nf'),
-          _reciboBlob ? uploadAnexoBlob(_reciboBlob, lid, 'recibo') : Promise.resolve(null)
-        ]);
-        const upd = {};
-        if(pb) upd.boleto_path  = pb;
-        if(pn) upd.nf_path      = pn;
-        if(pr) upd.recibo_path  = pr;
-        if(Object.keys(upd).length)
-          await sb(`${TABLE}?id=eq.${lid}`, {method:'PATCH', body:JSON.stringify(upd)});
-        removerAnexo('boleto'); removerAnexo('nf');
-        _reciboBlob = null;
+      if(saved && saved[0]) {
+        // Regerar recibo AGORA com todos os dados completos do obj (PIX ou CHEQUE)
+        var forma_final = obj.forma_pagamento || 'BOLETO';
+        if ((forma_final === 'PIX' || forma_final === 'CHEQUE') && !_reciboBlob) {
+          try {
+            _reciboBlob = await gerarReciboPDF({
+              fornecedor: obj.fornecedor,
+              cnpj: obj.cnpj || '',
+              valor: obj.valor,
+              dataDoc: obj.data_doc,
+              venc: obj.vencimento,
+              fazenda: obj.fazenda,
+              historico: obj.historico,
+              forma: forma_final
+            });
+          } catch(e) { console.warn('Recibo final:', e); }
+        }
+        if(_arqs.boleto || _arqs.nf || _reciboBlob) {
+          showToast('📎 Enviando anexos…');
+          const lid = saved[0].id;
+          const [pb, pn, pr] = await Promise.all([
+            uploadAnexo(_arqs.boleto, lid, 'boleto'),
+            uploadAnexo(_arqs.nf,     lid, 'nf'),
+            _reciboBlob ? uploadAnexoBlob(_reciboBlob, lid, 'recibo') : Promise.resolve(null)
+          ]);
+          const upd = {};
+          if(pb) upd.boleto_path  = pb;
+          if(pn) upd.nf_path      = pn;
+          if(pr) upd.recibo_path  = pr;
+          if(Object.keys(upd).length)
+            await sb(`${TABLE}?id=eq.${lid}`, {method:'PATCH', body:JSON.stringify(upd)});
+          removerAnexo('boleto'); removerAnexo('nf');
+          _reciboBlob = null;
+        }
       }
       showToast('✓ Lançamento salvo!');
     }
@@ -2453,6 +2496,7 @@ function editLancamento(id) {
   document.getElementById('formTitle').textContent='Editando Lançamento';
   showView('form');
   document.getElementById('f_fornecedor').value=l.fornecedor||'';
+  document.getElementById('f_cnpj').value=l.cnpj||'';
   document.getElementById('f_cnpj').value=l.cnpj||'';
   document.getElementById('f_documento').value=l.documento||'';
   document.getElementById('f_solicitante').value=l.solicitante||'';
