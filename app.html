@@ -8,6 +8,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&family=IBM+Plex+Mono:wght@600;700&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -452,7 +454,21 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
   }
   .detail-item.full { grid-column: span 2; }
 
-  /* ── AUTOCOMPLETE FORNECEDOR ── */
+  .forma-btn {
+  padding: 7px 14px; border-radius: 20px; border: 1.5px solid var(--cinza-light);
+  background: var(--branco); color: var(--cinza); font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: all .15s;
+}
+.forma-btn.active {
+  background: var(--verde); color: white; border-color: var(--verde);
+}
+.forma-btn:hover:not(.active) { border-color: var(--verde); color: var(--verde); }
+
+/* ── RECIBO PREVIEW ── */
+#box_recibo { border-color: #3b82f6; }
+#box_recibo .anexo-icon { filter: none; }
+
+/* ── AUTOCOMPLETE FORNECEDOR ── */
 .forn-wrap { position: relative; }
 .forn-dropdown {
   position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 200;
@@ -586,6 +602,14 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
         <div class="field"><label>Conta <span class="req" id="contaReq">★ (obrig. se PAGO)</span></label>
           <select id="f_conta"><option value="">Selecionar…</option><option>IVAN BASA</option><option>IVAN BB</option><option>IVAN BRADESCO</option><option>IVAN SICOOB</option><option>JOAO BB</option><option>JOAO SICOOB</option><option>NEILA BB</option><option>NEILA SICOOB</option></select>
         </div>
+        <div class="field"><label>Forma de Pagamento</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button type="button" class="forma-btn active" id="forma-boleto" onclick="setFormaPag('BOLETO',this)">🏦 Boleto</button>
+            <button type="button" class="forma-btn" id="forma-cheque" onclick="setFormaPag('CHEQUE',this)">📝 Cheque</button>
+            <button type="button" class="forma-btn" id="forma-pix" onclick="setFormaPag('PIX',this)">⚡ PIX</button>
+          </div>
+          <input type="hidden" id="f_forma_pag" value="BOLETO">
+        </div>
         <div class="field"><label>Correntista <span class="req">★</span></label>
           <select id="f_correntista"><option value="">Selecionar…</option><option>AVIÃO AGRÍCOLA</option><option>AVIÃO COMERCIAL</option><option>CAMINHÃO</option><option>COLHEITADEIRA</option><option>OUTROS</option><option>PIVÔ</option><option>PLANTADEIRA</option><option>PULVERIZADOR</option><option>TRATOR</option></select>
         </div>
@@ -647,6 +671,13 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
           <span class="anexo-label" id="lbl_nf">Clique ou arraste<br><strong>NF / Recibo / Contrato</strong></span>
           <span class="anexo-nome" id="nome_nf"></span>
         </div>
+        <!-- Recibo gerado automaticamente -->
+        <div class="anexo-box" id="box_recibo" style="display:none;border-color:#3b82f6;">
+          <button class="anexo-remove" onclick="removerRecibo(event)">✕</button>
+          <span class="anexo-icon">🧾</span>
+          <span class="anexo-label" id="lbl_recibo" style="color:#3b82f6;">Recibo gerado<br><strong>Clique para visualizar</strong></span>
+          <span class="anexo-nome" id="nome_recibo"></span>
+        </div>
       </div>
     </div>
 
@@ -681,6 +712,7 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
     <div style="display:flex;gap:10px;">
       <button class="btn btn-secondary" onclick="loadData()">↻ Atualizar</button>
       <button class="btn btn-secondary" onclick="exportXLSX()">↓ Excel</button>
+      <button class="btn btn-secondary" onclick="abrirModalDownloadLote()" title="Baixar boletos, NFs e recibos em ZIP">⬇ Docs ZIP</button>
       <button class="btn btn-ouro" onclick="showView('form')">＋ Novo</button>
     </div>
   </div>
@@ -718,7 +750,7 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
           <th onclick="sortTable('vencimento')">Vencimento</th>
           <th onclick="sortTable('valor')">Valor</th>
           <th onclick="sortTable('status')">Status</th>
-          <th style="width:56px;text-align:center;" title="Anexos: B=Boleto, NF=Nota Fiscal">Docs</th>
+          <th style="width:80px;text-align:center;" title="Anexos: B=Boleto, NF=Nota Fiscal, R=Recibo">Docs</th>
           <th onclick="sortTable('fazenda')">Fazenda</th>
           <th onclick="sortTable('cg')">Conta Gerencial</th>
           <th onclick="sortTable('conta')">Conta</th>
@@ -1003,6 +1035,14 @@ function removerAnexo(slot, e) {
   document.getElementById('box_'+slot).classList.remove('tem-arquivo');
   document.getElementById('lbl_'+slot).style.display = '';
   document.getElementById('nome_'+slot).textContent = '';
+}
+
+async function uploadAnexoBlob(blob, lancId, slot) {
+  // Faz upload de um Blob (ex: PDF gerado) como se fosse um arquivo
+  if (!blob) return null;
+  var fileName = slot + '_' + lancId + '.pdf';
+  var file = new File([blob], fileName, { type: 'application/pdf' });
+  return uploadAnexo(file, lancId, slot);
 }
 
 async function uploadAnexo(file, lancId, slot) {
@@ -1414,6 +1454,314 @@ function limparConciliacao() {
 
 
 
+// ══════════════════════════════════════════════════════════
+// FORMA DE PAGAMENTO & GERAÇÃO DE RECIBO
+// ══════════════════════════════════════════════════════════
+
+function setFormaPag(forma, btn) {
+  document.getElementById('f_forma_pag').value = forma;
+  document.querySelectorAll('.forma-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  // Mostrar/esconder box_recibo conforme forma
+  var boxRecibo = document.getElementById('box_recibo');
+  if (forma === 'CHEQUE' || forma === 'PIX') {
+    // Gerar recibo automaticamente se já tiver dados preenchidos
+    gerarReciboPreview();
+  } else {
+    if (boxRecibo) boxRecibo.style.display = 'none';
+    _reciboBlob = null;
+  }
+}
+
+async function gerarReciboPreview() {
+  var forma    = document.getElementById('f_forma_pag').value;
+  if (forma !== 'CHEQUE' && forma !== 'PIX') return;
+
+  var fornecedor = document.getElementById('f_fornecedor').value.trim().toUpperCase();
+  var cnpj       = document.getElementById('f_cnpj').value.trim();
+  var valor      = parseFloat(document.getElementById('f_valor').value) || 0;
+  var dataDoc    = document.getElementById('f_data_doc').value;
+  var venc       = document.getElementById('f_vencimento').value;
+  var fazenda    = document.getElementById('f_fazenda').value;
+  var historico  = document.getElementById('f_historico').value.trim();
+
+  if (!fornecedor || valor <= 0) return; // Dados insuficientes
+
+  var boxRecibo = document.getElementById('box_recibo');
+  boxRecibo.style.display = '';
+
+  _reciboBlob = await gerarReciboPDF({
+    fornecedor, cnpj, valor, dataDoc, venc, fazenda, historico, forma
+  });
+
+  document.getElementById('lbl_recibo').innerHTML =
+    '<span style="color:#2563eb;">Recibo ' + forma + ' gerado<br><strong>Clique para baixar</strong></span>';
+  document.getElementById('nome_recibo').textContent = 'recibo_' + (fornecedor.split(' ')[0]) + '.pdf';
+
+  // Clique no box abre o recibo
+  boxRecibo.onclick = function() {
+    if (_reciboBlob) {
+      var url = URL.createObjectURL(_reciboBlob);
+      window.open(url, '_blank');
+    }
+  };
+}
+
+async function gerarReciboPDF(dados) {
+  // Garantir que jsPDF está carregado
+  if (typeof window.jspdf === 'undefined' && typeof jsPDF === 'undefined') {
+    await new Promise((res, rej) => {
+      var s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+      s.onload = res; s.onerror = rej;
+      document.head.appendChild(s);
+    });
+  }
+
+  var jsPDFLib = (window.jspdf && window.jspdf.jsPDF) || jsPDF;
+  var doc = new jsPDFLib({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+  var pageW = 210;
+  var margin = 25;
+  var y = 30;
+
+  // Cabeçalho
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
+  var fazDisplay = dados.fazenda ? 'Fazenda ' + dados.fazenda + ' — ' : '';
+  doc.text(fazDisplay + 'Grupo Foco Agropecuária', pageW / 2, y, { align: 'center' });
+
+  y += 12;
+  doc.setFontSize(16);
+  doc.text('RECIBO', pageW / 2, y, { align: 'center' });
+
+  // Linha decorativa
+  y += 6;
+  doc.setDrawColor(26, 61, 43);
+  doc.setLineWidth(0.8);
+  doc.line(margin, y, pageW - margin, y);
+
+  // Corpo do recibo
+  y += 14;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(11);
+
+  var dataFmt = dados.dataDoc
+    ? dados.dataDoc.split('-').reverse().join('/')
+    : new Date().toLocaleDateString('pt-BR');
+  var vencFmt = dados.venc
+    ? dados.venc.split('-').reverse().join('/')
+    : '';
+
+  var valorFmt = 'R$ ' + dados.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+  var valorExtenso = valorParaExtenso(dados.valor);
+
+  // Texto principal
+  var texto1 = 'Pelo presente, ' + dados.fornecedor +
+    (dados.cnpj ? ', inscrito no CPF/CNPJ Nº ' + dados.cnpj + ',' : ',') +
+    ' declaro que RECEBI a quantia de ' + valorFmt + ' (' + valorExtenso + '),';
+
+  var texto2 = 'referente a: ' + (dados.historico || 'serviços prestados / fornecimento de produtos') + '.';
+
+  var texto3 = 'Pagamento realizado por ' + (dados.forma === 'PIX' ? 'PIX' : 'cheque pré-datado') +
+    (vencFmt ? ' para ' + vencFmt : '') + '.';
+
+  // Quebrar linhas longas
+  var linhas1 = doc.splitTextToSize(texto1, pageW - 2 * margin);
+  doc.text(linhas1, margin, y);
+  y += linhas1.length * 6.5 + 4;
+
+  var linhas2 = doc.splitTextToSize(texto2, pageW - 2 * margin);
+  doc.text(linhas2, margin, y);
+  y += linhas2.length * 6.5 + 4;
+
+  var linhas3 = doc.splitTextToSize(texto3, pageW - 2 * margin);
+  doc.text(linhas3, margin, y);
+
+  // Localização e data
+  y += linhas3.length * 6.5 + 16;
+  var cidadeData = (dados.fazenda ? dados.fazenda : 'Local') + ', ' + dataFmt + '.';
+  doc.text(cidadeData, margin, y);
+
+  // Linha de assinatura
+  y += 28;
+  doc.line(margin, y, margin + 80, y);
+  y += 6;
+  doc.setFont('helvetica', 'bold');
+  doc.text(dados.fornecedor, margin, y);
+  y += 5;
+  doc.setFont('helvetica', 'normal');
+  if (dados.cnpj) doc.text('CPF/CNPJ: ' + dados.cnpj, margin, y);
+
+  // Rodapé
+  doc.setFontSize(9);
+  doc.setTextColor(120, 120, 120);
+  doc.text('Grupo Foco Agropecuária — Documento gerado automaticamente', pageW / 2, 285, { align: 'center' });
+
+  return doc.output('blob');
+}
+
+// Converte número para extenso (simplificado, até 999.999,99)
+function valorParaExtenso(valor) {
+  var inteiros = Math.floor(valor);
+  var centavos = Math.round((valor - inteiros) * 100);
+
+  var unidades = ['', 'um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove',
+    'dez', 'onze', 'doze', 'treze', 'catorze', 'quinze', 'dezesseis', 'dezessete', 'dezoito', 'dezenove'];
+  var dezenas = ['', '', 'vinte', 'trinta', 'quarenta', 'cinquenta', 'sessenta', 'setenta', 'oitenta', 'noventa'];
+  var centenas = ['', 'cento', 'duzentos', 'trezentos', 'quatrocentos', 'quinhentos',
+    'seiscentos', 'setecentos', 'oitocentos', 'novecentos'];
+
+  function tresDigitos(n) {
+    if (n === 0) return '';
+    if (n === 100) return 'cem';
+    var c = Math.floor(n / 100);
+    var resto = n % 100;
+    var d = Math.floor(resto / 10);
+    var u = resto % 10;
+    var r = '';
+    if (c) r += centenas[c];
+    if (resto) {
+      if (r) r += ' e ';
+      if (resto < 20) r += unidades[resto];
+      else {
+        r += dezenas[d];
+        if (u) r += ' e ' + unidades[u];
+      }
+    }
+    return r;
+  }
+
+  var resultado = '';
+  if (inteiros === 0 && centavos === 0) return 'zero reais';
+
+  if (inteiros >= 1000) {
+    var mil = Math.floor(inteiros / 1000);
+    resultado += tresDigitos(mil) + (mil === 1 ? ' mil' : ' mil');
+    inteiros = inteiros % 1000;
+    if (inteiros) resultado += ' e ' + tresDigitos(inteiros);
+  } else if (inteiros > 0) {
+    resultado += tresDigitos(inteiros);
+  }
+
+  resultado += inteiros === 1 ? ' real' : ' reais';
+  if (centavos > 0) {
+    resultado += ' e ' + tresDigitos(centavos) + (centavos === 1 ? ' centavo' : ' centavos');
+  }
+  return resultado;
+}
+
+function removerRecibo(e) {
+  e && e.stopPropagation();
+  _reciboBlob = null;
+  var box = document.getElementById('box_recibo');
+  if (box) box.style.display = 'none';
+}
+
+// ══════════════════════════════════════════════════════════
+// DOWNLOAD EM LOTE (ZIP) — Boletos, NFs, Recibos
+// ══════════════════════════════════════════════════════════
+
+function abrirModalDownloadLote() {
+  document.getElementById('modalDownloadLote').classList.add('open');
+  // Preencher datas padrão (mês atual)
+  var hoje = new Date();
+  var ini = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+  document.getElementById('dl-data-ini').value = ini.toISOString().split('T')[0];
+  document.getElementById('dl-data-fim').value = hoje.toISOString().split('T')[0];
+}
+
+async function executarDownloadLote() {
+  var ini    = document.getElementById('dl-data-ini').value;
+  var fim    = document.getElementById('dl-data-fim').value;
+  var tipos  = Array.from(document.querySelectorAll('.dl-tipo:checked')).map(c => c.value);
+
+  if (!tipos.length) { showToast('⚠ Selecione ao menos um tipo de arquivo', true); return; }
+
+  var candidatos = lancamentos.filter(function(l) {
+    var d = l.vencimento || l.data_doc || '';
+    if (ini && d < ini) return false;
+    if (fim && d > fim) return false;
+    if (tipos.includes('boleto') && l.boleto_path) return true;
+    if (tipos.includes('nf') && l.nf_path) return true;
+    if (tipos.includes('recibo') && l.recibo_path) return true;
+    return false;
+  });
+
+  if (!candidatos.length) {
+    showToast('⚠ Nenhum arquivo encontrado no período', true);
+    return;
+  }
+
+  var btnDl = document.getElementById('btn-executar-dl');
+  btnDl.disabled = true;
+  btnDl.textContent = 'Preparando…';
+
+  if (typeof JSZip === 'undefined') {
+    await new Promise((res, rej) => {
+      var s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+      s.onload = res; s.onerror = rej;
+      document.head.appendChild(s);
+    });
+  }
+
+  var zip = new JSZip();
+  var total = 0;
+  var erros = 0;
+
+  for (var i = 0; i < candidatos.length; i++) {
+    var l = candidatos[i];
+    var forn = (l.fornecedor || 'forn').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 20);
+    btnDl.textContent = 'Baixando ' + (i + 1) + '/' + candidatos.length + '…';
+
+    async function fetchFile(url, nome) {
+      try {
+        var resp = await fetch(url);
+        if (!resp.ok) return;
+        var blob = await resp.blob();
+        zip.file(nome, blob);
+        total++;
+      } catch(e) { erros++; }
+    }
+
+    if (tipos.includes('boleto') && l.boleto_path) {
+      var ext = l.boleto_path.split('.').pop().split('?')[0] || 'pdf';
+      await fetchFile(l.boleto_path, 'boletos/' + forn + '_' + l.id + '.' + ext);
+    }
+    if (tipos.includes('nf') && l.nf_path) {
+      var ext2 = l.nf_path.split('.').pop().split('?')[0] || 'pdf';
+      await fetchFile(l.nf_path, 'notas_fiscais/' + forn + '_' + l.id + '.' + ext2);
+    }
+    if (tipos.includes('recibo') && l.recibo_path) {
+      var ext3 = l.recibo_path.split('.').pop().split('?')[0] || 'pdf';
+      await fetchFile(l.recibo_path, 'recibos/' + forn + '_' + l.id + '.' + ext3);
+    }
+  }
+
+  if (total === 0) {
+    showToast('⚠ Não foi possível baixar nenhum arquivo', true);
+    btnDl.disabled = false; btnDl.textContent = '⬇ Baixar ZIP';
+    return;
+  }
+
+  var blob = await zip.generateAsync({ type: 'blob' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  var dtLabel = (ini || 'inicio') + '_' + (fim || 'fim');
+  a.download = 'GrupoFoco_docs_' + dtLabel + '.zip';
+  a.click();
+  URL.revokeObjectURL(url);
+
+  document.getElementById('modalDownloadLote').classList.remove('open');
+  showToast('✓ ZIP baixado com ' + total + ' arquivo(s)' + (erros ? ' (' + erros + ' erros)' : ''));
+  btnDl.disabled = false; btnDl.textContent = '⬇ Baixar ZIP';
+}
+
+
+
 // Verificar sessão
 var currentUser = sessionStorage.getItem('gf_user') || '';
 var currentRole = sessionStorage.getItem('gf_role') || 'funcionario';
@@ -1676,7 +2024,8 @@ async function saveLancamento() {
     vencimento:venc,pagamento:pag||null,status,valor:val,conta,
     correntista:document.getElementById('f_correntista').value,fazenda:faz,
     safra:document.getElementById('f_safra').value,cultura:document.getElementById('f_cultura').value,
-    cg,lancador:currentUser||'—',historico:document.getElementById('f_historico').value.trim()
+    cg,lancador:currentUser||'—',historico:document.getElementById('f_historico').value.trim(),
+    forma_pagamento:(document.getElementById('f_forma_pag')||{value:'BOLETO'}).value
   };
   const btn=document.getElementById('btnSalvar');
   btn.disabled=true; btn.textContent='Salvando…';
@@ -1689,20 +2038,23 @@ async function saveLancamento() {
       if(_editNf     && !_arqs.nf)     obj.nf_path     = _editNf;
       await sb(`${TABLE}?id=eq.${editingId}`,{method:'PATCH',body:JSON.stringify(obj)});
       // Upload de novos anexos se o usuário selecionou
-      if(_arqs.boleto || _arqs.nf) {
+      if(_arqs.boleto || _arqs.nf || _reciboBlob) {
         showToast('📎 Enviando anexos…');
         const eid = editingId;
         editingId = null;
-        const [pb, pn] = await Promise.all([
+        const [pb, pn, pr] = await Promise.all([
           uploadAnexo(_arqs.boleto, eid, 'boleto'),
-          uploadAnexo(_arqs.nf,     eid, 'nf')
+          uploadAnexo(_arqs.nf,     eid, 'nf'),
+          _reciboBlob ? uploadAnexoBlob(_reciboBlob, eid, 'recibo') : Promise.resolve(null)
         ]);
         const upd = {};
         if(pb) upd.boleto_path = pb;
         if(pn) upd.nf_path     = pn;
+        if(pr) upd.recibo_path = pr;
         if(Object.keys(upd).length)
           await sb(`${TABLE}?id=eq.${eid}`, {method:'PATCH', body:JSON.stringify(upd)});
         removerAnexo('boleto'); removerAnexo('nf');
+        _reciboBlob = null;
       } else {
         editingId = null;
       }
@@ -1733,19 +2085,22 @@ async function saveLancamento() {
     } else {
       // Parcela única
       const saved = await sb(TABLE,{method:'POST',body:JSON.stringify(obj)});
-      if(saved && saved[0] && (_arqs.boleto || _arqs.nf)) {
+      if(saved && saved[0] && (_arqs.boleto || _arqs.nf || _reciboBlob)) {
         showToast('📎 Enviando anexos…');
         const lid = saved[0].id;
-        const [pb, pn] = await Promise.all([
+        const [pb, pn, pr] = await Promise.all([
           uploadAnexo(_arqs.boleto, lid, 'boleto'),
-          uploadAnexo(_arqs.nf,     lid, 'nf')
+          uploadAnexo(_arqs.nf,     lid, 'nf'),
+          _reciboBlob ? uploadAnexoBlob(_reciboBlob, lid, 'recibo') : Promise.resolve(null)
         ]);
         const upd = {};
-        if(pb) upd.boleto_path = pb;
-        if(pn) upd.nf_path     = pn;
+        if(pb) upd.boleto_path  = pb;
+        if(pn) upd.nf_path      = pn;
+        if(pr) upd.recibo_path  = pr;
         if(Object.keys(upd).length)
           await sb(`${TABLE}?id=eq.${lid}`, {method:'PATCH', body:JSON.stringify(upd)});
         removerAnexo('boleto'); removerAnexo('nf');
+        _reciboBlob = null;
       }
       showToast('✓ Lançamento salvo!');
     }
@@ -1766,6 +2121,16 @@ function clearForm() {
     var box = document.getElementById('box_'+slot);
     if(box) { box.classList.remove('tem-arquivo'); box.style.borderColor=''; }
   });
+  // Resetar recibo
+  _reciboBlob = null;
+  var boxR = document.getElementById('box_recibo');
+  if(boxR) boxR.style.display = 'none';
+  // Resetar forma de pagamento
+  document.querySelectorAll('.forma-btn').forEach(function(b){ b.classList.remove('active'); });
+  var fb = document.getElementById('forma-boleto');
+  if(fb) fb.classList.add('active');
+  var fpEl = document.getElementById('f_forma_pag');
+  if(fpEl) fpEl.value = 'BOLETO';
   document.getElementById('formTitle').textContent='Novo Lançamento';
   ['f_fornecedor','f_cnpj','f_documento','f_data_doc','f_vencimento','f_pagamento','f_valor','f_historico'].forEach(id=>document.getElementById(id).value='');
   ['f_solicitante','f_conta','f_correntista','f_fazenda','f_cg'].forEach(id=>document.getElementById(id).value='');
@@ -1840,7 +2205,8 @@ function renderTable() {
       <td style="text-align:center;font-size:10px;font-weight:700;letter-spacing:.03em;white-space:nowrap;">
         ${l.boleto_path?'<span title="Boleto anexado" style="display:inline-block;background:#1a3d2b;color:#f5f0e8;border-radius:4px;padding:2px 5px;margin:1px;">B</span>':''}
         ${l.nf_path?'<span title="Nota Fiscal anexada" style="display:inline-block;background:#b45309;color:#fff;border-radius:4px;padding:2px 4px;margin:1px;">NF</span>':''}
-        ${(!l.boleto_path&&!l.nf_path)?'<span style="color:#ccc;">—</span>':''}
+        ${l.recibo_path?'<span title="Recibo gerado" style="display:inline-block;background:#2563eb;color:#fff;border-radius:4px;padding:2px 4px;margin:1px;">R</span>':''}
+        ${(!l.boleto_path&&!l.nf_path&&!l.recibo_path)?'<span style="color:#ccc;">—</span>':''}
       </td>
       <td>${esc(l.fazenda)}</td>
       <td style="font-size:12px;max-width:150px">${esc(l.cg)}</td>
@@ -1913,6 +2279,7 @@ function openDetail(id) {
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
         ${l.boleto_path?`<button class="btn-ver-anexo" onclick="abrirAnexo('${l.boleto_path}')">📄 Ver Boleto</button>`:''}
         ${l.nf_path?`<button class="btn-ver-anexo" onclick="abrirAnexo('${l.nf_path}')">🧾 Ver NF / Recibo</button>`:''}
+        ${l.recibo_path?`<button class="btn-ver-anexo" style="border-color:#2563eb;color:#2563eb" onclick="abrirAnexo('${l.recibo_path}')">🧾 Ver Recibo</button>`:''}
       </div>
     </div>`:''}
   `;
@@ -2011,6 +2378,8 @@ function editLancamento(id) {
   document.getElementById('f_cultura').value=l.cultura||'';
   document.getElementById('f_cg').value=l.cg||'';
   document.getElementById('f_historico').value=l.historico||'';
+  // Preservar path do recibo na edição
+  if(l.recibo_path) { window._editRecibo = l.recibo_path; } else { window._editRecibo = null; }
   document.getElementById('f_status').value=l.status;
   document.querySelectorAll('.status-btn').forEach(b=>b.classList.remove('active'));
   document.querySelector(`.status-btn.${l.status==='PAGO'?'pago':'apagar'}`).classList.add('active');
@@ -2315,6 +2684,53 @@ async function confirmarBaixa() {
 
 init();
 </script>
+
+<!-- MODAL DOWNLOAD EM LOTE -->
+<div class="modal-overlay" id="modalDownloadLote">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-header">
+      <div class="modal-title">⬇ Download em Lote</div>
+      <button class="modal-close" onclick="document.getElementById('modalDownloadLote').classList.remove('open')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--cinza);margin-bottom:18px;">Baixe os arquivos anexados em um único ZIP para enviar à contabilidade.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px;">
+        <div class="field">
+          <label>Vencimento de</label>
+          <input type="date" id="dl-data-ini" style="font-size:14px;">
+        </div>
+        <div class="field">
+          <label>Até</label>
+          <input type="date" id="dl-data-fim" style="font-size:14px;">
+        </div>
+      </div>
+      <div style="margin-bottom:18px;">
+        <div style="font-size:11px;font-weight:700;color:var(--cinza);letter-spacing:.07em;text-transform:uppercase;margin-bottom:10px;">Tipos de arquivo</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <label style="display:flex;align-items:center;gap:10px;font-size:14px;cursor:pointer;">
+            <input type="checkbox" class="dl-tipo" value="boleto" checked style="width:16px;height:16px;">
+            <span style="background:#1a3d2b;color:#f5f0e8;border-radius:4px;padding:2px 7px;font-size:11px;font-weight:700;">B</span> Boletos
+          </label>
+          <label style="display:flex;align-items:center;gap:10px;font-size:14px;cursor:pointer;">
+            <input type="checkbox" class="dl-tipo" value="nf" checked style="width:16px;height:16px;">
+            <span style="background:#b45309;color:#fff;border-radius:4px;padding:2px 5px;font-size:11px;font-weight:700;">NF</span> Notas Fiscais
+          </label>
+          <label style="display:flex;align-items:center;gap:10px;font-size:14px;cursor:pointer;">
+            <input type="checkbox" class="dl-tipo" value="recibo" checked style="width:16px;height:16px;">
+            <span style="background:#2563eb;color:#fff;border-radius:4px;padding:2px 6px;font-size:11px;font-weight:700;">R</span> Recibos
+          </label>
+        </div>
+      </div>
+      <div style="padding:10px 14px;background:var(--creme);border-radius:var(--radius-sm);font-size:11px;color:var(--cinza);font-family:'DM Mono',monospace;">
+        Os arquivos serão organizados em pastas dentro do ZIP: <strong>boletos/</strong>, <strong>notas_fiscais/</strong>, <strong>recibos/</strong>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="document.getElementById('modalDownloadLote').classList.remove('open')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-executar-dl" onclick="executarDownloadLote()">⬇ Baixar ZIP</button>
+    </div>
+  </div>
+</div>
 
 <!-- MODAL BAIXA EM MASSA -->
 <div class="modal-overlay" id="modalBaixa">
