@@ -1129,15 +1129,13 @@ async function gerarEAbrirReciboDetail(id) {
       historico: l.historico || '',
       forma: l.forma_pagamento || 'PIX'
     });
-    // Tentar salvar no storage para próximas aberturas
+    // Salvar/atualizar no storage (sobrescreve versão antiga se existir)
     try {
       var path = await uploadAnexoBlob(blob, id, 'recibo');
       if (path) {
         await sb(TABLE + '?id=eq.' + id, { method: 'PATCH', body: JSON.stringify({ recibo_path: path }) });
-        // Atualizar cache local
         var idx = lancamentos.findIndex(function(x){ return x.id === id; });
         if (idx >= 0) lancamentos[idx].recibo_path = path;
-        showToast('✓ Recibo salvo! Próxima vez abre direto.');
       }
     } catch(se) { console.warn('Não salvou recibo no storage:', se); }
     // Abrir para visualização/impressão
@@ -2430,11 +2428,9 @@ function openDetail(id) {
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
         ${l.boleto_path?`<button class="btn-ver-anexo" onclick="abrirAnexo('${l.boleto_path}')">📄 Ver Boleto</button>`:''}
         ${l.nf_path?`<button class="btn-ver-anexo" onclick="abrirAnexo('${l.nf_path}')">🧾 Ver NF</button>`:''}
-        ${l.recibo_path
-          ? `<button class="btn-ver-anexo" style="border-color:#2563eb;color:#2563eb" onclick="abrirAnexo('${l.recibo_path}')">🧾 Ver Recibo</button>`
-          : (l.forma_pagamento==='PIX'||l.forma_pagamento==='CHEQUE')
-            ? `<button class="btn-ver-anexo" style="border-color:#2563eb;color:#2563eb" onclick="gerarEAbrirReciboDetail(${l.id})">🧾 Gerar Recibo</button>`
-            : ''
+        ${(l.recibo_path||(l.forma_pagamento==='PIX'||l.forma_pagamento==='CHEQUE'))
+          ? `<button class="btn-ver-anexo" style="border-color:#2563eb;color:#2563eb" onclick="gerarEAbrirReciboDetail(${l.id})">🧾 Ver Recibo</button>`
+          : ''
         }
       </div>
     </div>`:''}
