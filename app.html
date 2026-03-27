@@ -1090,6 +1090,60 @@ function fecharViewer() {
   document.getElementById('viewerFrame').innerHTML = '';
 }
 
+// Abre o recibo salvo no storage e logo em seguida dispara impressão
+async function imprimirReciboDetail(id) {
+  var l = lancamentos.find(function(x){ return x.id === id; });
+  if (!l || !l.recibo_path) { showToast('⚠ Recibo não encontrado', true); return; }
+  showToast('⏳ Abrindo recibo para impressão…');
+  var url = await getUrlAnexo(l.recibo_path);
+  if (!url) { showToast('⚠ Não foi possível gerar URL do recibo', true); return; }
+  // Abrir em janela nova e disparar impressão
+  var win = window.open(url, '_blank');
+  if (win) {
+    win.onload = function() { win.print(); };
+  }
+}
+
+// Regera o PDF do recibo na hora (fallback quando recibo_path não foi salvo)
+// e salva no Supabase para uso futuro
+async function gerarEAbrirReciboDetail(id) {
+  var l = lancamentos.find(function(x){ return x.id === id; });
+  if (!l) { showToast('⚠ Lançamento não encontrado', true); return; }
+  showToast('⏳ Gerando recibo…');
+  try {
+    var blob = await gerarReciboPDF({
+      fornecedor: l.fornecedor,
+      cnpj: l.cnpj || '',
+      valor: +l.valor || 0,
+      dataDoc: l.data_doc,
+      venc: l.vencimento,
+      fazenda: l.fazenda,
+      historico: l.historico,
+      forma: l.forma_pagamento || 'PIX'
+    });
+    // Tentar salvar no storage para próximas aberturas
+    try {
+      var path = await uploadAnexoBlob(blob, id, 'recibo');
+      if (path) {
+        await sb(TABLE + '?id=eq.' + id, { method: 'PATCH', body: JSON.stringify({ recibo_path: path }) });
+        // Atualizar cache local
+        var idx = lancamentos.findIndex(function(x){ return x.id === id; });
+        if (idx >= 0) lancamentos[idx].recibo_path = path;
+        showToast('✓ Recibo salvo! Próxima vez abre direto.');
+      }
+    } catch(se) { console.warn('Não salvou recibo no storage:', se); }
+    // Abrir para visualização/impressão
+    var url = URL.createObjectURL(blob);
+    var nome = 'recibo_' + (l.fornecedor || 'doc').split(' ')[0] + '_' + id + '.pdf';
+    document.getElementById('viewerNome').textContent = nome;
+    var frame = document.getElementById('viewerFrame');
+    frame.innerHTML = '<iframe src="' + url + '#toolbar=1" style="width:100%;height:100%;border:none;"></iframe>';
+    document.getElementById('viewerOverlay').classList.add('open');
+  } catch(e) {
+    showToast('⚠ Erro ao gerar recibo: ' + e.message, true);
+  }
+}
+
 
 
 // ══════════════════════════════════════════
@@ -1711,39 +1765,42 @@ async function executarDownloadLote() {
   var total = 0;
   var erros = 0;
 
+  // Função auxiliar de fetch sem closure problem
+  // path pode ser relativo (ex: "41567/recibo.pdf") — gera URL assinada antes do fetch
+  async function fetchParaZip(path, nomeArquivo) {
+    if (!path) return;
+    try {
+      // Gerar URL assinada via Supabase (validade 1h)
+      var signedUrl = await getUrlAnexo(path);
+      if (!signedUrl) { erros++; console.warn('URL assinada não gerada para:', path); return; }
+      var resp = await fetch(signedUrl, { cache: 'no-cache' });
+      if (!resp.ok) { erros++; console.warn('Fetch falhou:', resp.status, signedUrl); return; }
+      var blob = await resp.blob();
+      zip.file(nomeArquivo, blob);
+      total++;
+    } catch(e) {
+      console.warn('Erro ao baixar:', path, e);
+      erros++;
+    }
+  }
+
   for (var i = 0; i < candidatos.length; i++) {
     var l = candidatos[i];
     var forn = (l.fornecedor || 'forn').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 20);
     btnDl.textContent = 'Baixando ' + (i + 1) + '/' + candidatos.length + '…';
 
-    async function fetchFile(url, nome) {
-      try {
-        var resp = await fetch(url);
-        if (!resp.ok) return;
-        var blob = await resp.blob();
-        zip.file(nome, blob);
-        total++;
-      } catch(e) { erros++; }
-    }
-
     if (tipos.includes('boleto') && l.boleto_path) {
-      var ext = l.boleto_path.split('.').pop().split('?')[0] || 'pdf';
-      await fetchFile(l.boleto_path, 'boletos/' + forn + '_' + l.id + '.' + ext);
+      var ext = (l.boleto_path.split('.').pop().split('?')[0] || 'pdf').toLowerCase();
+      await fetchParaZip(l.boleto_path, 'boletos/' + forn + '_' + l.id + '.' + ext);
     }
     if (tipos.includes('nf') && l.nf_path) {
-      var ext2 = l.nf_path.split('.').pop().split('?')[0] || 'pdf';
-      await fetchFile(l.nf_path, 'notas_fiscais/' + forn + '_' + l.id + '.' + ext2);
+      var extNf = (l.nf_path.split('.').pop().split('?')[0] || 'pdf').toLowerCase();
+      await fetchParaZip(l.nf_path, 'notas_fiscais/' + forn + '_' + l.id + '.' + extNf);
     }
     if (tipos.includes('recibo') && l.recibo_path) {
-      var ext3 = l.recibo_path.split('.').pop().split('?')[0] || 'pdf';
-      await fetchFile(l.recibo_path, 'recibos/' + forn + '_' + l.id + '.' + ext3);
+      var extR = (l.recibo_path.split('.').pop().split('?')[0] || 'pdf').toLowerCase();
+      await fetchParaZip(l.recibo_path, 'recibos/' + forn + '_' + l.id + '.' + extR);
     }
-  }
-
-  if (total === 0) {
-    showToast('⚠ Não foi possível baixar nenhum arquivo', true);
-    btnDl.disabled = false; btnDl.textContent = '⬇ Baixar ZIP';
-    return;
   }
 
   var blob = await zip.generateAsync({ type: 'blob' });
@@ -1898,7 +1955,33 @@ function salvarParcelas(base, n, boletoPb, nfPb) {
     obj.pagamento  = null;
     if(boletoPb) obj.boleto_path = boletoPb;
     if(nfPb)     obj.nf_path     = nfPb;
-    promessas.push(sb(TABLE, {method:'POST', body:JSON.stringify(obj)}));
+    promessas.push(
+      (async function(objParc, idx) {
+        var saved = await sb(TABLE, {method:'POST', body:JSON.stringify(objParc)});
+        // Gerar e salvar recibo individual para cada parcela (PIX ou CHEQUE)
+        var forma = objParc.forma_pagamento || 'BOLETO';
+        if ((forma === 'PIX' || forma === 'CHEQUE') && saved && saved[0]) {
+          try {
+            var lid = saved[0].id;
+            var reciboBlob = await gerarReciboPDF({
+              fornecedor: objParc.fornecedor,
+              cnpj: objParc.cnpj || '',
+              valor: objParc.valor,
+              dataDoc: objParc.data_doc,
+              venc: objParc.vencimento,
+              fazenda: objParc.fazenda,
+              historico: objParc.historico,
+              forma: forma
+            });
+            var reciboPb = await uploadAnexoBlob(reciboBlob, lid, 'recibo');
+            if (reciboPb) {
+              await sb(TABLE + '?id=eq.' + lid, {method:'PATCH', body:JSON.stringify({recibo_path: reciboPb})});
+            }
+          } catch(e) { console.warn('Recibo parcela ' + (idx+1) + ':', e); }
+        }
+        return saved;
+      })(obj, i)
+    );
   }
   return Promise.all(promessas);
 }
@@ -2273,13 +2356,19 @@ function openDetail(id) {
     <div class="detail-item"><div class="dl">Correntista</div><div class="dv">${esc(l.correntista)||'—'}</div></div>
     <div class="detail-item"><div class="dl">Lançador</div><div class="dv">${esc(l.lancador)||'—'}</div></div>
     <div class="detail-item full"><div class="dl">Histórico</div><div class="dv" style="white-space:pre-wrap">${esc(l.historico)||'—'}</div></div>
-    ${(l.boleto_path||l.nf_path)?`
+    ${(l.boleto_path||l.nf_path||l.recibo_path||(l.forma_pagamento==='PIX'||l.forma_pagamento==='CHEQUE'))?`
     <div style="margin-top:18px;padding-top:18px;border-top:1px solid var(--cinza-light);">
       <div style="font-size:11px;font-weight:700;color:var(--cinza);letter-spacing:.08em;margin-bottom:10px;">ANEXOS</div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
         ${l.boleto_path?`<button class="btn-ver-anexo" onclick="abrirAnexo('${l.boleto_path}')">📄 Ver Boleto</button>`:''}
-        ${l.nf_path?`<button class="btn-ver-anexo" onclick="abrirAnexo('${l.nf_path}')">🧾 Ver NF / Recibo</button>`:''}
-        ${l.recibo_path?`<button class="btn-ver-anexo" style="border-color:#2563eb;color:#2563eb" onclick="abrirAnexo('${l.recibo_path}')">🧾 Ver Recibo</button>`:''}
+        ${l.nf_path?`<button class="btn-ver-anexo" onclick="abrirAnexo('${l.nf_path}')">🧾 Ver NF</button>`:''}
+        ${l.recibo_path
+          ? `<button class="btn-ver-anexo" style="border-color:#2563eb;color:#2563eb" onclick="abrirAnexo('${l.recibo_path}')">🧾 Ver Recibo</button>
+             <button class="btn-ver-anexo" style="border-color:#1d4ed8;background:#eff6ff;color:#1d4ed8" onclick="imprimirReciboDetail(${l.id})">🖨 Imprimir Recibo</button>`
+          : (l.forma_pagamento==='PIX'||l.forma_pagamento==='CHEQUE')
+            ? `<button class="btn-ver-anexo" style="border-color:#2563eb;color:#2563eb" onclick="gerarEAbrirReciboDetail(${l.id})">🧾 Gerar Recibo</button>`
+            : ''
+        }
       </div>
     </div>`:''}
   `;
