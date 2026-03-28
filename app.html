@@ -2158,25 +2158,14 @@ async function saveLancamento() {
     });
     if (duplicatas.length > 0) {
       var ids = duplicatas.map(function(l){ return '#' + l.id; }).join(', ');
-      var confirmar = confirm(
-        '⚠ ATENÇÃO — Possível lançamento duplicado!
-
-' +
-        'Já existe(m) lançamento(s) com:
-' +
-        '  • Fornecedor: ' + fornUpper + '
-' +
-        '  • Valor: R$ ' + val.toLocaleString('pt-BR',{minimumFractionDigits:2}) + '
-' +
-        '  • Vencimento: ' + venc.split('-').reverse().join('/') + '
-
-' +
-        'ID(s) encontrado(s): ' + ids + '
-
-' +
-        'Deseja salvar mesmo assim?'
-      );
-      if (!confirmar) return;
+      var msg = 'ATENCAO - Possivel lancamento duplicado!' +
+        '\n\nJa existe(m) lancamento(s) com:' +
+        '\n  Fornecedor: ' + fornUpper +
+        '\n  Valor: R$ ' + val.toLocaleString('pt-BR',{minimumFractionDigits:2}) +
+        '\n  Vencimento: ' + venc.split('-').reverse().join('/') +
+        '\n\nID(s) encontrado(s): ' + ids +
+        '\n\nDeseja salvar mesmo assim?';
+      if (!confirm(msg)) return;
     }
   }
 
