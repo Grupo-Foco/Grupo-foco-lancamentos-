@@ -727,8 +727,12 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
     <div class="filter-group"><label>Status</label><select id="filter-status" onchange="applyFilters()"><option value="">Todos</option><option>A PAGAR</option><option>PAGO</option></select></div>
     <div class="filter-group"><label>Fazenda</label><select id="filter-fazenda" onchange="applyFilters()"><option value="">Todas</option><option>BRASIL</option><option>ESCRITÓRIO - GO</option><option>LAGEADO</option><option>MAYARA</option><option>RATEIO</option><option>SANTA ANGELINA</option><option>SÃO BENTO</option></select></div>
     <div class="filter-group"><label>Conta Gerencial</label><select id="filter-cg" onchange="applyFilters()"><option value="">Todas</option></select></div>
-    <div class="filter-group"><label>Mês vencimento</label>
-      <select id="filter-mes" onchange="applyFilters()"><option value="">Todos</option><option value="01">Janeiro</option><option value="02">Fevereiro</option><option value="03">Março</option><option value="04">Abril</option><option value="05">Maio</option><option value="06">Junho</option><option value="07">Julho</option><option value="08">Agosto</option><option value="09">Setembro</option><option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option></select>
+    
+    <div class="filter-group"><label>Vencimento — De</label>
+      <input type="date" id="filter-venc-ini" onchange="applyFilters()" style="font-family:'DM Mono',monospace;font-size:12px;padding:6px 10px;border:1.5px solid var(--cinza-light);border-radius:8px;background:var(--branco);color:var(--texto);cursor:pointer;">
+    </div>
+    <div class="filter-group"><label>Vencimento — Até</label>
+      <input type="date" id="filter-venc-fim" onchange="applyFilters()" style="font-family:'DM Mono',monospace;font-size:12px;padding:6px 10px;border:1.5px solid var(--cinza-light);border-radius:8px;background:var(--branco);color:var(--texto);cursor:pointer;">
     </div>
     <div class="filter-group"><label>Data de lançamento</label>
       <input type="date" id="filter-data-lanc" onchange="applyFilters()" style="font-family:'DM Mono',monospace;font-size:12px;padding:6px 10px;border:1.5px solid var(--cinza-light);border-radius:8px;background:var(--branco);color:var(--texto);cursor:pointer;">
@@ -2186,14 +2190,12 @@ function applyFilters() {
   const status=document.getElementById('filter-status')?.value||'';
   const fazenda=document.getElementById('filter-fazenda')?.value||'';
   const cg=document.getElementById('filter-cg')?.value||'';
-  const mes=document.getElementById('filter-mes')?.value||'';
   const dataLanc=document.getElementById('filter-data-lanc')?.value||'';
   filtered=lancamentos.filter(l=>{
     if(search&&!`${l.fornecedor||''} ${l.historico||''} ${l.documento||''}`.toLowerCase().includes(search)) return false;
     if(status&&l.status!==status) return false;
     if(fazenda&&l.fazenda!==fazenda) return false;
     if(cg&&l.cg!==cg) return false;
-    if(mes&&l.vencimento&&l.vencimento.split('-')[1]!==mes) return false;
     if(dataLanc&&l.data_doc!==dataLanc) return false;
     return true;
   });
