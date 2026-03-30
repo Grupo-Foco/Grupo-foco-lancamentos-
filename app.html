@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Grupo Foco — Lançamentos</title>
+<meta name="version" content="892259">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
@@ -729,10 +730,10 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
     <div class="filter-group"><label>Conta Gerencial</label><select id="filter-cg" onchange="applyFilters()"><option value="">Todas</option></select></div>
     
     <div class="filter-group"><label>Vencimento — De</label>
-      <input type="date" id="filter-venc-ini" onchange="applyFilters()" style="font-family:'DM Mono',monospace;font-size:12px;padding:6px 10px;border:1.5px solid var(--cinza-light);border-radius:8px;background:var(--branco);color:var(--texto);cursor:pointer;">
+      <input type="date" id="filter-venc-ini" onchange="applyFilters()" oninput="applyFilters()" style="font-family:'DM Mono',monospace;font-size:12px;padding:6px 10px;border:1.5px solid var(--cinza-light);border-radius:8px;background:var(--branco);color:var(--texto);cursor:pointer;">
     </div>
     <div class="filter-group"><label>Vencimento — Até</label>
-      <input type="date" id="filter-venc-fim" onchange="applyFilters()" style="font-family:'DM Mono',monospace;font-size:12px;padding:6px 10px;border:1.5px solid var(--cinza-light);border-radius:8px;background:var(--branco);color:var(--texto);cursor:pointer;">
+      <input type="date" id="filter-venc-fim" onchange="applyFilters()" oninput="applyFilters()" style="font-family:'DM Mono',monospace;font-size:12px;padding:6px 10px;border:1.5px solid var(--cinza-light);border-radius:8px;background:var(--branco);color:var(--texto);cursor:pointer;">
     </div>
     <div class="filter-group"><label>Data de lançamento</label>
       <input type="date" id="filter-data-lanc" onchange="applyFilters()" style="font-family:'DM Mono',monospace;font-size:12px;padding:6px 10px;border:1.5px solid var(--cinza-light);border-radius:8px;background:var(--branco);color:var(--texto);cursor:pointer;">
@@ -2190,12 +2191,22 @@ function applyFilters() {
   const status=document.getElementById('filter-status')?.value||'';
   const fazenda=document.getElementById('filter-fazenda')?.value||'';
   const cg=document.getElementById('filter-cg')?.value||'';
+  const vencIni=document.getElementById('filter-venc-ini')?.value||'';
+  const vencFim=document.getElementById('filter-venc-fim')?.value||'';
   const dataLanc=document.getElementById('filter-data-lanc')?.value||'';
   filtered=lancamentos.filter(l=>{
     if(search&&!`${l.fornecedor||''} ${l.historico||''} ${l.documento||''}`.toLowerCase().includes(search)) return false;
     if(status&&l.status!==status) return false;
     if(fazenda&&l.fazenda!==fazenda) return false;
     if(cg&&l.cg!==cg) return false;
+    if(vencIni) {
+      var lv = (l.vencimento||'').substring(0,10);
+      if(!lv || lv < vencIni) return false;
+    }
+    if(vencFim) {
+      var lv2 = (l.vencimento||'').substring(0,10);
+      if(!lv2 || lv2 > vencFim) return false;
+    }
     if(dataLanc&&l.data_doc!==dataLanc) return false;
     return true;
   });
