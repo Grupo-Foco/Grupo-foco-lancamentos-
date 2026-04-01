@@ -2063,8 +2063,35 @@ async function saveLancamento() {
   // Verificar se há parcelas múltiplas
   var nParc = parseInt(document.getElementById('f_parcelas').value) || 1;
   try {
-    if(editingId) {
-      // Preservar paths existentes se não foi selecionado arquivo novo
+    if(editingId && nParc > 1) {
+      // Edição convertendo para parcelado: deletar original e criar novas parcelas
+      if(!confirm('Este lançamento será substituído por ' + nParc + ' parcelas. O registro original será excluído. Confirma?')) {
+        btn.disabled=false; btn.textContent='＋ Salvar Lançamento'; return;
+      }
+      const eidDel = editingId;
+      editingId = null;
+      // Upload de anexos se houver (usa ID do original como base temporária)
+      var boletoPb = _editBoleto || null;
+      var nfPb = _editNf || null;
+      if(_arqs.boleto || _arqs.nf) {
+        showToast('📎 Enviando anexos…');
+        const [pb, pn] = await Promise.all([
+          uploadAnexo(_arqs.boleto, eidDel, 'boleto'),
+          uploadAnexo(_arqs.nf,     eidDel, 'nf')
+        ]);
+        if(pb) boletoPb = pb;
+        if(pn) nfPb = pn;
+        removerAnexo('boleto'); removerAnexo('nf');
+      }
+      // Deletar o registro original
+      await sb(`${TABLE}?id=eq.${eidDel}`, {method:'DELETE'});
+      // Criar as parcelas novas
+      showToast('💾 Salvando ' + nParc + ' parcelas…');
+      await salvarParcelas(obj, nParc, boletoPb, nfPb);
+      _editBoleto = null; _editNf = null;
+      showToast('✓ ' + nParc + ' parcelas salvas!');
+    } else if(editingId) {
+      // Edição simples (à vista → à vista)
       if(_editBoleto && !_arqs.boleto) obj.boleto_path = _editBoleto;
       if(_editNf     && !_arqs.nf)     obj.nf_path     = _editNf;
       await sb(`${TABLE}?id=eq.${editingId}`,{method:'PATCH',body:JSON.stringify(obj)});
