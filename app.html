@@ -2056,7 +2056,8 @@ async function saveLancamento() {
     correntista:document.getElementById('f_correntista').value,fazenda:faz,
     safra:document.getElementById('f_safra').value,cultura:document.getElementById('f_cultura').value,
     cg,lancador:currentUser||'—',historico:document.getElementById('f_historico').value.trim(),
-    forma_pagamento:(document.getElementById('f_forma_pag')||{value:'BOLETO'}).value
+    forma_pagamento:(document.getElementById('f_forma_pag')||{value:'BOLETO'}).value,
+    cnpj:cnpjForn||null
   };
   const btn=document.getElementById('btnSalvar');
   btn.disabled=true; btn.textContent='Salvando…';
