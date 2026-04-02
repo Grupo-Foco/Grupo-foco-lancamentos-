@@ -1587,7 +1587,23 @@ async function gerarReciboPDF(dados) {
 
   // Localização e data
   y += linhas3.length * 6.5 + 16;
-  var cidadeData = (dados.fazenda ? dados.fazenda : 'Local') + ', ' + dataFmt + '.';
+  var _fazCidadeMap = {
+    'SÃO BENTO':      'Edealina',
+    'SAO BENTO':      'Edealina',
+    'LAGEADO':        'Edealina',
+    'SANTA ANGELINA': 'Brejinho de Nazaré',
+    'BRASIL':         'Peixe',
+    'MAYARA':         'Padre Bernardo',
+    'ESCRITÓRIO - GO':'Edealina',
+    'ESCRITORIO - GO':'Edealina',
+    'ESCRITÓRIO GO':  'Edealina',
+    'ESCRITORIO GO':  'Edealina'
+  };
+  var _fazKey = (dados.fazenda || '').toUpperCase().trim();
+  var _cidade = _fazCidadeMap[_fazKey];
+  var cidadeData = _fazKey === 'RATEIO'
+    ? dataFmt + '.'
+    : (_cidade ? _cidade : (dados.fazenda || 'Local')) + ', ' + dataFmt + '.';
   doc.text(cidadeData, margin, y);
 
   // Linha de assinatura
