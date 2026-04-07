@@ -531,6 +531,7 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
     </div>
     <span id="nav-user" style="font-size:12px;color:rgba(255,255,255,.7);font-family:'DM Mono',monospace;letter-spacing:.05em;"></span>
     <button id="btn-config" onclick="window.location.href='app-config.html'" style="display:none;font-size:11px;padding:5px 13px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:8px;color:rgba(255,255,255,.8);cursor:pointer;font-family:'DM Mono',monospace;letter-spacing:.05em;transition:background .2s;" onmouseover="this.style.background='rgba(255,255,255,.22)'" onmouseout="this.style.background='rgba(255,255,255,.1)'">⚙ Config</button>
+    <button id="btn-auditoria" onclick="abrirAuditoria()" style="display:none;font-size:11px;padding:5px 13px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:8px;color:rgba(255,255,255,.8);cursor:pointer;font-family:'DM Mono',monospace;letter-spacing:.05em;transition:background .2s;" onmouseover="this.style.background='rgba(255,255,255,.22)'" onmouseout="this.style.background='rgba(255,255,255,.1)'>📋 Auditoria</button>
     <button id="btn-endividamento" onclick="abrirEndividamento()" style="display:none;font-size:11px;padding:5px 13px;background:rgba(200,168,75,0.18);border:1px solid rgba(200,168,75,0.45);border-radius:8px;color:var(--ouro-light);cursor:pointer;font-family:'DM Mono',monospace;letter-spacing:.05em;font-weight:600;transition:background .2s;" onmouseover="this.style.background='rgba(200,168,75,0.32)'" onmouseout="this.style.background='rgba(200,168,75,0.18)'">◈ Endividamento</button>
     <button onclick="sessionStorage.removeItem('gf_user');sessionStorage.removeItem('gf_role');window.location.href='index.html';"
       style="font-size:12px;padding:6px 16px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:8px;color:white;cursor:pointer;font-family:'DM Mono',monospace;letter-spacing:.05em;transition:background .2s;"
@@ -825,7 +826,24 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
 <script>
 const SB_URL = 'https://zdckrfthpfpnzcxzaghd.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkY2tyZnRocGZwbnpjeHphZ2hkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzNDIzOTksImV4cCI6MjA4ODkxODM5OX0.940y3Nhso4mHjSr8L1D_eRoQUH6Yg5uiqZ6sg4qRD7Y';
-const TABLE  = 'lancamentos';
+const TABLE       = 'lancamentos';
+const TABLE_AUDIT = 'auditoria';
+
+async function registrarAuditoria(acao, lancId, detalhes) {
+  try {
+    await sb(TABLE_AUDIT, {
+      method: 'POST',
+      prefer: 'return=minimal',
+      body: JSON.stringify({
+        usuario: currentUser || '—',
+        acao: acao,
+        lancamento_id: lancId || null,
+        detalhes: detalhes || null,
+        data_hora: new Date().toISOString()
+      })
+    });
+  } catch(e) { console.warn('Auditoria não registrada:', e.message); }
+}
 const TABLE_FORNEC = 'fornecedores';
 let fornecedoresBD = []; // cache local da tabela de fornecedores
 
@@ -984,9 +1002,16 @@ async function salvarFornecedorSeNovo(nome, cnpj) {
 async function loadData() {
   setSyncState('syncing','Carregando…');
   try {
-    const p1 = await sb(`${TABLE}?order=vencimento.asc&limit=1000&offset=0`);
-    const p2 = await sb(`${TABLE}?order=vencimento.asc&limit=1000&offset=1000`);
-    lancamentos = [...p1, ...p2];
+    // Buscar todos os registros em páginas de 1000
+    lancamentos = [];
+    var offset = 0;
+    while(true) {
+      var page = await sb(`${TABLE}?order=vencimento.asc&limit=1000&offset=${offset}`);
+      if(!page || page.length === 0) break;
+      lancamentos = lancamentos.concat(page);
+      if(page.length < 1000) break;
+      offset += 1000;
+    }
     setSyncState('online',`${lancamentos.length} registros`);
     applyFilters(); 
     populateCGFilter();
@@ -1815,6 +1840,8 @@ function hasPerm(perm) {
   var btnConf  = document.getElementById('btn-config');
   if(hasPerm('endividamento') && btnEndiv) btnEndiv.style.display = '';
   if(hasPerm('configuracoes') && btnConf)  btnConf.style.display  = '';
+  var btnAudit = document.getElementById('btn-auditoria');
+  if(hasPerm('configuracoes') && btnAudit) btnAudit.style.display = '';
   // Conciliação: mostrar na nav apenas se tiver permissão
   if(hasPerm('conciliacao')) {
     var navConcil = document.getElementById('nav-conciliacao');
@@ -2065,8 +2092,9 @@ async function saveLancamento() {
   if(!cg){showToast('Selecione a conta gerencial',true);return;}
   if(status==='PAGO'&&!conta){showToast('Conta obrigatoria quando PAGO',true);return;}
   if(status==='PAGO'&&!pag){showToast('⚠ Informe a data de pagamento',true);return;}
+  const documento = document.getElementById('f_documento').value.trim();
   const obj={
-    fornecedor:forn.toUpperCase(),documento:document.getElementById('f_documento').value.trim(),
+    fornecedor:forn.toUpperCase(),documento:documento,
     solicitante:sol,data_doc:document.getElementById('f_data_doc').value||null,
     vencimento:venc,pagamento:pag||null,status,valor:val,conta,
     correntista:document.getElementById('f_correntista').value,fazenda:faz,
@@ -2075,6 +2103,24 @@ async function saveLancamento() {
     forma_pagamento:(document.getElementById('f_forma_pag')||{value:'BOLETO'}).value,
     cnpj:cnpjForn||null
   };
+  // ── Verificar duplicata (mesmo fornecedor + valor + documento) ──
+  if(!editingId && documento) {
+    var dup = lancamentos.find(function(l) {
+      return (l.fornecedor||'').toUpperCase() === forn.toUpperCase() &&
+             Math.abs((+l.valor||0) - val) < 0.01 &&
+             (l.documento||'').trim().toUpperCase() === documento.toUpperCase();
+    });
+    if(dup) {
+      var msg = 'Atencao: ja existe um lancamento similar!\n\n' +
+        'ID: ' + dup.id + '\n' +
+        'Fornecedor: ' + dup.fornecedor + '\n' +
+        'Documento: ' + dup.documento + '\n' +
+        'Valor: R$ ' + (+dup.valor).toLocaleString('pt-BR',{minimumFractionDigits:2}) + '\n' +
+        'Vencimento: ' + fmtDate(dup.vencimento) + '\n\n' +
+        'Deseja salvar mesmo assim?';
+      if(!confirm(msg)) return;
+    }
+  }
   const btn=document.getElementById('btnSalvar');
   btn.disabled=true; btn.textContent='Salvando…';
   // Verificar se há parcelas múltiplas
@@ -2134,6 +2180,7 @@ async function saveLancamento() {
         editingId = null;
       }
       _editBoleto = null; _editNf = null;
+      await registrarAuditoria('EDIÇÃO', editingId||eid, 'Fornecedor: '+forn+' | Valor: R$ '+val.toFixed(2));
       showToast('✓ Atualizado!');
     } else if(nParc > 1) {
       // Salvar múltiplas parcelas — fazer upload dos anexos primeiro se houver
@@ -2177,6 +2224,8 @@ async function saveLancamento() {
         removerAnexo('boleto'); removerAnexo('nf');
         _reciboBlob = null;
       }
+      await registrarAuditoria('NOVO', saved&&saved[0]?saved[0].id:null,
+        'Fornecedor: '+forn+' | Valor: R$ '+val.toFixed(2)+' | Venc: '+venc);
       showToast('✓ Lançamento salvo!');
     }
     clearForm();
@@ -2240,7 +2289,10 @@ function applyFilters() {
   const vencFim=document.getElementById('filter-venc-fim')?.value||'';
   const dataLanc=document.getElementById('filter-data-lanc')?.value||'';
   filtered=lancamentos.filter(l=>{
-    if(search&&!`${l.fornecedor||''} ${l.historico||''} ${l.documento||''}`.toLowerCase().includes(search)) return false;
+    // Busca por fornecedor, histórico, NF e valor
+    var valorStr = (l.valor||0).toFixed(2).replace('.',',');
+    var valorStr2 = (l.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2});
+    if(search&&!`${l.fornecedor||''} ${l.historico||''} ${l.documento||''} ${valorStr} ${valorStr2}`.toLowerCase().includes(search)) return false;
     if(status&&l.status!==status) return false;
     if(fazenda&&l.fazenda!==fazenda) return false;
     if(cg&&l.cg!==cg) return false;
@@ -2405,7 +2457,7 @@ function openDetail(id) {
   `;
   document.getElementById('modalDeleteBtn').onclick=async()=>{
     if(!confirm('Excluir?')) return;
-    try { await sb(`${TABLE}?id=eq.${id}`,{method:'DELETE',prefer:'return=minimal'}); await loadData(); closeModal(); showToast('🗑 Excluído'); }
+    try { await registrarAuditoria('EXCLUSÃO', id, 'Excluído pelo usuário'); await sb(`${TABLE}?id=eq.${id}`,{method:'DELETE',prefer:'return=minimal'}); await loadData(); closeModal(); showToast('🗑 Excluído'); }
     catch(e) { showToast('⚠ '+e.message,true); }
   };
   document.getElementById('modalEditBtn').onclick=()=>{closeModal();editLancamento(id);};
@@ -2449,6 +2501,7 @@ async function confirmarBaixaModal() {
       method: 'PATCH',
       body: JSON.stringify({ status: 'PAGO', pagamento: dataPag, conta: conta })
     });
+    await registrarAuditoria('BAIXA', lancId, 'Pago em '+dataPag+' | Conta: '+conta);
     await loadData();
     closeModal();
     showToast('✓ Lançamento baixado como PAGO!');
@@ -3029,5 +3082,102 @@ init();
   </div>
   <div class="viewer-frame" id="viewerFrame"></div>
 </div>
+<!-- ══════ MODAL AUDITORIA ══════ -->
+<div id="auditoriaOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:3000;align-items:center;justify-content:center;">
+  <div style="background:var(--branco);border-radius:16px;padding:32px;width:90%;max-width:900px;max-height:85vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,.18);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+      <h2 style="font-family:'Playfair Display',serif;font-size:22px;color:var(--verde-escuro);margin:0;">📋 Auditoria do Sistema</h2>
+      <button onclick="fecharAuditoria()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--cinza);">×</button>
+    </div>
+    <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+      <select id="aud-filtro-usuario" onchange="carregarAuditoria()" style="padding:7px 12px;border:1.5px solid var(--cinza-light);border-radius:8px;font-family:'DM Mono',monospace;font-size:12px;">
+        <option value="">Todos os usuários</option>
+      </select>
+      <select id="aud-filtro-acao" onchange="carregarAuditoria()" style="padding:7px 12px;border:1.5px solid var(--cinza-light);border-radius:8px;font-family:'DM Mono',monospace;font-size:12px;">
+        <option value="">Todas as ações</option>
+        <option value="NOVO">Novo lançamento</option>
+        <option value="EDIÇÃO">Edição</option>
+        <option value="EXCLUSÃO">Exclusão</option>
+        <option value="BAIXA">Baixa</option>
+      </select>
+      <input type="date" id="aud-filtro-data" onchange="carregarAuditoria()" style="padding:7px 12px;border:1.5px solid var(--cinza-light);border-radius:8px;font-family:'DM Mono',monospace;font-size:12px;">
+      <button onclick="carregarAuditoria()" style="padding:7px 16px;background:var(--verde-escuro);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:12px;">🔄 Atualizar</button>
+    </div>
+    <div style="overflow-y:auto;flex:1;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+          <tr style="background:var(--verde-escuro);color:#fff;position:sticky;top:0;">
+            <th style="padding:10px 12px;text-align:left;font-weight:600;">Data/Hora</th>
+            <th style="padding:10px 12px;text-align:left;font-weight:600;">Usuário</th>
+            <th style="padding:10px 12px;text-align:left;font-weight:600;">Ação</th>
+            <th style="padding:10px 12px;text-align:left;font-weight:600;">ID Lançamento</th>
+            <th style="padding:10px 12px;text-align:left;font-weight:600;">Detalhes</th>
+          </tr>
+        </thead>
+        <tbody id="aud-tbody">
+          <tr><td colspan="5" style="text-align:center;padding:20px;color:var(--cinza);">Carregando…</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div id="aud-info" style="margin-top:10px;font-size:12px;color:var(--cinza);font-family:'DM Mono',monospace;"></div>
+  </div>
+</div>
+
+<script>
+async function abrirAuditoria() {
+  document.getElementById('auditoriaOverlay').style.display = 'flex';
+  await carregarAuditoria();
+}
+function fecharAuditoria() {
+  document.getElementById('auditoriaOverlay').style.display = 'none';
+}
+async function carregarAuditoria() {
+  var tbody = document.getElementById('aud-tbody');
+  tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--cinza);">Carregando…</td></tr>';
+  try {
+    var filtroUsuario = document.getElementById('aud-filtro-usuario').value;
+    var filtroAcao    = document.getElementById('aud-filtro-acao').value;
+    var filtroData    = document.getElementById('aud-filtro-data').value;
+    var query = TABLE_AUDIT + '?order=data_hora.desc&limit=500';
+    if(filtroUsuario) query += '&usuario=eq.' + encodeURIComponent(filtroUsuario);
+    if(filtroAcao)    query += '&acao=eq.'    + encodeURIComponent(filtroAcao);
+    if(filtroData)    query += '&data_hora=gte.' + filtroData + 'T00:00:00&data_hora=lte.' + filtroData + 'T23:59:59';
+    var rows = await sb(query);
+    // Popular filtro de usuários
+    var selUsr = document.getElementById('aud-filtro-usuario');
+    var curUsr = selUsr.value;
+    var usuarios = [...new Set(rows.map(r => r.usuario).filter(Boolean))];
+    selUsr.innerHTML = '<option value="">Todos os usuários</option>' +
+      usuarios.map(u => '<option value="'+u+'"'+(u===curUsr?' selected':'')+'>'+u+'</option>').join('');
+    if(!rows || rows.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--cinza);">Nenhum registro encontrado.</td></tr>';
+      document.getElementById('aud-info').textContent = '';
+      return;
+    }
+    var acaoCor = { 'NOVO':'#2563eb', 'EDIÇÃO':'#d97706', 'EXCLUSÃO':'#dc2626', 'BAIXA':'#16a34a' };
+    tbody.innerHTML = rows.map(function(r, i) {
+      var dt = r.data_hora ? new Date(r.data_hora) : null;
+      var dtStr = dt ? dt.toLocaleDateString('pt-BR') + ' ' + dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '—';
+      var cor = acaoCor[r.acao] || '#64748b';
+      return '<tr style="background:'+(i%2===0?'#f8faf8':'#fff')+';">' +
+        '<td style="padding:8px 12px;font-family:'DM Mono',monospace;font-size:11px;color:var(--cinza);">'+dtStr+'</td>' +
+        '<td style="padding:8px 12px;font-weight:600;">'+escHtml(r.usuario||'—')+'</td>' +
+        '<td style="padding:8px 12px;"><span style="background:'+cor+';color:#fff;border-radius:5px;padding:2px 8px;font-size:11px;font-weight:600;">'+escHtml(r.acao||'—')+'</span></td>' +
+        '<td style="padding:8px 12px;font-family:'DM Mono',monospace;font-size:12px;">'+(r.lancamento_id||'—')+'</td>' +
+        '<td style="padding:8px 12px;font-size:12px;color:var(--cinza);">'+escHtml(r.detalhes||'—')+'</td>' +
+        '</tr>';
+    }).join('');
+    document.getElementById('aud-info').textContent = rows.length + ' registro(s) encontrado(s).';
+  } catch(e) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#dc2626;">Erro: ' + e.message + '</td></tr>';
+  }
+}
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+document.getElementById('auditoriaOverlay').addEventListener('click', function(e) {
+  if(e.target === this) fecharAuditoria();
+});
+</script>
 </body>
 </html>
