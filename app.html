@@ -1774,21 +1774,25 @@ async function executarDownloadLote() {
   }
 
   for (var i = 0; i < candidatos.length; i++) {
+    if (window._dlCancelado) break;
     var l = candidatos[i];
     var forn = (l.fornecedor || 'forn').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 20);
     btnDl.textContent = 'Baixando ' + (i + 1) + '/' + candidatos.length + '…';
 
     if (tipos.includes('boleto') && l.boleto_path) {
       var ext = (l.boleto_path.split('.').pop().split('?')[0] || 'pdf').toLowerCase();
-      await fetchParaZip(l.boleto_path, 'boletos/' + forn + '_' + l.id + '.' + ext);
+      var urlB = await getUrlAnexo(l.boleto_path);
+      if (urlB) await fetchParaZip(urlB, 'boletos/' + forn + '_' + l.id + '.' + ext);
     }
     if (tipos.includes('nf') && l.nf_path) {
       var extNf = (l.nf_path.split('.').pop().split('?')[0] || 'pdf').toLowerCase();
-      await fetchParaZip(l.nf_path, 'notas_fiscais/' + forn + '_' + l.id + '.' + extNf);
+      var urlN = await getUrlAnexo(l.nf_path);
+      if (urlN) await fetchParaZip(urlN, 'notas_fiscais/' + forn + '_' + l.id + '.' + extNf);
     }
     if (tipos.includes('recibo') && l.recibo_path) {
       var extR = (l.recibo_path.split('.').pop().split('?')[0] || 'pdf').toLowerCase();
-      await fetchParaZip(l.recibo_path, 'recibos/' + forn + '_' + l.id + '.' + extR);
+      var urlR = await getUrlAnexo(l.recibo_path);
+      if (urlR) await fetchParaZip(urlR, 'recibos/' + forn + '_' + l.id + '.' + extR);
     }
   }
 
