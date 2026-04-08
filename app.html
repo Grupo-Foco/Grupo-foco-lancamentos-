@@ -2161,11 +2161,11 @@ async function saveLancamento() {
       // Edição simples (à vista → à vista)
       if(_editBoleto && !_arqs.boleto) obj.boleto_path = _editBoleto;
       if(_editNf     && !_arqs.nf)     obj.nf_path     = _editNf;
-      await sb(`${TABLE}?id=eq.${editingId}`,{method:'PATCH',body:JSON.stringify(obj)});
+      const eid = editingId; // capturar ANTES de qualquer zeragem
+      await sb(`${TABLE}?id=eq.${eid}`,{method:'PATCH',body:JSON.stringify(obj)});
       // Upload de novos anexos se o usuário selecionou
       if(_arqs.boleto || _arqs.nf || _reciboBlob) {
         showToast('📎 Enviando anexos…');
-        const eid = editingId;
         editingId = null;
         const [pb, pn, pr] = await Promise.all([
           uploadAnexo(_arqs.boleto, eid, 'boleto'),
@@ -2184,7 +2184,7 @@ async function saveLancamento() {
         editingId = null;
       }
       _editBoleto = null; _editNf = null;
-      await registrarAuditoria('EDIÇÃO', editingId||eid, 'Fornecedor: '+forn+' | Valor: R$ '+val.toFixed(2));
+      await registrarAuditoria('EDIÇÃO', eid, 'Fornecedor: '+forn+' | Valor: R$ '+val.toFixed(2));
       showToast('✓ Atualizado!');
     } else if(nParc > 1) {
       // Salvar múltiplas parcelas — fazer upload dos anexos primeiro se houver
