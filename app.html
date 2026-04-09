@@ -1869,13 +1869,7 @@ function hasPerm(perm) {
 })();
 
 function abrirEndividamento() {
-  var u = currentUser || sessionStorage.getItem('gf_user');
-  if(!u) { alert('Sessão inválida. Faça login novamente.'); window.location.href='index.html'; return; }
-  // Salvar no localStorage para persistir entre páginas
-  localStorage.setItem('gf_session_user', u);
-  localStorage.setItem('gf_session_role', 'gestor');
   sessionStorage.setItem('gf_role', 'gestor');
-  sessionStorage.setItem('gf_user', u);
   window.location.href = 'app-endividamento.html';
 }
 

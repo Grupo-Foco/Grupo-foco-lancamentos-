@@ -839,14 +839,8 @@ const TB_LANCAMENTOS = 'endiv_lancamentos';
 // ══════════════════════════════════════════════════════
 // SESSÃO E PERFIL
 // ══════════════════════════════════════════════════════
-// Recuperar sessão — tenta sessionStorage primeiro, depois localStorage
-var currentUser = sessionStorage.getItem('gf_user') || localStorage.getItem('gf_session_user') || '';
-var currentRole = sessionStorage.getItem('gf_role') || localStorage.getItem('gf_session_role') || 'funcionario';
-// Restaurar no sessionStorage se veio do localStorage
-if(!sessionStorage.getItem('gf_user') && currentUser) {
-  sessionStorage.setItem('gf_user', currentUser);
-  sessionStorage.setItem('gf_role', currentRole);
-}
+var currentUser = sessionStorage.getItem('gf_user') || '';
+var currentRole = sessionStorage.getItem('gf_role') || 'gestor';
 if(!currentUser) { window.location.href = 'index.html'; }
 
 function logout() {
