@@ -1869,7 +1869,8 @@ function hasPerm(perm) {
 })();
 
 function abrirEndividamento() {
-  if(!sessionStorage.getItem('gf_role')) { sessionStorage.setItem('gf_role', 'gestor'); }
+  // Forçar role gestor para quem tem permissão de endividamento
+  sessionStorage.setItem('gf_role', 'gestor');
   window.location.href = 'app-endividamento.html';
 }
 
