@@ -841,7 +841,7 @@ const TB_LANCAMENTOS = 'endiv_lancamentos';
 // ══════════════════════════════════════════════════════
 var currentUser = sessionStorage.getItem('gf_user') || '';
 var currentRole = sessionStorage.getItem('gf_role') || 'funcionario';
-if(!currentUser || currentRole !== 'gestor') { window.location.href = 'index.html'; }
+if(!currentUser) { window.location.href = 'index.html'; }
 
 function logout() {
   sessionStorage.removeItem('gf_user');
