@@ -1869,13 +1869,14 @@ function hasPerm(perm) {
 })();
 
 function abrirEndividamento() {
-  // Forçar role gestor para quem tem permissão de endividamento
-  sessionStorage.setItem('gf_role', 'gestor');
-  sessionStorage.setItem('gf_user', currentUser || sessionStorage.getItem('gf_user'));
-  var u = sessionStorage.getItem('gf_user');
-  var r = sessionStorage.getItem('gf_role');
+  var u = currentUser || sessionStorage.getItem('gf_user');
   if(!u) { alert('Sessão inválida. Faça login novamente.'); window.location.href='index.html'; return; }
-  window.location.href = 'app-endividamento.html?v=' + Date.now();
+  // Salvar no localStorage para persistir entre páginas
+  localStorage.setItem('gf_session_user', u);
+  localStorage.setItem('gf_session_role', 'gestor');
+  sessionStorage.setItem('gf_role', 'gestor');
+  sessionStorage.setItem('gf_user', u);
+  window.location.href = 'app-endividamento.html';
 }
 
 
