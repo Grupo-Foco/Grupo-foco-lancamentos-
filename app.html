@@ -1871,7 +1871,11 @@ function hasPerm(perm) {
 function abrirEndividamento() {
   // Forçar role gestor para quem tem permissão de endividamento
   sessionStorage.setItem('gf_role', 'gestor');
-  window.location.href = 'app-endividamento.html';
+  sessionStorage.setItem('gf_user', currentUser || sessionStorage.getItem('gf_user'));
+  var u = sessionStorage.getItem('gf_user');
+  var r = sessionStorage.getItem('gf_role');
+  if(!u) { alert('Sessão inválida. Faça login novamente.'); window.location.href='index.html'; return; }
+  window.location.href = 'app-endividamento.html?v=' + Date.now();
 }
 
 
