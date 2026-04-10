@@ -2442,6 +2442,7 @@ function openDetail(id) {
   `;
   document.getElementById('modalDeleteBtn').onclick=async()=>{
     if(!confirm('Excluir?')) return;
+    try { await sb(`${TABLE}?id=eq.${id}`,{method:'DELETE',prefer:'return=minimal'}); await loadData(); closeModal(); showToast('🗑 Excluído'); }
     catch(e) { showToast('⚠ '+e.message,true); }
   };
   document.getElementById('modalEditBtn').onclick=()=>{closeModal();editLancamento(id);};
