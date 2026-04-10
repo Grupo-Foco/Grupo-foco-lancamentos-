@@ -4,13 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Grupo Foco — Lançamentos</title>
-<meta name="version" content="892259">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&family=IBM+Plex+Mono:wght@600;700&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -455,21 +452,7 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
   }
   .detail-item.full { grid-column: span 2; }
 
-  .forma-btn {
-  padding: 7px 14px; border-radius: 20px; border: 1.5px solid var(--cinza-light);
-  background: var(--branco); color: var(--cinza); font-size: 12px; font-weight: 600;
-  cursor: pointer; transition: all .15s;
-}
-.forma-btn.active {
-  background: var(--verde); color: white; border-color: var(--verde);
-}
-.forma-btn:hover:not(.active) { border-color: var(--verde); color: var(--verde); }
-
-/* ── RECIBO PREVIEW ── */
-#box_recibo { border-color: #3b82f6; }
-#box_recibo .anexo-icon { filter: none; }
-
-/* ── AUTOCOMPLETE FORNECEDOR ── */
+  /* ── AUTOCOMPLETE FORNECEDOR ── */
 .forn-wrap { position: relative; }
 .forn-dropdown {
   position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 200;
@@ -531,7 +514,6 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
     </div>
     <span id="nav-user" style="font-size:12px;color:rgba(255,255,255,.7);font-family:'DM Mono',monospace;letter-spacing:.05em;"></span>
     <button id="btn-config" onclick="window.location.href='app-config.html'" style="display:none;font-size:11px;padding:5px 13px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:8px;color:rgba(255,255,255,.8);cursor:pointer;font-family:'DM Mono',monospace;letter-spacing:.05em;transition:background .2s;" onmouseover="this.style.background='rgba(255,255,255,.22)'" onmouseout="this.style.background='rgba(255,255,255,.1)'">⚙ Config</button>
-    <button id="btn-auditoria" onclick="abrirAuditoria()" style="display:none;font-size:11px;padding:5px 13px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:8px;color:rgba(255,255,255,.8);cursor:pointer;font-family:'DM Mono',monospace;letter-spacing:.05em;transition:background .2s;" onmouseover="this.style.background='rgba(255,255,255,.22)'" onmouseout="this.style.background='rgba(255,255,255,.1)'>📋 Auditoria</button>
     <button id="btn-endividamento" onclick="abrirEndividamento()" style="display:none;font-size:11px;padding:5px 13px;background:rgba(200,168,75,0.18);border:1px solid rgba(200,168,75,0.45);border-radius:8px;color:var(--ouro-light);cursor:pointer;font-family:'DM Mono',monospace;letter-spacing:.05em;font-weight:600;transition:background .2s;" onmouseover="this.style.background='rgba(200,168,75,0.32)'" onmouseout="this.style.background='rgba(200,168,75,0.18)'">◈ Endividamento</button>
     <button onclick="sessionStorage.removeItem('gf_user');sessionStorage.removeItem('gf_role');window.location.href='index.html';"
       style="font-size:12px;padding:6px 16px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:8px;color:white;cursor:pointer;font-family:'DM Mono',monospace;letter-spacing:.05em;transition:background .2s;"
@@ -604,14 +586,6 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
         <div class="field"><label>Conta <span class="req" id="contaReq">★ (obrig. se PAGO)</span></label>
           <select id="f_conta"><option value="">Selecionar…</option><option>IVAN BASA</option><option>IVAN BB</option><option>IVAN BRADESCO</option><option>IVAN SICOOB</option><option>JOAO BB</option><option>JOAO SICOOB</option><option>NEILA BB</option><option>NEILA SICOOB</option></select>
         </div>
-        <div class="field"><label>Forma de Pagamento</label>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button type="button" class="forma-btn active" id="forma-boleto" onclick="setFormaPag('BOLETO',this)">🏦 Boleto</button>
-            <button type="button" class="forma-btn" id="forma-cheque" onclick="setFormaPag('CHEQUE',this)">📝 Cheque</button>
-            <button type="button" class="forma-btn" id="forma-pix" onclick="setFormaPag('PIX',this)">⚡ PIX</button>
-          </div>
-          <input type="hidden" id="f_forma_pag" value="BOLETO">
-        </div>
         <div class="field"><label>Correntista <span class="req">★</span></label>
           <select id="f_correntista"><option value="">Selecionar…</option><option>AVIÃO AGRÍCOLA</option><option>AVIÃO COMERCIAL</option><option>CAMINHÃO</option><option>COLHEITADEIRA</option><option>OUTROS</option><option>PIVÔ</option><option>PLANTADEIRA</option><option>PULVERIZADOR</option><option>TRATOR</option></select>
         </div>
@@ -673,13 +647,6 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
           <span class="anexo-label" id="lbl_nf">Clique ou arraste<br><strong>NF / Recibo / Contrato</strong></span>
           <span class="anexo-nome" id="nome_nf"></span>
         </div>
-        <!-- Recibo gerado automaticamente -->
-        <div class="anexo-box" id="box_recibo" style="display:none;border-color:#3b82f6;">
-          <button class="anexo-remove" onclick="removerRecibo(event)">✕</button>
-          <span class="anexo-icon">🧾</span>
-          <span class="anexo-label" id="lbl_recibo" style="color:#3b82f6;">Recibo gerado<br><strong>Clique para visualizar</strong></span>
-          <span class="anexo-nome" id="nome_recibo"></span>
-        </div>
       </div>
     </div>
 
@@ -714,7 +681,6 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
     <div style="display:flex;gap:10px;">
       <button class="btn btn-secondary" onclick="loadData()">↻ Atualizar</button>
       <button class="btn btn-secondary" onclick="exportXLSX()">↓ Excel</button>
-      <button class="btn btn-secondary" onclick="abrirModalDownloadLote()" title="Baixar boletos, NFs e recibos em ZIP">⬇ Docs ZIP</button>
       <button class="btn btn-ouro" onclick="showView('form')">＋ Novo</button>
     </div>
   </div>
@@ -729,12 +695,8 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
     <div class="filter-group"><label>Status</label><select id="filter-status" onchange="applyFilters()"><option value="">Todos</option><option>A PAGAR</option><option>PAGO</option></select></div>
     <div class="filter-group"><label>Fazenda</label><select id="filter-fazenda" onchange="applyFilters()"><option value="">Todas</option><option>BRASIL</option><option>ESCRITÓRIO - GO</option><option>LAGEADO</option><option>MAYARA</option><option>RATEIO</option><option>SANTA ANGELINA</option><option>SÃO BENTO</option></select></div>
     <div class="filter-group"><label>Conta Gerencial</label><select id="filter-cg" onchange="applyFilters()"><option value="">Todas</option></select></div>
-    
-    <div class="filter-group"><label>Vencimento — De</label>
-      <input type="date" id="filter-venc-ini" onchange="applyFilters()" oninput="applyFilters()" style="font-family:'DM Mono',monospace;font-size:12px;padding:6px 10px;border:1.5px solid var(--cinza-light);border-radius:8px;background:var(--branco);color:var(--texto);cursor:pointer;">
-    </div>
-    <div class="filter-group"><label>Vencimento — Até</label>
-      <input type="date" id="filter-venc-fim" onchange="applyFilters()" oninput="applyFilters()" style="font-family:'DM Mono',monospace;font-size:12px;padding:6px 10px;border:1.5px solid var(--cinza-light);border-radius:8px;background:var(--branco);color:var(--texto);cursor:pointer;">
+    <div class="filter-group"><label>Mês vencimento</label>
+      <select id="filter-mes" onchange="applyFilters()"><option value="">Todos</option><option value="01">Janeiro</option><option value="02">Fevereiro</option><option value="03">Março</option><option value="04">Abril</option><option value="05">Maio</option><option value="06">Junho</option><option value="07">Julho</option><option value="08">Agosto</option><option value="09">Setembro</option><option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option></select>
     </div>
     <div class="filter-group"><label>Data de lançamento</label>
       <input type="date" id="filter-data-lanc" onchange="applyFilters()" style="font-family:'DM Mono',monospace;font-size:12px;padding:6px 10px;border:1.5px solid var(--cinza-light);border-radius:8px;background:var(--branco);color:var(--texto);cursor:pointer;">
@@ -756,7 +718,7 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
           <th onclick="sortTable('vencimento')">Vencimento</th>
           <th onclick="sortTable('valor')">Valor</th>
           <th onclick="sortTable('status')">Status</th>
-          <th style="width:80px;text-align:center;" title="Anexos: B=Boleto, NF=Nota Fiscal, R=Recibo">Docs</th>
+          <th style="width:56px;text-align:center;" title="Anexos: B=Boleto, NF=Nota Fiscal">Docs</th>
           <th onclick="sortTable('fazenda')">Fazenda</th>
           <th onclick="sortTable('cg')">Conta Gerencial</th>
           <th onclick="sortTable('conta')">Conta</th>
@@ -826,24 +788,7 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
 <script>
 const SB_URL = 'https://zdckrfthpfpnzcxzaghd.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkY2tyZnRocGZwbnpjeHphZ2hkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzNDIzOTksImV4cCI6MjA4ODkxODM5OX0.940y3Nhso4mHjSr8L1D_eRoQUH6Yg5uiqZ6sg4qRD7Y';
-const TABLE       = 'lancamentos';
-const TABLE_AUDIT = 'auditoria';
-
-async function registrarAuditoria(acao, lancId, detalhes) {
-  try {
-    await sb(TABLE_AUDIT, {
-      method: 'POST',
-      prefer: 'return=minimal',
-      body: JSON.stringify({
-        usuario: currentUser || '—',
-        acao: acao,
-        lancamento_id: lancId || null,
-        detalhes: detalhes || null,
-        data_hora: new Date().toISOString()
-      })
-    });
-  } catch(e) { console.warn('Auditoria não registrada:', e.message); }
-}
+const TABLE  = 'lancamentos';
 const TABLE_FORNEC = 'fornecedores';
 let fornecedoresBD = []; // cache local da tabela de fornecedores
 
@@ -1002,16 +947,9 @@ async function salvarFornecedorSeNovo(nome, cnpj) {
 async function loadData() {
   setSyncState('syncing','Carregando…');
   try {
-    // Buscar todos os registros em páginas de 1000
-    lancamentos = [];
-    var offset = 0;
-    while(true) {
-      var page = await sb(`${TABLE}?order=vencimento.asc&limit=1000&offset=${offset}`);
-      if(!page || page.length === 0) break;
-      lancamentos = lancamentos.concat(page);
-      if(page.length < 1000) break;
-      offset += 1000;
-    }
+    const p1 = await sb(`${TABLE}?order=vencimento.asc&limit=1000&offset=0`);
+    const p2 = await sb(`${TABLE}?order=vencimento.asc&limit=1000&offset=1000`);
+    lancamentos = [...p1, ...p2];
     setSyncState('online',`${lancamentos.length} registros`);
     applyFilters(); 
     populateCGFilter();
@@ -1036,7 +974,6 @@ async function seedJaneiro() {
 // ANEXOS
 // ═══════════════════════
 const _arqs = { boleto: null, nf: null };
-let _reciboBlob = null;
 const SB_BUCKET = 'anexos';
 
 function selecionarAnexo(input, slot) {
@@ -1066,14 +1003,6 @@ function removerAnexo(slot, e) {
   document.getElementById('box_'+slot).classList.remove('tem-arquivo');
   document.getElementById('lbl_'+slot).style.display = '';
   document.getElementById('nome_'+slot).textContent = '';
-}
-
-async function uploadAnexoBlob(blob, lancId, slot) {
-  // Faz upload de um Blob (ex: PDF gerado) como se fosse um arquivo
-  if (!blob) return null;
-  var fileName = slot + '_' + lancId + '.pdf';
-  var file = new File([blob], fileName, { type: 'application/pdf' });
-  return uploadAnexo(file, lancId, slot);
 }
 
 async function uploadAnexo(file, lancId, slot) {
@@ -1485,333 +1414,6 @@ function limparConciliacao() {
 
 
 
-// ══════════════════════════════════════════════════════════
-// FORMA DE PAGAMENTO & GERAÇÃO DE RECIBO
-// ══════════════════════════════════════════════════════════
-
-function setFormaPag(forma, btn) {
-  document.getElementById('f_forma_pag').value = forma;
-  document.querySelectorAll('.forma-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-
-  // Mostrar/esconder box_recibo conforme forma
-  var boxRecibo = document.getElementById('box_recibo');
-  if (forma === 'CHEQUE' || forma === 'PIX') {
-    // Gerar recibo automaticamente se já tiver dados preenchidos
-    gerarReciboPreview();
-  } else {
-    if (boxRecibo) boxRecibo.style.display = 'none';
-    _reciboBlob = null;
-  }
-}
-
-async function gerarReciboPreview() {
-  var forma    = document.getElementById('f_forma_pag').value;
-  if (forma !== 'CHEQUE' && forma !== 'PIX') return;
-
-  var fornecedor = document.getElementById('f_fornecedor').value.trim().toUpperCase();
-  var cnpj       = document.getElementById('f_cnpj').value.trim();
-  var valor      = parseFloat(document.getElementById('f_valor').value) || 0;
-  var dataDoc    = document.getElementById('f_data_doc').value;
-  var venc       = document.getElementById('f_vencimento').value;
-  var fazenda    = document.getElementById('f_fazenda').value;
-  var historico  = document.getElementById('f_historico').value.trim();
-
-  if (!fornecedor || valor <= 0) return; // Dados insuficientes
-
-  var boxRecibo = document.getElementById('box_recibo');
-  boxRecibo.style.display = '';
-
-  _reciboBlob = await gerarReciboPDF({
-    fornecedor, cnpj, valor, dataDoc, venc, fazenda, historico, forma
-  });
-
-  document.getElementById('lbl_recibo').innerHTML =
-    '<span style="color:#2563eb;">Recibo ' + forma + ' gerado<br><strong>Clique para baixar</strong></span>';
-  document.getElementById('nome_recibo').textContent = 'recibo_' + (fornecedor.split(' ')[0]) + '.pdf';
-
-  // Clique no box abre o recibo
-  boxRecibo.onclick = function() {
-    if (_reciboBlob) {
-      var url = URL.createObjectURL(_reciboBlob);
-      window.open(url, '_blank');
-    }
-  };
-}
-
-async function gerarReciboPDF(dados) {
-  // Garantir que jsPDF está carregado
-  if (typeof window.jspdf === 'undefined' && typeof jsPDF === 'undefined') {
-    await new Promise((res, rej) => {
-      var s = document.createElement('script');
-      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-      s.onload = res; s.onerror = rej;
-      document.head.appendChild(s);
-    });
-  }
-
-  var jsPDFLib = (window.jspdf && window.jspdf.jsPDF) || jsPDF;
-  var doc = new jsPDFLib({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-
-  var pageW = 210;
-  var margin = 25;
-  var y = 30;
-
-  // Cabeçalho
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(13);
-  var fazDisplay = dados.fazenda ? 'Fazenda ' + dados.fazenda + ' — ' : '';
-  doc.text(fazDisplay + 'Grupo Foco Agropecuária', pageW / 2, y, { align: 'center' });
-
-  y += 12;
-  doc.setFontSize(16);
-  doc.text('RECIBO', pageW / 2, y, { align: 'center' });
-
-  // Linha decorativa
-  y += 6;
-  doc.setDrawColor(26, 61, 43);
-  doc.setLineWidth(0.8);
-  doc.line(margin, y, pageW - margin, y);
-
-  // Corpo do recibo
-  y += 14;
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(11);
-
-  var dataFmt = dados.dataDoc
-    ? dados.dataDoc.split('-').reverse().join('/')
-    : new Date().toLocaleDateString('pt-BR');
-  var vencFmt = dados.venc
-    ? dados.venc.split('-').reverse().join('/')
-    : '';
-
-  var valorFmt = 'R$ ' + dados.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-  var valorExtenso = valorParaExtenso(dados.valor);
-
-  // Texto principal
-  var texto1 = 'Pelo presente, ' + dados.fornecedor +
-    (dados.cnpj ? ', inscrito no CPF/CNPJ Nº ' + dados.cnpj + ',' : ',') +
-    ' declaro que RECEBI a quantia de ' + valorFmt + ' (' + valorExtenso + '),';
-
-  var texto2 = 'referente a: ' + (dados.historico || 'serviços prestados / fornecimento de produtos') + '.';
-
-  var texto3 = 'Pagamento realizado por ' + (dados.forma === 'PIX' ? 'PIX' : 'cheque pré-datado') +
-    (vencFmt ? ' para ' + vencFmt : '') + '.';
-
-  // Quebrar linhas longas
-  var linhas1 = doc.splitTextToSize(texto1, pageW - 2 * margin);
-  doc.text(linhas1, margin, y);
-  y += linhas1.length * 6.5 + 4;
-
-  var linhas2 = doc.splitTextToSize(texto2, pageW - 2 * margin);
-  doc.text(linhas2, margin, y);
-  y += linhas2.length * 6.5 + 4;
-
-  var linhas3 = doc.splitTextToSize(texto3, pageW - 2 * margin);
-  doc.text(linhas3, margin, y);
-
-  // Localização e data
-  y += linhas3.length * 6.5 + 16;
-  var _fazCidadeMap = {
-    'SÃO BENTO':      'Edealina',
-    'SAO BENTO':      'Edealina',
-    'LAGEADO':        'Edealina',
-    'SANTA ANGELINA': 'Brejinho de Nazaré',
-    'BRASIL':         'Peixe',
-    'MAYARA':         'Padre Bernardo',
-    'ESCRITÓRIO - GO':'Edealina',
-    'ESCRITORIO - GO':'Edealina',
-    'ESCRITÓRIO GO':  'Edealina',
-    'ESCRITORIO GO':  'Edealina'
-  };
-  var _fazKey = (dados.fazenda || '').toUpperCase().trim();
-  var _cidade = _fazCidadeMap[_fazKey];
-  var cidadeData = _fazKey === 'RATEIO'
-    ? dataFmt + '.'
-    : (_cidade ? _cidade : (dados.fazenda || 'Local')) + ', ' + dataFmt + '.';
-  doc.text(cidadeData, margin, y);
-
-  // Linha de assinatura
-  y += 28;
-  doc.line(margin, y, margin + 80, y);
-  y += 6;
-  doc.setFont('helvetica', 'bold');
-  doc.text(dados.fornecedor, margin, y);
-  y += 5;
-  doc.setFont('helvetica', 'normal');
-  if (dados.cnpj) doc.text('CPF/CNPJ: ' + dados.cnpj, margin, y);
-
-  // Rodapé
-  doc.setFontSize(9);
-  doc.setTextColor(120, 120, 120);
-  doc.text('Grupo Foco Agropecuária — Documento gerado automaticamente', pageW / 2, 285, { align: 'center' });
-
-  return doc.output('blob');
-}
-
-// Converte número para extenso (simplificado, até 999.999,99)
-function valorParaExtenso(valor) {
-  var inteiros = Math.floor(valor);
-  var centavos = Math.round((valor - inteiros) * 100);
-
-  var unidades = ['', 'um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove',
-    'dez', 'onze', 'doze', 'treze', 'catorze', 'quinze', 'dezesseis', 'dezessete', 'dezoito', 'dezenove'];
-  var dezenas = ['', '', 'vinte', 'trinta', 'quarenta', 'cinquenta', 'sessenta', 'setenta', 'oitenta', 'noventa'];
-  var centenas = ['', 'cento', 'duzentos', 'trezentos', 'quatrocentos', 'quinhentos',
-    'seiscentos', 'setecentos', 'oitocentos', 'novecentos'];
-
-  function tresDigitos(n) {
-    if (n === 0) return '';
-    if (n === 100) return 'cem';
-    var c = Math.floor(n / 100);
-    var resto = n % 100;
-    var d = Math.floor(resto / 10);
-    var u = resto % 10;
-    var r = '';
-    if (c) r += centenas[c];
-    if (resto) {
-      if (r) r += ' e ';
-      if (resto < 20) r += unidades[resto];
-      else {
-        r += dezenas[d];
-        if (u) r += ' e ' + unidades[u];
-      }
-    }
-    return r;
-  }
-
-  var resultado = '';
-  if (inteiros === 0 && centavos === 0) return 'zero reais';
-
-  if (inteiros >= 1000) {
-    var mil = Math.floor(inteiros / 1000);
-    resultado += tresDigitos(mil) + (mil === 1 ? ' mil' : ' mil');
-    inteiros = inteiros % 1000;
-    if (inteiros) resultado += ' e ' + tresDigitos(inteiros);
-  } else if (inteiros > 0) {
-    resultado += tresDigitos(inteiros);
-  }
-
-  resultado += inteiros === 1 ? ' real' : ' reais';
-  if (centavos > 0) {
-    resultado += ' e ' + tresDigitos(centavos) + (centavos === 1 ? ' centavo' : ' centavos');
-  }
-  return resultado;
-}
-
-function removerRecibo(e) {
-  e && e.stopPropagation();
-  _reciboBlob = null;
-  var box = document.getElementById('box_recibo');
-  if (box) box.style.display = 'none';
-}
-
-// ══════════════════════════════════════════════════════════
-// DOWNLOAD EM LOTE (ZIP) — Boletos, NFs, Recibos
-// ══════════════════════════════════════════════════════════
-
-function abrirModalDownloadLote() {
-  document.getElementById('modalDownloadLote').classList.add('open');
-  // Preencher datas padrão (mês atual)
-  var hoje = new Date();
-  var ini = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-  document.getElementById('dl-data-ini').value = ini.toISOString().split('T')[0];
-  document.getElementById('dl-data-fim').value = hoje.toISOString().split('T')[0];
-}
-
-async function executarDownloadLote() {
-  var ini    = document.getElementById('dl-data-ini').value;
-  var fim    = document.getElementById('dl-data-fim').value;
-  var tipos  = Array.from(document.querySelectorAll('.dl-tipo:checked')).map(c => c.value);
-
-  if (!tipos.length) { showToast('⚠ Selecione ao menos um tipo de arquivo', true); return; }
-
-  var candidatos = lancamentos.filter(function(l) {
-    var d = l.vencimento || l.data_doc || '';
-    if (ini && d < ini) return false;
-    if (fim && d > fim) return false;
-    if (tipos.includes('boleto') && l.boleto_path) return true;
-    if (tipos.includes('nf') && l.nf_path) return true;
-    if (tipos.includes('recibo') && l.recibo_path) return true;
-    return false;
-  });
-
-  if (!candidatos.length) {
-    showToast('⚠ Nenhum arquivo encontrado no período', true);
-    return;
-  }
-
-  var btnDl = document.getElementById('btn-executar-dl');
-  btnDl.disabled = true;
-  btnDl.textContent = 'Preparando…';
-
-  if (typeof JSZip === 'undefined') {
-    await new Promise((res, rej) => {
-      var s = document.createElement('script');
-      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
-      s.onload = res; s.onerror = rej;
-      document.head.appendChild(s);
-    });
-  }
-
-  var zip = new JSZip();
-  var total = 0;
-  var erros = 0;
-
-  // Função auxiliar de fetch sem closure problem
-  async function fetchParaZip(url, nomeArquivo) {
-    if (!url) return;
-    try {
-      var resp = await fetch(url, { mode: 'cors', cache: 'no-cache' });
-      if (!resp.ok) { erros++; return; }
-      var blob = await resp.blob();
-      zip.file(nomeArquivo, blob);
-      total++;
-    } catch(e) {
-      console.warn('Erro ao baixar:', url, e);
-      erros++;
-    }
-  }
-
-  for (var i = 0; i < candidatos.length; i++) {
-    if (window._dlCancelado) break;
-    var l = candidatos[i];
-    var forn = (l.fornecedor || 'forn').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 20);
-    btnDl.textContent = 'Baixando ' + (i + 1) + '/' + candidatos.length + '…';
-
-    if (tipos.includes('boleto') && l.boleto_path) {
-      var ext = (l.boleto_path.split('.').pop().split('?')[0] || 'pdf').toLowerCase();
-      var urlB = await getUrlAnexo(l.boleto_path);
-      if (urlB) await fetchParaZip(urlB, 'boletos/' + forn + '_' + l.id + '.' + ext);
-    }
-    if (tipos.includes('nf') && l.nf_path) {
-      var extNf = (l.nf_path.split('.').pop().split('?')[0] || 'pdf').toLowerCase();
-      var urlN = await getUrlAnexo(l.nf_path);
-      if (urlN) await fetchParaZip(urlN, 'notas_fiscais/' + forn + '_' + l.id + '.' + extNf);
-    }
-    if (tipos.includes('recibo') && l.recibo_path) {
-      var extR = (l.recibo_path.split('.').pop().split('?')[0] || 'pdf').toLowerCase();
-      var urlR = await getUrlAnexo(l.recibo_path);
-      if (urlR) await fetchParaZip(urlR, 'recibos/' + forn + '_' + l.id + '.' + extR);
-    }
-  }
-
-  var blob = await zip.generateAsync({ type: 'blob' });
-  var url = URL.createObjectURL(blob);
-  var a = document.createElement('a');
-  a.href = url;
-  var dtLabel = (ini || 'inicio') + '_' + (fim || 'fim');
-  a.download = 'GrupoFoco_docs_' + dtLabel + '.zip';
-  a.click();
-  URL.revokeObjectURL(url);
-
-  document.getElementById('modalDownloadLote').classList.remove('open');
-  showToast('✓ ZIP baixado com ' + total + ' arquivo(s)' + (erros ? ' (' + erros + ' erros)' : ''));
-  btnDl.disabled = false; btnDl.textContent = '⬇ Baixar ZIP';
-}
-
-
-
 // Verificar sessão
 var currentUser = sessionStorage.getItem('gf_user') || '';
 var currentRole = sessionStorage.getItem('gf_role') || 'funcionario';
@@ -1844,8 +1446,6 @@ function hasPerm(perm) {
   var btnConf  = document.getElementById('btn-config');
   if(hasPerm('endividamento') && btnEndiv) btnEndiv.style.display = '';
   if(hasPerm('configuracoes') && btnConf)  btnConf.style.display  = '';
-  var btnAudit = document.getElementById('btn-auditoria');
-  if(hasPerm('configuracoes') && btnAudit) btnAudit.style.display = '';
   // Conciliação: mostrar na nav apenas se tiver permissão
   if(hasPerm('conciliacao')) {
     var navConcil = document.getElementById('nav-conciliacao');
@@ -1869,7 +1469,7 @@ function hasPerm(perm) {
 })();
 
 function abrirEndividamento() {
-  sessionStorage.setItem('gf_role', 'gestor');
+  if(!sessionStorage.getItem('gf_role')) { sessionStorage.setItem('gf_role', 'gestor'); }
   window.location.href = 'app-endividamento.html';
 }
 
@@ -1950,33 +1550,7 @@ function salvarParcelas(base, n, boletoPb, nfPb) {
     obj.pagamento  = null;
     if(boletoPb) obj.boleto_path = boletoPb;
     if(nfPb)     obj.nf_path     = nfPb;
-    promessas.push(
-      (async function(objParc, idx) {
-        var saved = await sb(TABLE, {method:'POST', body:JSON.stringify(objParc)});
-        // Gerar e salvar recibo individual para cada parcela (PIX ou CHEQUE)
-        var forma = objParc.forma_pagamento || 'BOLETO';
-        if ((forma === 'PIX' || forma === 'CHEQUE') && saved && saved[0]) {
-          try {
-            var lid = saved[0].id;
-            var reciboBlob = await gerarReciboPDF({
-              fornecedor: objParc.fornecedor,
-              cnpj: objParc.cnpj || '',
-              valor: objParc.valor,
-              dataDoc: objParc.data_doc,
-              venc: objParc.vencimento,
-              fazenda: objParc.fazenda,
-              historico: objParc.historico,
-              forma: forma
-            });
-            var reciboPb = await uploadAnexoBlob(reciboBlob, lid, 'recibo');
-            if (reciboPb) {
-              await sb(TABLE + '?id=eq.' + lid, {method:'PATCH', body:JSON.stringify({recibo_path: reciboPb})});
-            }
-          } catch(e) { console.warn('Recibo parcela ' + (idx+1) + ':', e); }
-        }
-        return saved;
-      })(obj, i)
-    );
+    promessas.push(sb(TABLE, {method:'POST', body:JSON.stringify(obj)}));
   }
   return Promise.all(promessas);
 }
@@ -2096,95 +1670,43 @@ async function saveLancamento() {
   if(!cg){showToast('Selecione a conta gerencial',true);return;}
   if(status==='PAGO'&&!conta){showToast('Conta obrigatoria quando PAGO',true);return;}
   if(status==='PAGO'&&!pag){showToast('⚠ Informe a data de pagamento',true);return;}
-  const documento = document.getElementById('f_documento').value.trim();
   const obj={
-    fornecedor:forn.toUpperCase(),documento:documento,
+    fornecedor:forn.toUpperCase(),documento:document.getElementById('f_documento').value.trim(),
     solicitante:sol,data_doc:document.getElementById('f_data_doc').value||null,
     vencimento:venc,pagamento:pag||null,status,valor:val,conta,
     correntista:document.getElementById('f_correntista').value,fazenda:faz,
     safra:document.getElementById('f_safra').value,cultura:document.getElementById('f_cultura').value,
-    cg,lancador:currentUser||'—',historico:document.getElementById('f_historico').value.trim(),
-    forma_pagamento:(document.getElementById('f_forma_pag')||{value:'BOLETO'}).value,
-    cnpj:cnpjForn||null
+    cg,lancador:currentUser||'—',historico:document.getElementById('f_historico').value.trim()
   };
-  // ── Verificar duplicata (mesmo fornecedor + valor + documento) ──
-  if(!editingId && documento) {
-    var dup = lancamentos.find(function(l) {
-      return (l.fornecedor||'').toUpperCase() === forn.toUpperCase() &&
-             Math.abs((+l.valor||0) - val) < 0.01 &&
-             (l.documento||'').trim().toUpperCase() === documento.toUpperCase();
-    });
-    if(dup) {
-      var msg = 'Atencao: ja existe um lancamento similar!\n\n' +
-        'ID: ' + dup.id + '\n' +
-        'Fornecedor: ' + dup.fornecedor + '\n' +
-        'Documento: ' + dup.documento + '\n' +
-        'Valor: R$ ' + (+dup.valor).toLocaleString('pt-BR',{minimumFractionDigits:2}) + '\n' +
-        'Vencimento: ' + fmtDate(dup.vencimento) + '\n\n' +
-        'Deseja salvar mesmo assim?';
-      if(!confirm(msg)) return;
-    }
-  }
   const btn=document.getElementById('btnSalvar');
   btn.disabled=true; btn.textContent='Salvando…';
   // Verificar se há parcelas múltiplas
   var nParc = parseInt(document.getElementById('f_parcelas').value) || 1;
   try {
-    if(editingId && nParc > 1) {
-      // Edição convertendo para parcelado: deletar original e criar novas parcelas
-      if(!confirm('Este lançamento será substituído por ' + nParc + ' parcelas. O registro original será excluído. Confirma?')) {
-        btn.disabled=false; btn.textContent='＋ Salvar Lançamento'; return;
-      }
-      const eidDel = editingId;
-      editingId = null;
-      // Upload de anexos se houver (usa ID do original como base temporária)
-      var boletoPb = _editBoleto || null;
-      var nfPb = _editNf || null;
-      if(_arqs.boleto || _arqs.nf) {
-        showToast('📎 Enviando anexos…');
-        const [pb, pn] = await Promise.all([
-          uploadAnexo(_arqs.boleto, eidDel, 'boleto'),
-          uploadAnexo(_arqs.nf,     eidDel, 'nf')
-        ]);
-        if(pb) boletoPb = pb;
-        if(pn) nfPb = pn;
-        removerAnexo('boleto'); removerAnexo('nf');
-      }
-      // Deletar o registro original
-      await sb(`${TABLE}?id=eq.${eidDel}`, {method:'DELETE'});
-      // Criar as parcelas novas
-      showToast('💾 Salvando ' + nParc + ' parcelas…');
-      await salvarParcelas(obj, nParc, boletoPb, nfPb);
-      _editBoleto = null; _editNf = null;
-      showToast('✓ ' + nParc + ' parcelas salvas!');
-    } else if(editingId) {
-      // Edição simples (à vista → à vista)
+    if(editingId) {
+      // Preservar paths existentes se não foi selecionado arquivo novo
       if(_editBoleto && !_arqs.boleto) obj.boleto_path = _editBoleto;
       if(_editNf     && !_arqs.nf)     obj.nf_path     = _editNf;
-      const eid = editingId; // capturar ANTES de qualquer zeragem
-      await sb(`${TABLE}?id=eq.${eid}`,{method:'PATCH',body:JSON.stringify(obj)});
+      await sb(`${TABLE}?id=eq.${editingId}`,{method:'PATCH',body:JSON.stringify(obj)});
       // Upload de novos anexos se o usuário selecionou
-      if(_arqs.boleto || _arqs.nf || _reciboBlob) {
+      if(_arqs.boleto || _arqs.nf) {
         showToast('📎 Enviando anexos…');
+        const eid = editingId;
         editingId = null;
-        const [pb, pn, pr] = await Promise.all([
+        const [pb, pn] = await Promise.all([
           uploadAnexo(_arqs.boleto, eid, 'boleto'),
-          uploadAnexo(_arqs.nf,     eid, 'nf'),
-          _reciboBlob ? uploadAnexoBlob(_reciboBlob, eid, 'recibo') : Promise.resolve(null)
+          uploadAnexo(_arqs.nf,     eid, 'nf')
         ]);
         const upd = {};
         if(pb) upd.boleto_path = pb;
         if(pn) upd.nf_path     = pn;
-        if(pr) upd.recibo_path = pr;
         if(Object.keys(upd).length)
           await sb(`${TABLE}?id=eq.${eid}`, {method:'PATCH', body:JSON.stringify(upd)});
         removerAnexo('boleto'); removerAnexo('nf');
-        _reciboBlob = null;
       } else {
         editingId = null;
       }
       _editBoleto = null; _editNf = null;
-      await registrarAuditoria('EDIÇÃO', eid, 'Fornecedor: '+forn+' | Valor: R$ '+val.toFixed(2));
       showToast('✓ Atualizado!');
     } else if(nParc > 1) {
       // Salvar múltiplas parcelas — fazer upload dos anexos primeiro se houver
@@ -2211,25 +1733,20 @@ async function saveLancamento() {
     } else {
       // Parcela única
       const saved = await sb(TABLE,{method:'POST',body:JSON.stringify(obj)});
-      if(saved && saved[0] && (_arqs.boleto || _arqs.nf || _reciboBlob)) {
+      if(saved && saved[0] && (_arqs.boleto || _arqs.nf)) {
         showToast('📎 Enviando anexos…');
         const lid = saved[0].id;
-        const [pb, pn, pr] = await Promise.all([
+        const [pb, pn] = await Promise.all([
           uploadAnexo(_arqs.boleto, lid, 'boleto'),
-          uploadAnexo(_arqs.nf,     lid, 'nf'),
-          _reciboBlob ? uploadAnexoBlob(_reciboBlob, lid, 'recibo') : Promise.resolve(null)
+          uploadAnexo(_arqs.nf,     lid, 'nf')
         ]);
         const upd = {};
-        if(pb) upd.boleto_path  = pb;
-        if(pn) upd.nf_path      = pn;
-        if(pr) upd.recibo_path  = pr;
+        if(pb) upd.boleto_path = pb;
+        if(pn) upd.nf_path     = pn;
         if(Object.keys(upd).length)
           await sb(`${TABLE}?id=eq.${lid}`, {method:'PATCH', body:JSON.stringify(upd)});
         removerAnexo('boleto'); removerAnexo('nf');
-        _reciboBlob = null;
       }
-      await registrarAuditoria('NOVO', saved&&saved[0]?saved[0].id:null,
-        'Fornecedor: '+forn+' | Valor: R$ '+val.toFixed(2)+' | Venc: '+venc);
       showToast('✓ Lançamento salvo!');
     }
     clearForm();
@@ -2249,16 +1766,6 @@ function clearForm() {
     var box = document.getElementById('box_'+slot);
     if(box) { box.classList.remove('tem-arquivo'); box.style.borderColor=''; }
   });
-  // Resetar recibo
-  _reciboBlob = null;
-  var boxR = document.getElementById('box_recibo');
-  if(boxR) boxR.style.display = 'none';
-  // Resetar forma de pagamento
-  document.querySelectorAll('.forma-btn').forEach(function(b){ b.classList.remove('active'); });
-  var fb = document.getElementById('forma-boleto');
-  if(fb) fb.classList.add('active');
-  var fpEl = document.getElementById('f_forma_pag');
-  if(fpEl) fpEl.value = 'BOLETO';
   document.getElementById('formTitle').textContent='Novo Lançamento';
   ['f_fornecedor','f_cnpj','f_documento','f_data_doc','f_vencimento','f_pagamento','f_valor','f_historico'].forEach(id=>document.getElementById(id).value='');
   ['f_solicitante','f_conta','f_correntista','f_fazenda','f_cg'].forEach(id=>document.getElementById(id).value='');
@@ -2289,25 +1796,14 @@ function applyFilters() {
   const status=document.getElementById('filter-status')?.value||'';
   const fazenda=document.getElementById('filter-fazenda')?.value||'';
   const cg=document.getElementById('filter-cg')?.value||'';
-  const vencIni=document.getElementById('filter-venc-ini')?.value||'';
-  const vencFim=document.getElementById('filter-venc-fim')?.value||'';
+  const mes=document.getElementById('filter-mes')?.value||'';
   const dataLanc=document.getElementById('filter-data-lanc')?.value||'';
   filtered=lancamentos.filter(l=>{
-    // Busca por fornecedor, histórico, NF e valor
-    var valorStr = (l.valor||0).toFixed(2).replace('.',',');
-    var valorStr2 = (l.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2});
-    if(search&&!`${l.fornecedor||''} ${l.historico||''} ${l.documento||''} ${valorStr} ${valorStr2}`.toLowerCase().includes(search)) return false;
+    if(search&&!`${l.fornecedor||''} ${l.historico||''} ${l.documento||''}`.toLowerCase().includes(search)) return false;
     if(status&&l.status!==status) return false;
     if(fazenda&&l.fazenda!==fazenda) return false;
     if(cg&&l.cg!==cg) return false;
-    if(vencIni) {
-      var lv = (l.vencimento||'').substring(0,10);
-      if(!lv || lv < vencIni) return false;
-    }
-    if(vencFim) {
-      var lv2 = (l.vencimento||'').substring(0,10);
-      if(!lv2 || lv2 > vencFim) return false;
-    }
+    if(mes&&l.vencimento&&l.vencimento.split('-')[1]!==mes) return false;
     if(dataLanc&&l.data_doc!==dataLanc) return false;
     return true;
   });
@@ -2344,8 +1840,7 @@ function renderTable() {
       <td style="text-align:center;font-size:10px;font-weight:700;letter-spacing:.03em;white-space:nowrap;">
         ${l.boleto_path?'<span title="Boleto anexado" style="display:inline-block;background:#1a3d2b;color:#f5f0e8;border-radius:4px;padding:2px 5px;margin:1px;">B</span>':''}
         ${l.nf_path?'<span title="Nota Fiscal anexada" style="display:inline-block;background:#b45309;color:#fff;border-radius:4px;padding:2px 4px;margin:1px;">NF</span>':''}
-        ${l.recibo_path?'<span title="Recibo gerado" style="display:inline-block;background:#2563eb;color:#fff;border-radius:4px;padding:2px 4px;margin:1px;">R</span>':''}
-        ${(!l.boleto_path&&!l.nf_path&&!l.recibo_path)?'<span style="color:#ccc;">—</span>':''}
+        ${(!l.boleto_path&&!l.nf_path)?'<span style="color:#ccc;">—</span>':''}
       </td>
       <td>${esc(l.fazenda)}</td>
       <td style="font-size:12px;max-width:150px">${esc(l.cg)}</td>
@@ -2362,46 +1857,9 @@ function sortTable(key) {
   applyFilters();
 }
 function clearFilters() {
-  ['filter-search','filter-status','filter-fazenda','filter-cg','filter-venc-ini','filter-venc-fim','filter-data-lanc'].forEach(id=>{
-    var el = document.getElementById(id); if(el) el.value='';
-  });
+  ['filter-search','filter-status','filter-fazenda','filter-cg','filter-mes','filter-data-lanc'].forEach(id=>document.getElementById(id).value='');
   applyFilters();
 }
-// ── Atalhos de ciclo de pagamento ──
-function setCiclo(ciclo) {
-  var hoje = new Date();
-  var ano  = hoje.getFullYear();
-  var mes  = hoje.getMonth(); // 0-based
-  var ini, fim;
-  if(ciclo === 0) {
-    ini = new Date(ano, mes, 1);
-    fim = new Date(ano, mes, 10);
-  } else if(ciclo === 1) {
-    ini = new Date(ano, mes, 11);
-    fim = new Date(ano, mes, 20);
-  } else {
-    ini = new Date(ano, mes, 21);
-    fim = new Date(ano, mes + 1, 0); // último dia do mês
-  }
-  document.getElementById('filter-venc-ini').value = ini.toISOString().split('T')[0];
-  document.getElementById('filter-venc-fim').value = fim.toISOString().split('T')[0];
-  // Setar status A PAGAR automaticamente
-  var stEl = document.getElementById('filter-status');
-  if(stEl && !stEl.value) stEl.value = 'A PAGAR';
-  applyFilters();
-}
-
-function setCicloProx() {
-  var hoje = new Date();
-  var fim  = new Date(hoje);
-  fim.setDate(fim.getDate() + 9);
-  document.getElementById('filter-venc-ini').value = hoje.toISOString().split('T')[0];
-  document.getElementById('filter-venc-fim').value = fim.toISOString().split('T')[0];
-  var stEl = document.getElementById('filter-status');
-  if(stEl && !stEl.value) stEl.value = 'A PAGAR';
-  applyFilters();
-}
-
 function toggleAll(cb) { document.querySelectorAll('.row-check').forEach(c=>c.checked=cb.checked); checkSel(); }
 function checkSel() {
   const checks = document.querySelectorAll('.row-check:checked');
@@ -2449,19 +1907,18 @@ function openDetail(id) {
     <div class="detail-item"><div class="dl">Correntista</div><div class="dv">${esc(l.correntista)||'—'}</div></div>
     <div class="detail-item"><div class="dl">Lançador</div><div class="dv">${esc(l.lancador)||'—'}</div></div>
     <div class="detail-item full"><div class="dl">Histórico</div><div class="dv" style="white-space:pre-wrap">${esc(l.historico)||'—'}</div></div>
-    ${(l.boleto_path||l.nf_path||l.recibo_path)?`
+    ${(l.boleto_path||l.nf_path)?`
     <div style="margin-top:18px;padding-top:18px;border-top:1px solid var(--cinza-light);">
       <div style="font-size:11px;font-weight:700;color:var(--cinza);letter-spacing:.08em;margin-bottom:10px;">ANEXOS</div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
         ${l.boleto_path?`<button class="btn-ver-anexo" onclick="abrirAnexo('${l.boleto_path}')">📄 Ver Boleto</button>`:''}
         ${l.nf_path?`<button class="btn-ver-anexo" onclick="abrirAnexo('${l.nf_path}')">🧾 Ver NF / Recibo</button>`:''}
-        ${l.recibo_path?`<button class="btn-ver-anexo" style="border-color:#2563eb;color:#2563eb" onclick="abrirAnexo('${l.recibo_path}')">🧾 Ver Recibo</button>`:''}
       </div>
     </div>`:''}
   `;
   document.getElementById('modalDeleteBtn').onclick=async()=>{
     if(!confirm('Excluir?')) return;
-    try { await registrarAuditoria('EXCLUSÃO', id, 'Excluído pelo usuário'); await sb(`${TABLE}?id=eq.${id}`,{method:'DELETE',prefer:'return=minimal'}); await loadData(); closeModal(); showToast('🗑 Excluído'); }
+    try { await sb(`${TABLE}?id=eq.${id}`,{method:'DELETE',prefer:'return=minimal'}); await loadData(); closeModal(); showToast('🗑 Excluído'); }
     catch(e) { showToast('⚠ '+e.message,true); }
   };
   document.getElementById('modalEditBtn').onclick=()=>{closeModal();editLancamento(id);};
@@ -2505,7 +1962,6 @@ async function confirmarBaixaModal() {
       method: 'PATCH',
       body: JSON.stringify({ status: 'PAGO', pagamento: dataPag, conta: conta })
     });
-    await registrarAuditoria('BAIXA', lancId, 'Pago em '+dataPag+' | Conta: '+conta);
     await loadData();
     closeModal();
     showToast('✓ Lançamento baixado como PAGO!');
@@ -2555,8 +2011,6 @@ function editLancamento(id) {
   document.getElementById('f_cultura').value=l.cultura||'';
   document.getElementById('f_cg').value=l.cg||'';
   document.getElementById('f_historico').value=l.historico||'';
-  // Preservar path do recibo na edição
-  if(l.recibo_path) { window._editRecibo = l.recibo_path; } else { window._editRecibo = null; }
   document.getElementById('f_status').value=l.status;
   document.querySelectorAll('.status-btn').forEach(b=>b.classList.remove('active'));
   document.querySelector(`.status-btn.${l.status==='PAGO'?'pago':'apagar'}`).classList.add('active');
@@ -2862,53 +2316,6 @@ async function confirmarBaixa() {
 init();
 </script>
 
-<!-- MODAL DOWNLOAD EM LOTE -->
-<div class="modal-overlay" id="modalDownloadLote">
-  <div class="modal" style="max-width:460px;">
-    <div class="modal-header">
-      <div class="modal-title">⬇ Download em Lote</div>
-      <button class="modal-close" onclick="document.getElementById('modalDownloadLote').classList.remove('open')">✕</button>
-    </div>
-    <div class="modal-body">
-      <p style="font-size:13px;color:var(--cinza);margin-bottom:18px;">Baixe os arquivos anexados em um único ZIP para enviar à contabilidade.</p>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px;">
-        <div class="field">
-          <label>Vencimento de</label>
-          <input type="date" id="dl-data-ini" style="font-size:14px;">
-        </div>
-        <div class="field">
-          <label>Até</label>
-          <input type="date" id="dl-data-fim" style="font-size:14px;">
-        </div>
-      </div>
-      <div style="margin-bottom:18px;">
-        <div style="font-size:11px;font-weight:700;color:var(--cinza);letter-spacing:.07em;text-transform:uppercase;margin-bottom:10px;">Tipos de arquivo</div>
-        <div style="display:flex;flex-direction:column;gap:8px;">
-          <label style="display:flex;align-items:center;gap:10px;font-size:14px;cursor:pointer;">
-            <input type="checkbox" class="dl-tipo" value="boleto" checked style="width:16px;height:16px;">
-            <span style="background:#1a3d2b;color:#f5f0e8;border-radius:4px;padding:2px 7px;font-size:11px;font-weight:700;">B</span> Boletos
-          </label>
-          <label style="display:flex;align-items:center;gap:10px;font-size:14px;cursor:pointer;">
-            <input type="checkbox" class="dl-tipo" value="nf" checked style="width:16px;height:16px;">
-            <span style="background:#b45309;color:#fff;border-radius:4px;padding:2px 5px;font-size:11px;font-weight:700;">NF</span> Notas Fiscais
-          </label>
-          <label style="display:flex;align-items:center;gap:10px;font-size:14px;cursor:pointer;">
-            <input type="checkbox" class="dl-tipo" value="recibo" checked style="width:16px;height:16px;">
-            <span style="background:#2563eb;color:#fff;border-radius:4px;padding:2px 6px;font-size:11px;font-weight:700;">R</span> Recibos
-          </label>
-        </div>
-      </div>
-      <div style="padding:10px 14px;background:var(--creme);border-radius:var(--radius-sm);font-size:11px;color:var(--cinza);font-family:'DM Mono',monospace;">
-        Os arquivos serão organizados em pastas dentro do ZIP: <strong>boletos/</strong>, <strong>notas_fiscais/</strong>, <strong>recibos/</strong>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="document.getElementById('modalDownloadLote').classList.remove('open')">Cancelar</button>
-      <button class="btn btn-primary" id="btn-executar-dl" onclick="executarDownloadLote()">⬇ Baixar ZIP</button>
-    </div>
-  </div>
-</div>
-
 <!-- MODAL BAIXA EM MASSA -->
 <div class="modal-overlay" id="modalBaixa">
   <div class="modal" style="max-width:480px;">
@@ -3086,102 +2493,5 @@ init();
   </div>
   <div class="viewer-frame" id="viewerFrame"></div>
 </div>
-<!-- ══════ MODAL AUDITORIA ══════ -->
-<div id="auditoriaOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:3000;align-items:center;justify-content:center;">
-  <div style="background:var(--branco);border-radius:16px;padding:32px;width:90%;max-width:900px;max-height:85vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,.18);">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
-      <h2 style="font-family:'Playfair Display',serif;font-size:22px;color:var(--verde-escuro);margin:0;">📋 Auditoria do Sistema</h2>
-      <button onclick="fecharAuditoria()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--cinza);">×</button>
-    </div>
-    <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
-      <select id="aud-filtro-usuario" onchange="carregarAuditoria()" style="padding:7px 12px;border:1.5px solid var(--cinza-light);border-radius:8px;font-family:'DM Mono',monospace;font-size:12px;">
-        <option value="">Todos os usuários</option>
-      </select>
-      <select id="aud-filtro-acao" onchange="carregarAuditoria()" style="padding:7px 12px;border:1.5px solid var(--cinza-light);border-radius:8px;font-family:'DM Mono',monospace;font-size:12px;">
-        <option value="">Todas as ações</option>
-        <option value="NOVO">Novo lançamento</option>
-        <option value="EDIÇÃO">Edição</option>
-        <option value="EXCLUSÃO">Exclusão</option>
-        <option value="BAIXA">Baixa</option>
-      </select>
-      <input type="date" id="aud-filtro-data" onchange="carregarAuditoria()" style="padding:7px 12px;border:1.5px solid var(--cinza-light);border-radius:8px;font-family:'DM Mono',monospace;font-size:12px;">
-      <button onclick="carregarAuditoria()" style="padding:7px 16px;background:var(--verde-escuro);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:12px;">🔄 Atualizar</button>
-    </div>
-    <div style="overflow-y:auto;flex:1;">
-      <table style="width:100%;border-collapse:collapse;font-size:13px;">
-        <thead>
-          <tr style="background:var(--verde-escuro);color:#fff;position:sticky;top:0;">
-            <th style="padding:10px 12px;text-align:left;font-weight:600;">Data/Hora</th>
-            <th style="padding:10px 12px;text-align:left;font-weight:600;">Usuário</th>
-            <th style="padding:10px 12px;text-align:left;font-weight:600;">Ação</th>
-            <th style="padding:10px 12px;text-align:left;font-weight:600;">ID Lançamento</th>
-            <th style="padding:10px 12px;text-align:left;font-weight:600;">Detalhes</th>
-          </tr>
-        </thead>
-        <tbody id="aud-tbody">
-          <tr><td colspan="5" style="text-align:center;padding:20px;color:var(--cinza);">Carregando…</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <div id="aud-info" style="margin-top:10px;font-size:12px;color:var(--cinza);font-family:'DM Mono',monospace;"></div>
-  </div>
-</div>
-
-<script>
-async function abrirAuditoria() {
-  document.getElementById('auditoriaOverlay').style.display = 'flex';
-  await carregarAuditoria();
-}
-function fecharAuditoria() {
-  document.getElementById('auditoriaOverlay').style.display = 'none';
-}
-async function carregarAuditoria() {
-  var tbody = document.getElementById('aud-tbody');
-  tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--cinza);">Carregando…</td></tr>';
-  try {
-    var filtroUsuario = document.getElementById('aud-filtro-usuario').value;
-    var filtroAcao    = document.getElementById('aud-filtro-acao').value;
-    var filtroData    = document.getElementById('aud-filtro-data').value;
-    var query = TABLE_AUDIT + '?order=data_hora.desc&limit=500';
-    if(filtroUsuario) query += '&usuario=eq.' + encodeURIComponent(filtroUsuario);
-    if(filtroAcao)    query += '&acao=eq.'    + encodeURIComponent(filtroAcao);
-    if(filtroData)    query += '&data_hora=gte.' + filtroData + 'T00:00:00&data_hora=lte.' + filtroData + 'T23:59:59';
-    var rows = await sb(query);
-    // Popular filtro de usuários
-    var selUsr = document.getElementById('aud-filtro-usuario');
-    var curUsr = selUsr.value;
-    var usuarios = [...new Set(rows.map(r => r.usuario).filter(Boolean))];
-    selUsr.innerHTML = '<option value="">Todos os usuários</option>' +
-      usuarios.map(u => '<option value="'+u+'"'+(u===curUsr?' selected':'')+'>'+u+'</option>').join('');
-    if(!rows || rows.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--cinza);">Nenhum registro encontrado.</td></tr>';
-      document.getElementById('aud-info').textContent = '';
-      return;
-    }
-    var acaoCor = { 'NOVO':'#2563eb', 'EDIÇÃO':'#d97706', 'EXCLUSÃO':'#dc2626', 'BAIXA':'#16a34a' };
-    tbody.innerHTML = rows.map(function(r, i) {
-      var dt = r.data_hora ? new Date(r.data_hora) : null;
-      var dtStr = dt ? dt.toLocaleDateString('pt-BR') + ' ' + dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '—';
-      var cor = acaoCor[r.acao] || '#64748b';
-      return '<tr style="background:'+(i%2===0?'#f8faf8':'#fff')+';">' +
-        '<td style="padding:8px 12px;font-family:'DM Mono',monospace;font-size:11px;color:var(--cinza);">'+dtStr+'</td>' +
-        '<td style="padding:8px 12px;font-weight:600;">'+escHtml(r.usuario||'—')+'</td>' +
-        '<td style="padding:8px 12px;"><span style="background:'+cor+';color:#fff;border-radius:5px;padding:2px 8px;font-size:11px;font-weight:600;">'+escHtml(r.acao||'—')+'</span></td>' +
-        '<td style="padding:8px 12px;font-family:'DM Mono',monospace;font-size:12px;">'+(r.lancamento_id||'—')+'</td>' +
-        '<td style="padding:8px 12px;font-size:12px;color:var(--cinza);">'+escHtml(r.detalhes||'—')+'</td>' +
-        '</tr>';
-    }).join('');
-    document.getElementById('aud-info').textContent = rows.length + ' registro(s) encontrado(s).';
-  } catch(e) {
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#dc2626;">Erro: ' + e.message + '</td></tr>';
-  }
-}
-function escHtml(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-document.getElementById('auditoriaOverlay').addEventListener('click', function(e) {
-  if(e.target === this) fecharAuditoria();
-});
-</script>
 </body>
 </html>
