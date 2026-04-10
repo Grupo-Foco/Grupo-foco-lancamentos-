@@ -2102,7 +2102,6 @@ async function saveLancamento() {
     if(dup) {
       var msg = 'Atencao: ja existe um lancamento similar!\n\n' +
         'ID: ' + dup.id + '\n' +
-        'Fornecedor: ' + dup.fornecedor + '\n' +
         'Documento: ' + dup.documento + '\n' +
         'Valor: R$ ' + (+dup.valor).toLocaleString('pt-BR',{minimumFractionDigits:2}) + '\n' +
         'Vencimento: ' + fmtDate(dup.vencimento) + '\n\n' +
@@ -2212,7 +2211,6 @@ async function saveLancamento() {
         removerAnexo('boleto'); removerAnexo('nf');
         _reciboBlob = null;
       }
-        'Fornecedor: '+forn+' | Valor: R$ '+val.toFixed(2)+' | Venc: '+venc);
       showToast('✓ Lançamento salvo!');
     }
     clearForm();
