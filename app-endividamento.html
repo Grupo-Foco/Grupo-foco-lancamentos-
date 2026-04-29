@@ -1338,7 +1338,9 @@ function renderLancamentos() {
     var baixaBtn = isGestor()
       ? (l.status==='A PAGAR'
           ? '<button class="btn btn-warn" style="padding:4px 10px;font-size:10px;" onclick="event.stopPropagation();abrirBaixaInd('+l.id+')">↓ Baixa</button>'
-          : '<button class="btn btn-secondary" style="padding:4px 10px;font-size:10px;color:#c0392b;border-color:#c0392b;" onclick="event.stopPropagation();desfazerBaixa('+l.id+')">↺ Desfazer</button>')
+            + ' <button class="btn btn-secondary" style="padding:4px 10px;font-size:10px;" onclick="event.stopPropagation();abrirEditarLanc('+l.id+')">✎ Editar</button>'
+          : '<button class="btn btn-secondary" style="padding:4px 10px;font-size:10px;color:#c0392b;border-color:#c0392b;" onclick="event.stopPropagation();desfazerBaixa('+l.id+')">↺ Desfazer</button>'
+            + ' <button class="btn btn-secondary" style="padding:4px 10px;font-size:10px;" onclick="event.stopPropagation();abrirEditarLanc('+l.id+')">✎ Editar</button>')
       : '';
     return '<tr style="'+(vencida?'background:#fff9f9':'')+'">'
       +'<td onclick="event.stopPropagation()"><input type="checkbox" class="chk-l" data-id="'+l.id+'" onchange="checkSelLanc()"></td>'
@@ -1957,6 +1959,123 @@ function abrevTipo(t) {
 // ══════════════════════════════════════════════════════
 initUI();
 loadAll();
+
+// ══════════════════════════════════════════
+// EDITAR LANÇAMENTO
+// ══════════════════════════════════════════
+var _editLancId = null;
+
+function abrirEditarLanc(id) {
+  var l = lancamentos.find(function(x){ return x.id === id; });
+  if(!l) return;
+  _editLancId = id;
+  document.getElementById('edit-lanc-sub').textContent =
+    'Contrato ' + l.numero_contrato + ' · ' + l.banco + ' · ' + l.ano + ' · Parcela ' + l.mes_parcela;
+  document.getElementById('edit-lanc-titular').value   = l.titular || 'Ivan';
+  document.getElementById('edit-lanc-banco').value     = l.banco || '';
+  document.getElementById('edit-lanc-modalidade').value= l.modalidade || '';
+  document.getElementById('edit-lanc-data').value      = l.data_parcela || '';
+  document.getElementById('edit-lanc-mes').value       = l.mes_parcela || '';
+  document.getElementById('edit-lanc-valor').value     = l.valor_parcela ? (+l.valor_parcela).toFixed(2) : '';
+  document.getElementById('edit-lanc-saldo').value     = l.saldo_devedor ? (+l.saldo_devedor).toFixed(2) : '';
+  document.getElementById('modalEditarLanc').classList.add('open');
+}
+
+async function confirmarEditarLanc() {
+  if(!_editLancId) return;
+  var btn = document.getElementById('btn-confirmar-edit-lanc');
+  btn.disabled = true; btn.textContent = 'Salvando…';
+  try {
+    var upd = {
+      titular:       document.getElementById('edit-lanc-titular').value,
+      banco:         document.getElementById('edit-lanc-banco').value.trim(),
+      modalidade:    document.getElementById('edit-lanc-modalidade').value.trim(),
+      data_parcela:  document.getElementById('edit-lanc-data').value,
+      mes_parcela:   parseInt(document.getElementById('edit-lanc-mes').value) || null,
+      valor_parcela: parseFloat(document.getElementById('edit-lanc-valor').value) || null,
+      saldo_devedor: parseFloat(document.getElementById('edit-lanc-saldo').value) || null
+    };
+    // Salvar no Supabase
+    var r = await fetch(SB_URL + '/rest/v1/' + TABLE_LANC + '?id=eq.' + _editLancId, {
+      method: 'PATCH',
+      headers: {
+        'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY,
+        'Content-Type': 'application/json', 'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify(upd)
+    });
+    if(!r.ok) throw new Error('Erro ' + r.status);
+    // Atualizar cache local
+    var idx = lancamentos.findIndex(function(x){ return x.id === _editLancId; });
+    if(idx >= 0) Object.assign(lancamentos[idx], upd);
+    fecharModal('modalEditarLanc');
+    renderLancamentos();
+    renderDashboard();
+    showToast('✓ Lançamento atualizado!');
+  } catch(e) {
+    showToast('⚠ Erro: ' + e.message, true);
+  } finally {
+    btn.disabled = false; btn.textContent = '💾 Salvar';
+    _editLancId = null;
+  }
+}
+
 </script>
+
+<!-- ════ MODAL: EDITAR LANÇAMENTO ════ -->
+<div class="modal-overlay modal-sm" id="modalEditarLanc">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">✎ Editar Lançamento</div>
+        <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--cinza);margin-top:2px;" id="edit-lanc-sub"></div>
+      </div>
+      <button class="modal-close" onclick="fecharModal('modalEditarLanc')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div class="field" style="grid-column:span 2;">
+          <label>Modalidade</label>
+          <input type="text" id="edit-lanc-modalidade" placeholder="Ex: BB INVESTE AGRO">
+        </div>
+        <div class="field">
+          <label>Titular</label>
+          <select id="edit-lanc-titular">
+            <option>Ivan</option><option>João</option><option>Adriana</option>
+            <option>Neila</option><option>Rodolfo</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Banco</label>
+          <input type="text" id="edit-lanc-banco" placeholder="BB, BRADESCO…">
+        </div>
+        <div class="field">
+          <label>Vencimento</label>
+          <input type="date" id="edit-lanc-data">
+        </div>
+        <div class="field">
+          <label>Mês da Parcela</label>
+          <input type="number" id="edit-lanc-mes" min="1" max="12" placeholder="1–12">
+        </div>
+        <div class="field">
+          <label>Valor da Parcela (R$)</label>
+          <input type="number" id="edit-lanc-valor" step="0.01" min="0" placeholder="0,00">
+        </div>
+        <div class="field">
+          <label>Saldo Devedor (R$)</label>
+          <input type="number" id="edit-lanc-saldo" step="0.01" min="0" placeholder="0,00">
+        </div>
+      </div>
+      <div style="margin-top:14px;padding:10px 14px;background:var(--creme);border-radius:8px;font-size:11px;color:var(--cinza);font-family:'DM Mono',monospace;">
+        Apenas os campos do lançamento serão alterados. O contrato não será modificado.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="fecharModal('modalEditarLanc')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-confirmar-edit-lanc" onclick="confirmarEditarLanc()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
