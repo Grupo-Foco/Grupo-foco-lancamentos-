@@ -2339,6 +2339,8 @@ function renderTable() {
         <button class="btn btn-secondary" onclick="editLancamento(${l.id})" style="padding:4px 10px;font-size:11px">✎</button>
       </td>
     </tr>`).join('');
+  // Sempre recalcular estado dos botões após re-renderizar
+  checkSel();
 }
 
 function sortTable(key) {
@@ -2349,7 +2351,8 @@ function clearFilters() {
   ['filter-search','filter-status','filter-fazenda','filter-cg','filter-venc-ini','filter-venc-fim','filter-data-lanc'].forEach(id=>{
     var el = document.getElementById(id); if(el) el.value='';
   });
-  applyFilters();
+  var ca = document.getElementById('checkAll'); if(ca) ca.checked = false;
+  applyFilters(); // renderTable() dentro já chama checkSel()
 }
 // ── Atalhos de ciclo de pagamento ──
 function setCiclo(ciclo) {
