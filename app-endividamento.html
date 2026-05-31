@@ -1338,6 +1338,7 @@ function renderLancamentos() {
     var baixaBtn = isGestor()
       ? (l.status==='A PAGAR'
           ? '<button class="btn btn-warn" style="padding:4px 10px;font-size:10px;" onclick="event.stopPropagation();abrirBaixaInd('+l.id+')">↓ Baixa</button>'
+            + ' <button class="btn btn-secondary" style="padding:4px 10px;font-size:10px;border-color:#2563eb;color:#2563eb;" onclick="event.stopPropagation();abrirAditivo('+l.id+')">⇄ Aditivo</button>'
             + ' <button class="btn btn-secondary" style="padding:4px 10px;font-size:10px;" onclick="event.stopPropagation();abrirEditarLanc('+l.id+')">✎ Editar</button>'
           : '<button class="btn btn-secondary" style="padding:4px 10px;font-size:10px;color:#c0392b;border-color:#c0392b;" onclick="event.stopPropagation();desfazerBaixa('+l.id+')">↺ Desfazer</button>'
             + ' <button class="btn btn-secondary" style="padding:4px 10px;font-size:10px;" onclick="event.stopPropagation();abrirEditarLanc('+l.id+')">✎ Editar</button>')
@@ -1996,7 +1997,7 @@ async function confirmarEditarLanc() {
       saldo_devedor: parseFloat(document.getElementById('edit-lanc-saldo').value) || null
     };
     // Salvar no Supabase
-    var r = await fetch(SB_URL + '/rest/v1/' + TABLE_LANC + '?id=eq.' + _editLancId, {
+    var r = await fetch(SB_URL + '/rest/v1/' + TB_LANCAMENTOS + '?id=eq.' + _editLancId, {
       method: 'PATCH',
       headers: {
         'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY,
@@ -2017,6 +2018,237 @@ async function confirmarEditarLanc() {
   } finally {
     btn.disabled = false; btn.textContent = '💾 Salvar';
     _editLancId = null;
+  }
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// ADITIVO — Reparcelamento e Deslocamento (juros simples)
+// ═══════════════════════════════════════════════════════════
+var _aditLancId = null;
+
+function abrirAditivo(id) {
+  if(!isGestor()) { showBlockedMsg(); return; }
+  var l = lancamentos.find(function(x){return x.id===id;});
+  if(!l) { showToast('⚠ Parcela não encontrada','warn'); return; }
+  _aditLancId = id;
+  document.getElementById('adit-sub').textContent =
+    l.titular + ' · ' + l.banco + ' · ' + l.numero_contrato + ' · ' + l.modalidade;
+  // Pré-preenche
+  document.getElementById('adit-saldo').value = (+l.saldo_devedor||0).toFixed(2);
+  document.getElementById('adit-taxa').value = ((+l.taxa||0)*100).toFixed(4).replace(/0+$/,'').replace(/\.$/,'');
+  document.getElementById('adit-nparc').value = 3;
+  document.getElementById('adit-period').value = 'anual';
+  // Data 1ª parcela: 1 ano após a parcela original por padrão
+  var base = l.data_parcela ? new Date(l.data_parcela+'T00:00:00') : new Date();
+  var prox = new Date(base.getTime()); prox.setFullYear(prox.getFullYear()+1);
+  document.getElementById('adit-data1').value = prox.toISOString().slice(0,10);
+  // Deslocamento: sugere 2 anos à frente
+  var desl = new Date(base.getTime()); desl.setFullYear(desl.getFullYear()+2);
+  document.getElementById('adit-data-desloc').value = desl.toISOString().slice(0,10);
+  // Baixa
+  document.getElementById('adit-baixa-data').value = new Date().toISOString().slice(0,10);
+  document.getElementById('adit-baixa-valor').value = 0;
+  // Contrato: reset para "mesmo"
+  var radios = document.getElementsByName('adit-contrato');
+  for(var i=0;i<radios.length;i++){ radios[i].checked = (radios[i].value==='mesmo'); }
+  document.getElementById('adit-novo-numero').style.display='none';
+  document.getElementById('adit-novo-numero').value='';
+
+  aditSetTipo('reparc');
+  document.getElementById('modalAditivo').classList.add('open');
+}
+
+function aditSetTipo(tipo) {
+  document.getElementById('adit-tipo').value = tipo;
+  var tR = document.getElementById('adit-tab-reparc');
+  var tD = document.getElementById('adit-tab-desloc');
+  var boxN = document.getElementById('adit-box-nparc');
+  var boxD = document.getElementById('adit-box-data1');
+  var desc = document.getElementById('adit-desc');
+  if(tipo==='reparc') {
+    tR.className='btn btn-primary'; tR.style.flex='1'; tR.style.fontSize='12px';
+    tD.className='btn btn-secondary'; tD.style.flex='1'; tD.style.fontSize='12px';
+    boxN.style.display=''; boxD.style.display='none';
+    desc.innerHTML = '<strong>Reparcelamento:</strong> o saldo é dividido em N parcelas iguais. '
+      + 'Juros simples: <em>juros total = saldo × taxa × nº parcelas</em>, somado ao saldo e dividido igualmente. '
+      + 'A parcela original vira ADITADO (com baixa obrigatória).';
+  } else {
+    tD.className='btn btn-primary'; tD.style.flex='1'; tD.style.fontSize='12px';
+    tR.className='btn btn-secondary'; tR.style.flex='1'; tR.style.fontSize='12px';
+    boxN.style.display='none'; boxD.style.display='';
+    desc.innerHTML = '<strong>Deslocamento:</strong> cria UMA nova parcela na data futura escolhida, '
+      + 'com juros simples pelo período deslocado (<em>saldo × taxa × anos</em>). '
+      + 'A parcela original vira ADITADO (com baixa obrigatória).';
+  }
+  aditPreview();
+}
+
+function aditToggleContrato() {
+  var val = document.querySelector('input[name="adit-contrato"]:checked').value;
+  document.getElementById('adit-novo-numero').style.display = (val==='novo') ? '' : 'none';
+}
+
+// fração de ano entre duas datas
+function _anosEntre(d1, d2) {
+  var ms = d2.getTime() - d1.getTime();
+  return ms / (365.25*24*3600*1000);
+}
+
+function aditPreview() {
+  var tipo = document.getElementById('adit-tipo').value;
+  var saldo = parseFloat(document.getElementById('adit-saldo').value)||0;
+  var taxaPct = parseFloat(document.getElementById('adit-taxa').value)||0;
+  var taxa = taxaPct/100;
+  var body = document.getElementById('adit-preview-body');
+  var parcelas = [];
+
+  if(tipo==='reparc') {
+    var n = Math.max(1, Math.min(7, parseInt(document.getElementById('adit-nparc').value)||1));
+    var period = document.getElementById('adit-period').value;
+    // Juros simples: total = saldo × taxa × n  (conforme regra definida)
+    var jurosTotal = saldo * taxa * n;
+    var total = saldo + jurosTotal;
+    var valorParc = total / n;
+    var d1str = document.getElementById('adit-data1').value;
+    var base = d1str ? new Date(d1str+'T00:00:00') : new Date();
+    for(var i=0;i<n;i++) {
+      var d = new Date(base.getTime());
+      if(period==='anual') d.setFullYear(d.getFullYear()+i);
+      else if(period==='semestral') d.setMonth(d.getMonth()+6*i);
+      else d.setMonth(d.getMonth()+i);
+      parcelas.push({ data: d.toISOString().slice(0,10), valor: valorParc });
+    }
+  } else {
+    // Deslocamento: 1 parcela na nova data, juros simples pelo período
+    var ddstr = document.getElementById('adit-data-desloc').value;
+    var l = lancamentos.find(function(x){return x.id===_aditLancId;});
+    var origStr = (l && l.data_parcela) ? l.data_parcela : new Date().toISOString().slice(0,10);
+    var dOrig = new Date(origStr+'T00:00:00');
+    var dNova = ddstr ? new Date(ddstr+'T00:00:00') : dOrig;
+    var anos = Math.max(0, _anosEntre(dOrig, dNova));
+    var jurosTotal = saldo * taxa * anos;
+    var valor = saldo + jurosTotal;
+    parcelas.push({ data: dNova.toISOString().slice(0,10), valor: valor });
+  }
+
+  // Render editável
+  body.innerHTML = parcelas.map(function(p, idx) {
+    return '<tr>'
+      + '<td style="padding:6px 8px;color:var(--cinza);font-family:\'DM Mono\',monospace;">'+(idx+1)+'</td>'
+      + '<td style="padding:6px 8px;"><input type="date" value="'+p.data+'" id="adit-pd-'+idx+'" style="font-size:12px;padding:4px 6px;border:1px solid var(--cinza-light);border-radius:6px;" onchange="aditRecalcTotal()"></td>'
+      + '<td style="padding:6px 8px;text-align:right;"><input type="number" step="0.01" min="0" value="'+p.valor.toFixed(2)+'" id="adit-pv-'+idx+'" style="font-size:12px;padding:4px 6px;width:150px;text-align:right;border:1px solid var(--cinza-light);border-radius:6px;font-family:\'DM Mono\',monospace;" onchange="aditRecalcTotal()"></td>'
+      + '</tr>';
+  }).join('');
+  body.setAttribute('data-count', parcelas.length);
+  aditRecalcTotal();
+}
+
+function aditRecalcTotal() {
+  var body = document.getElementById('adit-preview-body');
+  var n = parseInt(body.getAttribute('data-count'))||0;
+  var soma = 0;
+  for(var i=0;i<n;i++) {
+    var v = parseFloat(document.getElementById('adit-pv-'+i).value)||0;
+    soma += v;
+  }
+  document.getElementById('adit-total').textContent = '∑ ' + fmtMoeda(soma) + ' em ' + n + 'x';
+}
+
+async function confirmarAditivo() {
+  if(!isGestor()) { showBlockedMsg(); return; }
+  var l = lancamentos.find(function(x){return x.id===_aditLancId;});
+  if(!l) { showToast('⚠ Parcela não encontrada','warn'); return; }
+
+  // Coleta prévia editada
+  var body = document.getElementById('adit-preview-body');
+  var n = parseInt(body.getAttribute('data-count'))||0;
+  if(n<1) { showToast('⚠ Nenhuma parcela na prévia','warn'); return; }
+  var novasParcelas = [];
+  for(var i=0;i<n;i++) {
+    var dt = document.getElementById('adit-pd-'+i).value;
+    var vl = parseFloat(document.getElementById('adit-pv-'+i).value)||0;
+    if(!dt) { showToast('⚠ Data da parcela '+(i+1)+' em branco','warn'); return; }
+    if(vl<=0) { showToast('⚠ Valor da parcela '+(i+1)+' inválido','warn'); return; }
+    novasParcelas.push({ data: dt, valor: vl });
+  }
+
+  // Baixa obrigatória
+  var baixaData = document.getElementById('adit-baixa-data').value;
+  if(!baixaData) { showToast('⚠ Informe a data da baixa da parcela original','warn'); return; }
+  var baixaValorStr = document.getElementById('adit-baixa-valor').value;
+  var baixaValor = baixaValorStr!=='' ? parseFloat(baixaValorStr) : 0;
+  if(isNaN(baixaValor) || baixaValor<0) { showToast('⚠ Valor da baixa inválido','warn'); return; }
+
+  // Contrato destino
+  var contratoOpt = document.querySelector('input[name="adit-contrato"]:checked').value;
+  var numeroDestino = l.numero_contrato;
+  if(contratoOpt==='novo') {
+    var nn = document.getElementById('adit-novo-numero').value.trim();
+    if(!nn) { showToast('⚠ Informe o número do novo contrato','warn'); return; }
+    numeroDestino = nn;
+  }
+
+  var tipo = document.getElementById('adit-tipo').value;
+  var saldoBase = parseFloat(document.getElementById('adit-saldo').value)||0;
+
+  var btn = document.getElementById('btn-confirmar-aditivo');
+  btn.disabled=true; btn.textContent='Processando…';
+
+  try {
+    // 1) Baixa + ADITADO na parcela original
+    var patchOrig = {
+      status: 'ADITADO',
+      data_pagamento: baixaData,
+      valor_parcela: baixaValor
+    };
+    await sb(TB_LANCAMENTOS+'?id=eq.'+l.id, {method:'PATCH', body:JSON.stringify(patchOrig)});
+    // atualiza cache local
+    l.status='ADITADO'; l.data_pagamento=baixaData; l.valor_parcela=baixaValor;
+
+    // 2) Cria novas parcelas
+    var taxaDec = (parseFloat(document.getElementById('adit-taxa').value)||0)/100;
+    for(var j=0;j<novasParcelas.length;j++) {
+      var p = novasParcelas[j];
+      var anoNum = p.data.slice(0,4);
+      var mesNum = parseInt(p.data.slice(5,7));
+      var parcObj = {
+        contrato_id: l.contrato_id,
+        numero_contrato: numeroDestino,
+        titular: l.titular,
+        banco: l.banco,
+        modalidade: 'Aditivo',
+        categoria: 'Aditivo',
+        tipo: l.tipo,
+        taxa: taxaDec,
+        ano: 'ANO ' + anoNum,
+        mes_parcela: mesNum,
+        data_parcela: p.data,
+        valor_parcela: p.valor,
+        saldo_devedor: saldoBase,
+        status: 'A PAGAR',
+        data_pagamento: null
+      };
+      var saved = await sb(TB_LANCAMENTOS, {method:'POST', body:JSON.stringify(parcObj)});
+      // adiciona ao cache local
+      if(saved && saved[0]) lancamentos.push(saved[0]);
+      else { parcObj.id = Math.max.apply(null, lancamentos.map(function(x){return x.id||0;}))+1; lancamentos.push(parcObj); }
+    }
+
+    fecharModal('modalAditivo');
+    // Se o detalhe do contrato estiver aberto, atualiza
+    if(document.getElementById('modalDetalhe').classList.contains('open') && contratoAtualId) {
+      abrirDetalheContrato(contratoAtualId);
+    }
+    renderLancamentos();
+    renderContratos();
+    renderDashboard();
+    var rotulo = (tipo==='reparc') ? 'Reparcelamento' : 'Deslocamento';
+    showToast('✓ '+rotulo+' concluído: '+novasParcelas.length+' nova(s) parcela(s)!');
+  } catch(e) {
+    showToast('⚠ Erro no aditivo: '+e.message,'err');
+  } finally {
+    btn.disabled=false; btn.textContent='⇄ Confirmar Aditivo';
   }
 }
 
@@ -2076,6 +2308,116 @@ async function confirmarEditarLanc() {
     </div>
   </div>
 </div>
+
+<!-- ═══════════ MODAL ADITIVO (Reparcelamento / Deslocamento) ═══════════ -->
+<div class="modal-overlay" id="modalAditivo">
+  <div class="modal" style="max-width:720px;">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">⇄ Aditivo de Contrato</div>
+        <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--cinza);margin-top:2px;" id="adit-sub"></div>
+      </div>
+      <button class="modal-close" onclick="fecharModal('modalAditivo')">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <!-- Escolha do tipo de aditivo -->
+      <div style="display:flex;gap:10px;margin-bottom:18px;">
+        <button id="adit-tab-reparc" class="btn btn-primary" style="flex:1;font-size:12px;" onclick="aditSetTipo('reparc')">↻ Reparcelamento</button>
+        <button id="adit-tab-desloc" class="btn btn-secondary" style="flex:1;font-size:12px;" onclick="aditSetTipo('desloc')">→ Deslocamento</button>
+      </div>
+      <input type="hidden" id="adit-tipo" value="reparc">
+
+      <div id="adit-desc" style="padding:10px 14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;font-size:11px;color:#1e40af;margin-bottom:18px;line-height:1.5;"></div>
+
+      <!-- Parâmetros -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;">
+        <div class="field">
+          <label>Saldo a reparcelar (R$)</label>
+          <input type="number" id="adit-saldo" step="0.01" min="0" oninput="aditPreview()">
+        </div>
+        <div class="field">
+          <label>Taxa de juros (% a.a)</label>
+          <input type="number" id="adit-taxa" step="0.0001" min="0" placeholder="Ex: 10" oninput="aditPreview()">
+        </div>
+        <div class="field" id="adit-box-nparc">
+          <label>Nº de parcelas (até 7)</label>
+          <input type="number" id="adit-nparc" min="1" max="7" value="3" oninput="aditPreview()">
+        </div>
+        <div class="field" id="adit-box-data1" style="display:none;">
+          <label>Nova data (deslocamento)</label>
+          <input type="date" id="adit-data-desloc" oninput="aditPreview()">
+        </div>
+        <div class="field">
+          <label>Data 1ª parcela</label>
+          <input type="date" id="adit-data1" oninput="aditPreview()">
+        </div>
+        <div class="field">
+          <label>Periodicidade</label>
+          <select id="adit-period" onchange="aditPreview()">
+            <option value="anual">Anual</option>
+            <option value="mensal">Mensal</option>
+            <option value="semestral">Semestral</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Contrato destino -->
+      <div style="margin-top:8px;padding:12px 14px;background:var(--creme);border-radius:8px;">
+        <label style="font-size:11px;font-weight:600;color:var(--cinza);display:block;margin-bottom:8px;">Contrato das novas parcelas</label>
+        <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap;">
+          <label style="font-size:12px;display:flex;align-items:center;gap:6px;cursor:pointer;">
+            <input type="radio" name="adit-contrato" value="mesmo" checked onchange="aditToggleContrato()"> Mesmo contrato
+          </label>
+          <label style="font-size:12px;display:flex;align-items:center;gap:6px;cursor:pointer;">
+            <input type="radio" name="adit-contrato" value="novo" onchange="aditToggleContrato()"> Novo contrato
+          </label>
+          <input type="text" id="adit-novo-numero" placeholder="Novo nº de contrato" style="display:none;flex:1;min-width:160px;font-size:12px;padding:6px 10px;border:1.5px solid var(--cinza-light);border-radius:8px;">
+        </div>
+      </div>
+
+      <!-- Prévia editável -->
+      <div style="margin-top:18px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <span style="font-size:12px;font-weight:700;color:var(--texto);letter-spacing:.04em;">PRÉVIA DAS PARCELAS <span style="font-weight:400;color:var(--cinza);">(edite os valores se necessário)</span></span>
+          <span id="adit-total" style="font-size:12px;font-family:'DM Mono',monospace;color:var(--verde);font-weight:700;"></span>
+        </div>
+        <div style="overflow-x:auto;border:1px solid var(--cinza-light);border-radius:8px;">
+          <table style="width:100%;font-size:12px;">
+            <thead><tr style="background:var(--creme);">
+              <th style="padding:8px;text-align:left;">#</th>
+              <th style="padding:8px;text-align:left;">Vencimento</th>
+              <th style="padding:8px;text-align:right;">Valor da parcela (R$)</th>
+            </tr></thead>
+            <tbody id="adit-preview-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Baixa da parcela original -->
+      <div style="margin-top:18px;padding:14px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;">
+        <div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:10px;">⚠ Baixa da parcela original (obrigatória)</div>
+        <div style="font-size:11px;color:#92400e;margin-bottom:10px;line-height:1.5;">A parcela original será marcada como <strong>ADITADO</strong>, mas precisa registrar a baixa. Informe o que foi efetivamente pago (pode ser 0).</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+          <div class="field" style="margin:0;">
+            <label>Data da baixa</label>
+            <input type="date" id="adit-baixa-data">
+          </div>
+          <div class="field" style="margin:0;">
+            <label>Valor pago na baixa (R$)</label>
+            <input type="number" id="adit-baixa-valor" step="0.01" min="0" value="0">
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="fecharModal('modalAditivo')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-confirmar-aditivo" onclick="confirmarAditivo()" style="background:#2563eb;border-color:#2563eb;">⇄ Confirmar Aditivo</button>
+    </div>
+  </div>
+</div>
+
 
 </body>
 </html>
