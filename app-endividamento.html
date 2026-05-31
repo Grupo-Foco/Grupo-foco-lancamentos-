@@ -818,9 +818,12 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
         </div>
       </div>
     </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="fecharModal('modalBaixaInd')">Cancelar</button>
-      <button class="btn btn-primary" id="btn-confirmar-baixa-ind" onclick="confirmarBaixaInd()">✓ Confirmar Baixa</button>
+    <div class="modal-footer" style="justify-content:space-between;">
+      <button class="btn btn-secondary" style="border-color:#2563eb;color:#2563eb;" onclick="aditivoAPartirDaBaixa()">⇄ Gerar Aditivo</button>
+      <div style="display:flex;gap:10px;">
+        <button class="btn btn-secondary" onclick="fecharModal('modalBaixaInd')">Cancelar</button>
+        <button class="btn btn-primary" id="btn-confirmar-baixa-ind" onclick="confirmarBaixaInd()">✓ Confirmar Baixa</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1338,7 +1341,6 @@ function renderLancamentos() {
     var baixaBtn = isGestor()
       ? (l.status==='A PAGAR'
           ? '<button class="btn btn-warn" style="padding:4px 10px;font-size:10px;" onclick="event.stopPropagation();abrirBaixaInd('+l.id+')">↓ Baixa</button>'
-            + ' <button class="btn btn-secondary" style="padding:4px 10px;font-size:10px;border-color:#2563eb;color:#2563eb;" onclick="event.stopPropagation();abrirAditivo('+l.id+')">⇄ Aditivo</button>'
             + ' <button class="btn btn-secondary" style="padding:4px 10px;font-size:10px;" onclick="event.stopPropagation();abrirEditarLanc('+l.id+')">✎ Editar</button>'
           : '<button class="btn btn-secondary" style="padding:4px 10px;font-size:10px;color:#c0392b;border-color:#c0392b;" onclick="event.stopPropagation();desfazerBaixa('+l.id+')">↺ Desfazer</button>'
             + ' <button class="btn btn-secondary" style="padding:4px 10px;font-size:10px;" onclick="event.stopPropagation();abrirEditarLanc('+l.id+')">✎ Editar</button>')
@@ -2026,6 +2028,14 @@ async function confirmarEditarLanc() {
 // ADITIVO — Reparcelamento e Deslocamento (juros simples)
 // ═══════════════════════════════════════════════════════════
 var _aditLancId = null;
+
+// Chamada a partir do modal de Baixa: fecha a baixa e abre o aditivo
+function aditivoAPartirDaBaixa() {
+  if(!isGestor()) { showBlockedMsg(); return; }
+  var id = baixaIndId;
+  fecharModal('modalBaixaInd');
+  abrirAditivo(id);
+}
 
 function abrirAditivo(id) {
   if(!isGestor()) { showBlockedMsg(); return; }
