@@ -1825,6 +1825,13 @@ function hasPerm(perm) {
   return perms && perms[perm] === true;
 }
 
+// Receitas é liberada por padrão. Retorna true se o gestor bloqueou
+// explicitamente este usuário (perms.receitas_bloqueado === true).
+function receitaBloqueada() {
+  var perms = getUserPerms();
+  return !!(perms && perms.receitas_bloqueado === true);
+}
+
 // Aplicar visibilidade de botões conforme role + permissões individuais
 (function applyPermissions() {
   var btnEndiv = document.getElementById('btn-endividamento');
@@ -1832,8 +1839,13 @@ function hasPerm(perm) {
   var btnReceitas = document.getElementById('btn-receitas');
   if(hasPerm('endividamento') && btnEndiv) btnEndiv.style.display = '';
   if(hasPerm('configuracoes') && btnConf)  btnConf.style.display  = '';
-  // Receitas: mesma permissão de endividamento (gestor sempre vê)
-  if(hasPerm('endividamento') && btnReceitas) btnReceitas.style.display = '';
+  // Receitas: visível para TODOS por padrão; só oculta se o gestor
+  // marcou bloqueio explícito ('receitas_bloqueado') para o usuário.
+  // Gestor sempre vê.
+  if(btnReceitas) {
+    var bloqReceitas = (currentRole !== 'gestor') && receitaBloqueada();
+    btnReceitas.style.display = bloqReceitas ? 'none' : '';
+  }
 
   // Conciliação: mostrar na nav apenas se tiver permissão
   if(hasPerm('conciliacao')) {

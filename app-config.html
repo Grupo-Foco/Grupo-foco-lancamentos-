@@ -271,6 +271,7 @@ input.inp:focus,select.inp:focus{border-color:var(--verde);}
               <th style="text-align:center;min-width:100px;">Excluir reg.</th>
               <th style="text-align:center;min-width:100px;">Exportar XLS</th>
               <th style="text-align:center;min-width:90px;">Configurações</th>
+              <th style="text-align:center;min-width:120px;background:#fef2f2;">🚫 Bloquear Receitas</th>
             </tr>
           </thead>
           <tbody id="perm-tbody"></tbody>
@@ -384,7 +385,8 @@ var PERMS_DEF = {
   endividamento:{ label: 'Endividamento', desc: 'Dashboard de endividamento' },
   excluir:      { label: 'Excluir reg.', desc: 'Excluir lançamentos' },
   exportar:     { label: 'Exportar XLS', desc: 'Download de planilha Excel' },
-  configuracoes:{ label: 'Configurações', desc: 'Acessar esta página' }
+  configuracoes:{ label: 'Configurações', desc: 'Acessar esta página' },
+  receitas_bloqueado:{ label: 'Bloquear Receitas', desc: 'Receitas é liberada por padrão; marque para BLOQUEAR este usuário', inverso: true }
 };
 
 var SENHAS_DEF = {rodolfo:'foco2026',ivan:'ivan2026',joao:'joao2026',adriana:'adriana2026',nirlany:'nirlany2026',renara:'renara2026',wenya:'wenya2026',henrique:'henrique2026'};
@@ -572,15 +574,26 @@ function renderPermTable() {
       '</td>';
 
     var permCells = permKeys.map(function(pk) {
-      var hasPerm = isGestor || (u.perms && u.perms[pk]);
-      var dis = isGestor ? 'disabled title="Gestor tem acesso total"' : '';
-      return '<td style="text-align:center">' +
+      var inverso = PERMS_DEF[pk] && PERMS_DEF[pk].inverso;
+      var checkState, dis, hint;
+      if(inverso) {
+        // Permissão de BLOQUEIO: gestor nunca é bloqueado (checkbox vazio+travado).
+        // Para funcionário, marcado = bloqueado (valor cru de perms[pk]).
+        checkState = !isGestor && !!(u.perms && u.perms[pk]);
+        dis = isGestor ? 'disabled title="Gestor sempre tem acesso"' : '';
+        hint = isGestor ? '<div style="font-size:9px;color:var(--cinza);font-family:DM Mono,monospace;margin-top:2px;">livre</div>' : '';
+      } else {
+        // Permissão normal: marcado = liberado. Gestor tem tudo.
+        checkState = isGestor || (u.perms && u.perms[pk]);
+        dis = isGestor ? 'disabled title="Gestor tem acesso total"' : '';
+        hint = isGestor ? '<div style="font-size:9px;color:var(--cinza);font-family:DM Mono,monospace;margin-top:2px;">auto</div>' : '';
+      }
+      return '<td style="text-align:center;' + (inverso?'background:#fef2f2;':'') + '">' +
         '<label class="toggle">' +
-          '<input type="checkbox"' + (hasPerm?' checked':'') + ' ' + dis +
+          '<input type="checkbox"' + (checkState?' checked':'') + ' ' + dis +
             ' onchange="togglePerm(\'' + u.login + '\',\'' + pk + '\',this.checked)">' +
           '<span class="toggle-slider"></span>' +
-        '</label>' +
-        (isGestor ? '<div style="font-size:9px;color:var(--cinza);font-family:DM Mono,monospace;margin-top:2px;">auto</div>' : '') +
+        '</label>' + hint +
       '</td>';
     }).join('');
 
@@ -595,7 +608,14 @@ function togglePerm(login, perm, valor) {
   if(!USERS[login].perms) USERS[login].perms = {};
   USERS[login].perms[perm] = valor;
   saveUsers(USERS);
-  toast('✓ Permissão "' + PERMS_DEF[perm] + '" ' + (valor?'liberada para ':'removida de ') + USERS[login].nome);
+  var def = PERMS_DEF[perm] || {};
+  var lbl = def.label || perm;
+  if(def.inverso) {
+    // Bloqueio: valor true = bloqueado
+    toast('✓ ' + (valor ? 'Receitas BLOQUEADA para ' : 'Receitas liberada para ') + USERS[login].nome);
+  } else {
+    toast('✓ Permissão "' + lbl + '" ' + (valor?'liberada para ':'removida de ') + USERS[login].nome);
+  }
 }
 
 // compatibilidade com chamadas antigas
