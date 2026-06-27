@@ -621,7 +621,7 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
       <div class="section-label">04 — Classificação</div>
       <div class="form-grid">
         <div class="field"><label>Fazenda <span class="req">★</span></label>
-          <select id="f_fazenda"><option value="">Selecionar…</option><option>BRASIL</option><option>ESCRITÓRIO - GO</option><option>LAGEADO</option><option>MAYARA</option><option>RATEIO</option><option>SANTA ANGELINA</option><option>SÃO BENTO</option></select>
+          <select id="f_fazenda"><option value="">Selecionar…</option><option>ARMAZÉM</option><option>BRASIL</option><option>CASA JOÃO E NEILA</option><option>ESCRITÓRIO - GO</option><option>LAGEADO</option><option>MAYARA</option><option>RATEIO</option><option>SANTA ANGELINA</option><option>SÃO BENTO</option></select>
         </div>
         <div class="field"><label>Safra/Ciclo <span class="req">★</span></label>
           <select id="f_safra"><option value="">Selecionar…</option><option>SAFRA 2025/2026</option><option>SAFRINHA 2026</option><option>SAFRA 2026/2027</option><option>SAFRINHA 2027</option><option>SAFRA 2027/2028</option><option>SAFRINHA 2028</option></select>
@@ -727,7 +727,7 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
   <div class="filters-bar">
     <div class="filter-group filter-search"><label>Buscar</label><input type="text" id="filter-search" placeholder="Fornecedor, histórico, NF…" oninput="applyFilters()"></div>
     <div class="filter-group"><label>Status</label><select id="filter-status" onchange="applyFilters()"><option value="">Todos</option><option>A PAGAR</option><option>PAGO</option></select></div>
-    <div class="filter-group"><label>Fazenda</label><select id="filter-fazenda" onchange="applyFilters()"><option value="">Todas</option><option>BRASIL</option><option>ESCRITÓRIO - GO</option><option>LAGEADO</option><option>MAYARA</option><option>RATEIO</option><option>SANTA ANGELINA</option><option>SÃO BENTO</option></select></div>
+    <div class="filter-group"><label>Fazenda</label><select id="filter-fazenda" onchange="applyFilters()"><option value="">Todas</option><option>ARMAZÉM</option><option>BRASIL</option><option>CASA JOÃO E NEILA</option><option>ESCRITÓRIO - GO</option><option>LAGEADO</option><option>MAYARA</option><option>RATEIO</option><option>SANTA ANGELINA</option><option>SÃO BENTO</option></select></div>
     <div class="filter-group"><label>Conta Gerencial</label><select id="filter-cg" onchange="applyFilters()"><option value="">Todas</option></select></div>
     
     <div class="filter-group"><label>Vencimento — De</label>
@@ -1609,7 +1609,11 @@ async function gerarReciboPDF(dados) {
     'ESCRITÓRIO - GO':'Edealina',
     'ESCRITORIO - GO':'Edealina',
     'ESCRITÓRIO GO':  'Edealina',
-    'ESCRITORIO GO':  'Edealina'
+    'ESCRITORIO GO':  'Edealina',
+    'ARMAZÉM':        'Brejinho de Nazaré',
+    'ARMAZEM':        'Brejinho de Nazaré',
+    'CASA JOÃO E NEILA': 'Edealina',
+    'CASA JOAO E NEILA': 'Edealina'
   };
   var _fazKey = (dados.fazenda || '').toUpperCase().trim();
   var _cidade = _fazCidadeMap[_fazKey];
