@@ -258,7 +258,7 @@ input.inp:focus,select.inp:focus{border-color:var(--verde);}
     <div class="card">
       <div class="card-head">
         <h3>Permissões por usuário</h3>
-        <span style="font-size:11px;color:var(--cinza);font-family:DM Mono,monospace;">Clique nos toggles para liberar/bloquear</span>
+        <span style="font-size:11px;color:var(--cinza);font-family:DM Mono,monospace;">Clique nos botões para liberar/bloquear</span>
       </div>
       <div style="overflow-x:auto;">
         <table id="perm-table">
@@ -266,11 +266,11 @@ input.inp:focus,select.inp:focus{border-color:var(--verde);}
             <tr>
               <th style="min-width:130px;">Usuário</th>
               <th style="text-align:center;min-width:80px;">Perfil</th>
-              <th style="text-align:center;min-width:110px;">Conciliação</th>
-              <th style="text-align:center;min-width:110px;">Endividamento</th>
-              <th style="text-align:center;min-width:100px;">Excluir reg.</th>
-              <th style="text-align:center;min-width:100px;">Exportar XLS</th>
-              <th style="text-align:center;min-width:90px;">Configurações</th>
+              <th style="text-align:center;min-width:130px;">Conciliação</th>
+              <th style="text-align:center;min-width:130px;">Endividamento</th>
+              <th style="text-align:center;min-width:130px;">Excluir reg.</th>
+              <th style="text-align:center;min-width:130px;">Exportar XLS</th>
+              <th style="text-align:center;min-width:130px;">Configurações</th>
               <th style="text-align:center;min-width:130px;border-left:3px solid var(--ouro);color:#ffd9d9;">Receitas</th>
             </tr>
           </thead>
@@ -575,38 +575,35 @@ function renderPermTable() {
 
     var permCells = permKeys.map(function(pk) {
       var inverso = PERMS_DEF[pk] && PERMS_DEF[pk].inverso;
-      // ── Coluna de BLOQUEIO (Receitas): botão de status claro ──
-      if(inverso) {
-        var tdStyleB = 'text-align:center;border-left:3px solid var(--ouro);';
-        if(isGestor) {
-          return '<td style="' + tdStyleB + '">' +
-            '<span style="font-family:DM Mono,monospace;font-size:10px;font-weight:700;color:#9aa;letter-spacing:.05em;">— livre —</span>' +
-          '</td>';
-        }
-        var bloqueado = !!(u.perms && u.perms[pk]);
-        var corBg = bloqueado ? '#fde8e8' : '#e7f6ec';
-        var corBorda = bloqueado ? '#dc2626' : '#16a34a';
-        var corTxt = bloqueado ? '#b91c1c' : '#15803d';
-        var rotulo = bloqueado ? '🚫 Bloqueado' : '✓ Liberado';
-        var proximo = bloqueado ? 'false' : 'true';
-        return '<td style="' + tdStyleB + '">' +
-          '<button onclick="togglePerm(\'' + u.login + '\',\'' + pk + '\',' + proximo + ')" ' +
-            'style="font-family:DM Mono,monospace;font-size:11px;font-weight:700;padding:5px 12px;border-radius:8px;cursor:pointer;' +
-            'background:' + corBg + ';border:1.5px solid ' + corBorda + ';color:' + corTxt + ';letter-spacing:.02em;">' +
-            rotulo +
-          '</button>' +
+      var tdStyle = 'text-align:center;' + (inverso ? 'border-left:3px solid var(--ouro);' : '');
+
+      // Gestor: tem tudo. Em coluna normal aparece "auto"; na inversa, "livre".
+      if(isGestor) {
+        var txtG = inverso ? '— livre —' : '✓ auto';
+        return '<td style="' + tdStyle + '">' +
+          '<span style="display:inline-block;font-family:DM Mono,monospace;font-size:10px;font-weight:700;color:#9aa;letter-spacing:.05em;padding:5px 0;">' + txtG + '</span>' +
         '</td>';
       }
-      // ── Permissões normais: toggle (marcado = liberado) ──
-      var checkState = isGestor || (u.perms && u.perms[pk]);
-      var dis = isGestor ? 'disabled title="Gestor tem acesso total"' : '';
-      var hint = isGestor ? '<div style="font-size:9px;color:var(--cinza);font-family:DM Mono,monospace;margin-top:2px;">auto</div>' : '';
-      return '<td style="text-align:center;">' +
-        '<label class="toggle">' +
-          '<input type="checkbox"' + (checkState?' checked':'') + ' ' + dis +
-            ' onchange="togglePerm(\'' + u.login + '\',\'' + pk + '\',this.checked)">' +
-          '<span class="toggle-slider"></span>' +
-        '</label>' + hint +
+
+      // Estado atual e semântica:
+      // - normal:  perms[pk]===true  => LIBERADO
+      // - inversa: perms[pk]===true  => BLOQUEADO
+      var marcado = !!(u.perms && u.perms[pk]);
+      var liberado = inverso ? !marcado : marcado;
+      var corBg    = liberado ? '#e7f6ec' : '#fde8e8';
+      var corBorda = liberado ? '#16a34a' : '#dc2626';
+      var corTxt   = liberado ? '#15803d' : '#b91c1c';
+      var rotulo   = liberado ? '✓ Liberado' : '🚫 Bloqueado';
+      // valor que será gravado ao clicar (inverte o estado atual):
+      // - normal:  clicar => grava o oposto de 'marcado'
+      // - inversa: clicar => grava o oposto de 'marcado' também (a semântica já está no marcado)
+      var proximo = marcado ? 'false' : 'true';
+      return '<td style="' + tdStyle + '">' +
+        '<button onclick="togglePerm(\'' + u.login + '\',\'' + pk + '\',' + proximo + ')" ' +
+          'style="font-family:DM Mono,monospace;font-size:11px;font-weight:700;padding:5px 12px;border-radius:8px;cursor:pointer;' +
+          'background:' + corBg + ';border:1.5px solid ' + corBorda + ';color:' + corTxt + ';letter-spacing:.02em;white-space:nowrap;">' +
+          rotulo +
+        '</button>' +
       '</td>';
     }).join('');
 
@@ -623,12 +620,17 @@ function togglePerm(login, perm, valor) {
   saveUsers(USERS);
   var def = PERMS_DEF[perm] || {};
   var lbl = def.label || perm;
+  var nome = USERS[login].nome;
   if(def.inverso) {
-    // Bloqueio: valor true = bloqueado
-    toast('✓ ' + (valor ? 'Receitas BLOQUEADA para ' : 'Receitas liberada para ') + USERS[login].nome);
+    // Coluna inversa (Receitas): valor true = BLOQUEADO
+    toast(valor ? '🚫 ' + lbl + ' bloqueada para ' + nome
+                : '✓ ' + lbl + ' liberada para ' + nome);
   } else {
-    toast('✓ Permissão "' + lbl + '" ' + (valor?'liberada para ':'removida de ') + USERS[login].nome);
+    toast(valor ? '✓ "' + lbl + '" liberada para ' + nome
+                : '🚫 "' + lbl + '" bloqueada para ' + nome);
   }
+  // IMPORTANTE: redesenhar a tabela para o botão refletir o novo estado
+  renderPermTable();
 }
 
 // compatibilidade com chamadas antigas
