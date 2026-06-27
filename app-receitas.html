@@ -548,7 +548,8 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
           </select>
         </div>
         <div class="field col-span-2"><label>Comprador (empresa/pessoa) <span class="req">★</span></label>
-          <input type="text" id="f_comprador" placeholder="Nome da empresa ou pessoa">
+          <input type="text" id="f_comprador" placeholder="Nome da empresa ou pessoa" list="lista-compradores" autocomplete="off">
+          <datalist id="lista-compradores"></datalist>
         </div>
         <div class="field"><label>CNPJ / CPF</label>
           <input type="text" id="f_cnpj" placeholder="00.000.000/0000-00" maxlength="18" oninput="mascaraCNPJ(this)">
@@ -751,8 +752,26 @@ async function loadData() {
       offset += 1000;
     }
     setSyncState('online',`${receitas.length} registros`);
+    popularCompradores();
     applyFilters();
   } catch(e) { setSyncState('error','Erro'); showToast('⚠ '+e.message,true); }
+}
+
+// Preenche o autocomplete do comprador com nomes distintos já cadastrados
+function popularCompradores() {
+  var dl = document.getElementById('lista-compradores');
+  if(!dl) return;
+  var vistos = {};
+  var nomes = [];
+  receitas.forEach(function(r){
+    var nome = (r.comprador||'').trim();
+    if(nome && !vistos[nome.toUpperCase()]) {
+      vistos[nome.toUpperCase()] = true;
+      nomes.push(nome);
+    }
+  });
+  nomes.sort(function(a,b){ return a.localeCompare(b); });
+  dl.innerHTML = nomes.map(function(n){ return '<option value="'+esc(n)+'">'; }).join('');
 }
 
 let _arqComprovante = null;

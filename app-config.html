@@ -50,11 +50,11 @@ header{background:var(--verde);padding:0 32px;height:56px;display:flex;align-ite
 
 /* TABLE */
 table{width:100%;border-collapse:collapse;}
-thead th{background:var(--verde);color:rgba(245,240,232,.8);font-family:DM Mono,monospace;font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;padding:10px 14px;text-align:left;}
+thead th{background:var(--verde);color:rgba(245,240,232,.8);font-family:DM Mono,monospace;font-size:10px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;padding:10px 8px;text-align:left;}
 tbody tr{border-bottom:1px solid var(--cinza-light);transition:background .12s;}
 tbody tr:last-child{border-bottom:none;}
 tbody tr:hover{background:rgba(26,58,42,.03);}
-td{padding:12px 14px;font-size:14px;}
+td{padding:10px 8px;font-size:14px;}
 td.mono{font-family:DM Mono,monospace;font-size:12px;}
 .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.04em;font-family:DM Mono,monospace;}
 .badge.gestor{background:rgba(200,168,75,.15);color:#7a5f10;}
@@ -264,14 +264,14 @@ input.inp:focus,select.inp:focus{border-color:var(--verde);}
         <table id="perm-table">
           <thead>
             <tr>
-              <th style="min-width:130px;">Usuário</th>
-              <th style="text-align:center;min-width:80px;">Perfil</th>
-              <th style="text-align:center;min-width:130px;">Conciliação</th>
-              <th style="text-align:center;min-width:130px;">Endividamento</th>
-              <th style="text-align:center;min-width:130px;">Excluir reg.</th>
-              <th style="text-align:center;min-width:130px;">Exportar XLS</th>
-              <th style="text-align:center;min-width:130px;">Configurações</th>
-              <th style="text-align:center;min-width:130px;border-left:3px solid var(--ouro);color:#ffd9d9;">Receitas</th>
+              <th style="min-width:90px;">Usuário</th>
+              <th style="text-align:center;min-width:70px;">Perfil</th>
+              <th style="text-align:center;min-width:120px;">Conciliação</th>
+              <th style="text-align:center;min-width:120px;">Endividamento</th>
+              <th style="text-align:center;min-width:120px;">Excluir reg.</th>
+              <th style="text-align:center;min-width:120px;">Exportar XLS</th>
+              <th style="text-align:center;min-width:120px;">Configurações</th>
+              <th style="text-align:center;min-width:120px;border-left:3px solid var(--ouro);color:#ffd9d9;">Receitas</th>
             </tr>
           </thead>
           <tbody id="perm-tbody"></tbody>
@@ -600,7 +600,7 @@ function renderPermTable() {
       var proximo = marcado ? 'false' : 'true';
       return '<td style="' + tdStyle + '">' +
         '<button onclick="togglePerm(\'' + u.login + '\',\'' + pk + '\',' + proximo + ')" ' +
-          'style="font-family:DM Mono,monospace;font-size:11px;font-weight:700;padding:5px 12px;border-radius:8px;cursor:pointer;' +
+          'style="font-family:DM Mono,monospace;font-size:10px;font-weight:700;padding:5px 9px;border-radius:7px;cursor:pointer;' +
           'background:' + corBg + ';border:1.5px solid ' + corBorda + ';color:' + corTxt + ';letter-spacing:.02em;white-space:nowrap;">' +
           rotulo +
         '</button>' +
