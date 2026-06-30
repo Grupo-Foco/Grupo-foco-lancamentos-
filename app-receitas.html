@@ -544,7 +544,7 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
         <div class="field"><label>Produto <span class="req">★</span></label>
           <select id="f_produto"><option value="">Selecionar…</option>
             <option>SOJA</option><option>MILHO</option><option>SORGO</option><option>GADO</option>
-            <option>MÁQUINA</option><option>PORCO</option><option>LEITE</option><option>AVIÃO</option><option>OUTROS</option>
+            <option>MÁQUINA</option><option>PORCO</option><option>LEITE</option><option>AVIÃO</option><option>BAG</option><option>OUTROS</option>
           </select>
         </div>
         <div class="field col-span-2"><label>Comprador (empresa/pessoa) <span class="req">★</span></label>
@@ -631,7 +631,7 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
   <div class="filters-bar">
     <div class="filter-group filter-search"><label>Buscar</label><input type="text" id="filter-search" placeholder="Comprador, produto, histórico…" oninput="applyFilters()"></div>
     <div class="filter-group"><label>Status</label><select id="filter-status" onchange="applyFilters()"><option value="">Todos</option><option>A RECEBER</option><option>RECEBIDO</option></select></div>
-    <div class="filter-group"><label>Produto</label><select id="filter-produto" onchange="applyFilters()"><option value="">Todos</option><option>SOJA</option><option>MILHO</option><option>SORGO</option><option>GADO</option><option>MÁQUINA</option><option>PORCO</option><option>LEITE</option><option>AVIÃO</option><option>OUTROS</option></select></div>
+    <div class="filter-group"><label>Produto</label><select id="filter-produto" onchange="applyFilters()"><option value="">Todos</option><option>SOJA</option><option>MILHO</option><option>SORGO</option><option>GADO</option><option>MÁQUINA</option><option>PORCO</option><option>LEITE</option><option>AVIÃO</option><option>BAG</option><option>OUTROS</option></select></div>
     <div class="filter-group"><label>Fazenda</label><select id="filter-fazenda" onchange="applyFilters()"><option value="">Todas</option><option>ARMAZÉM</option><option>AVIÃO</option><option>BRASIL</option><option>CASA JOÃO E NEILA</option><option>ESCRITÓRIO - GO</option><option>LAGEADO</option><option>MAYARA</option><option>RATEIO</option><option>SANTA ANGELINA</option><option>SÃO BENTO</option></select></div>
     <div class="filter-group"><label>Recebimento — De</label>
       <input type="date" id="filter-data-ini" onchange="applyFilters()" style="font-family:'DM Mono',monospace;font-size:12px;padding:6px 10px;border:1.5px solid var(--cinza-light);border-radius:8px;background:var(--branco);color:var(--texto);cursor:pointer;">
