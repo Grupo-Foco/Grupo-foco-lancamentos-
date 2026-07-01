@@ -893,13 +893,27 @@ function buscaFornecedor(query) {
   if(!fornecedoresBD.length) { dd.innerHTML=''; dd.classList.remove('show'); return; }
 
   // Filtrar: nome começa com a query OU contém palavra que começa com a query
-  const matches = fornecedoresBD.filter(function(f) {
+  const matchesRaw = fornecedoresBD.filter(function(f) {
     const nome = (f.nome||'').toLowerCase();
     const cnpjNum = (f.cnpj||'').replace(/[^0-9]/g,'');
     const qNum = q.replace(/[^0-9]/g,'');
     return nome.startsWith(q) ||
            nome.split(' ').some(function(p){ return p.startsWith(q); }) ||
            (qNum.length >= 4 && cnpjNum.includes(qNum));
+  });
+
+  // Dedupe por CNPJ: mostra só uma entrada por CNPJ (a de nome mais curto,
+  // geralmente o nome "limpo"). Fornecedores sem CNPJ são todos mantidos.
+  const vistosCnpj = {};
+  const matches = matchesRaw.filter(function(f) {
+    const cnpjNum = (f.cnpj||'').replace(/[^0-9]/g,'');
+    if(!cnpjNum) return true; // sem CNPJ: não dá pra agrupar, mantém
+    if(vistosCnpj[cnpjNum]) return false;
+    vistosCnpj[cnpjNum] = true;
+    return true;
+  }).sort(function(a,b){
+    // prioriza nome mais curto quando empata (nome "limpo")
+    return (a.nome||'').length - (b.nome||'').length;
   }).slice(0, 8);
 
   let html = '';
@@ -967,10 +981,21 @@ function navFornDropdown(e) {
 async function salvarFornecedorSeNovo(nome, cnpj) {
   if(!nome) return;
   const nomeUpper = nome.toUpperCase();
-  // Verificar se já existe no cache
+  const cnpjNum = (cnpj||'').replace(/[^0-9]/g,'');
+
+  // 1) Se informou CNPJ, o CNPJ é o identificador. Se já existe um
+  //    fornecedor com esse mesmo CNPJ, NÃO cria duplicata — apenas usa
+  //    o que já existe (evita 'GRANDTEC', 'GRANDTEC MAQUINAS', etc).
+  if(cnpjNum) {
+    const mesmoCnpj = fornecedoresBD.find(function(f){
+      return (f.cnpj||'').replace(/[^0-9]/g,'') === cnpjNum;
+    });
+    if(mesmoCnpj) return; // já existe fornecedor com esse CNPJ — não duplica
+  }
+
+  // 2) Sem CNPJ: cai na checagem por nome exato (como antes)
   const existe = fornecedoresBD.some(function(f){ return (f.nome||'').toUpperCase() === nomeUpper; });
   if(existe) {
-    // Se tem CNPJ novo, atualizar
     if(cnpj) {
       const forn = fornecedoresBD.find(function(f){ return (f.nome||'').toUpperCase() === nomeUpper; });
       if(forn && !forn.cnpj && cnpj) {
@@ -979,7 +1004,8 @@ async function salvarFornecedorSeNovo(nome, cnpj) {
     }
     return;
   }
-  // Cadastrar novo fornecedor
+
+  // 3) Cadastrar novo fornecedor
   try {
     const novo = await sb(TABLE_FORNEC, {method:'POST', body:JSON.stringify({nome:nomeUpper, cnpj:cnpj||null})});
     if(novo && novo[0]) fornecedoresBD.push(novo[0]);
