@@ -656,10 +656,10 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
              ondragover="event.preventDefault();this.classList.add('drag-over')"
              ondragleave="this.classList.remove('drag-over')"
              ondrop="dropAnexo(event,'boleto')">
-          <input type="file" id="inp_boleto" accept=".pdf,.png,.jpg,.jpeg" onchange="selecionarAnexo(this,'boleto')">
+          <input type="file" id="inp_boleto" accept=".pdf,.png,.jpg,.jpeg" multiple onchange="selecionarAnexo(this,'boleto')">
           <button class="anexo-remove" onclick="removerAnexo('boleto',event)">✕</button>
           <span class="anexo-icon">📄</span>
-          <span class="anexo-label" id="lbl_boleto">Clique ou arraste<br><strong>Boleto</strong> — PDF ou Imagem</span>
+          <span class="anexo-label" id="lbl_boleto">Clique ou arraste<br><strong>Boleto(s)</strong> — até 5 arquivos</span>
           <span class="anexo-nome" id="nome_boleto"></span>
         </div>
         <div class="anexo-box" id="box_nf"
@@ -667,10 +667,10 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
              ondragover="event.preventDefault();this.classList.add('drag-over')"
              ondragleave="this.classList.remove('drag-over')"
              ondrop="dropAnexo(event,'nf')">
-          <input type="file" id="inp_nf" accept=".pdf,.png,.jpg,.jpeg,.xml" onchange="selecionarAnexo(this,'nf')">
+          <input type="file" id="inp_nf" accept=".pdf,.png,.jpg,.jpeg,.xml" multiple onchange="selecionarAnexo(this,'nf')">
           <button class="anexo-remove" onclick="removerAnexo('nf',event)">✕</button>
           <span class="anexo-icon">🧾</span>
-          <span class="anexo-label" id="lbl_nf">Clique ou arraste<br><strong>NF / Recibo / Contrato</strong></span>
+          <span class="anexo-label" id="lbl_nf">Clique ou arraste<br><strong>NF(s) / Recibo / Contrato</strong> — até 5</span>
           <span class="anexo-nome" id="nome_nf"></span>
         </div>
         <!-- Recibo gerado automaticamente -->
@@ -835,7 +835,7 @@ const TABLE_FORNEC = 'fornecedores';
 let fornecedoresBD = []; // cache local da tabela de fornecedores
 
 let lancamentos=[], filtered=[], sortKey='vencimento', sortDir=1, editingId=null;
-let _editBoleto=null, _editNf=null; // paths já salvos no registro sendo editado
+let _editBoleto=[], _editNf=[]; // listas de paths já salvos no registro sendo editado
 // currentUser definido pelo check de sessão abaixo
 if(currentUser){ document.getElementById('userSelect').value=currentUser; document.getElementById('f_lancador').value=currentUser; }
 
@@ -1048,37 +1048,165 @@ async function seedJaneiro() {
 // ═══════════════════════
 // ANEXOS
 // ═══════════════════════
-const _arqs = { boleto: null, nf: null };
+// _arqs agora guarda LISTAS de arquivos (múltiplos anexos por tipo)
+const _arqs = { boleto: [], nf: [] };
+const MAX_ANEXOS = 5;
 let _reciboBlob = null;
 const SB_BUCKET = 'anexos';
 
 function selecionarAnexo(input, slot) {
-  const f = input.files[0]; if(!f) return;
-  _arqs[slot] = f;
-  _atualizarBoxAnexo(slot, f.name);
+  const novos = Array.from(input.files || []);
+  if(!novos.length) return;
+  _adicionarArquivos(slot, novos);
+  input.value = ''; // permite re-selecionar o mesmo arquivo depois
 }
 function dropAnexo(e, slot) {
   e.preventDefault();
   document.getElementById('box_'+slot).classList.remove('drag-over');
-  const f = e.dataTransfer.files[0]; if(!f) return;
-  _arqs[slot] = f;
-  _atualizarBoxAnexo(slot, f.name);
+  const novos = Array.from(e.dataTransfer.files || []);
+  if(!novos.length) return;
+  _adicionarArquivos(slot, novos);
 }
-function _atualizarBoxAnexo(slot, nome) {
+function _adicionarArquivos(slot, novos) {
+  if(!Array.isArray(_arqs[slot])) _arqs[slot] = [];
+  const espaco = MAX_ANEXOS - _arqs[slot].length;
+  if(espaco <= 0) { showToast('⚠ Máximo de ' + MAX_ANEXOS + ' arquivos por tipo', true); return; }
+  const aAdd = novos.slice(0, espaco);
+  _arqs[slot] = _arqs[slot].concat(aAdd);
+  if(novos.length > espaco) showToast('⚠ Só cabem ' + MAX_ANEXOS + ' — alguns não foram adicionados', true);
+  _atualizarBoxAnexo(slot);
+}
+function _atualizarBoxAnexo(slot) {
+  // Se estamos editando e há anexos salvos, usa a renderização combinada
+  var salvos = (slot === 'boleto') ? _editBoleto : _editNf;
+  if(editingId && Array.isArray(salvos) && salvos.length) {
+    _mostrarAnexosSalvos(slot, salvos);
+    return;
+  }
   const box = document.getElementById('box_'+slot);
   const lbl = document.getElementById('lbl_'+slot);
   const nm  = document.getElementById('nome_'+slot);
+  const lista = _arqs[slot] || [];
+  if(!lista.length) {
+    box.classList.remove('tem-arquivo');
+    lbl.style.display = '';
+    nm.innerHTML = '';
+    return;
+  }
   box.classList.add('tem-arquivo');
   lbl.style.display = 'none';
-  nm.textContent = '📎 ' + nome;
+  // Uma linha por arquivo: nome + 👁 ver + ✕ remover individual
+  nm.innerHTML = lista.map(function(f, i){
+    return '<div style="display:flex;align-items:center;gap:8px;justify-content:center;margin:3px 0;flex-wrap:wrap;">' +
+      '<span style="font-size:12px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📎 ' + _escapeHtml(f.name) + '</span>' +
+      '<span onclick="event.stopPropagation();previewAnexoLocal(\''+slot+'\','+i+')" ' +
+        'style="font-size:10px;color:#2563eb;cursor:pointer;border:1px solid #93c5fd;background:#eff6ff;border-radius:6px;padding:2px 7px;font-family:DM Mono,monospace;">👁 ver</span>' +
+      '<span onclick="event.stopPropagation();removerAnexoItem(\''+slot+'\','+i+')" ' +
+        'style="font-size:10px;color:#c0392b;cursor:pointer;border:1px solid #f5b7b1;background:#fdedec;border-radius:6px;padding:2px 7px;font-family:DM Mono,monospace;">✕</span>' +
+    '</div>';
+  }).join('') +
+  (lista.length < MAX_ANEXOS
+    ? '<div onclick="event.stopPropagation();document.getElementById(\'inp_'+slot+'\').click()" style="margin-top:6px;font-size:11px;color:#15803d;cursor:pointer;font-family:DM Mono,monospace;">＋ adicionar outro</div>'
+    : '<div style="margin-top:6px;font-size:10px;color:#999;font-family:DM Mono,monospace;">máx. '+MAX_ANEXOS+' atingido</div>');
 }
+
+// Escapa texto para innerHTML seguro
+function _escapeHtml(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Pré-visualiza um arquivo LOCAL da lista (ainda não enviado)
+function previewAnexoLocal(slot, idx) {
+  const lista = _arqs[slot] || [];
+  const f = lista[idx||0];
+  if(!f) { showToast('⚠ Arquivo não encontrado', true); return; }
+  const url = URL.createObjectURL(f);
+  const nome = f.name;
+  document.getElementById('viewerNome').textContent = nome + '  (pré-visualização — ainda não salvo)';
+  const frame = document.getElementById('viewerFrame');
+  const isPdf = /\.pdf$/i.test(nome);
+  const isImg = /\.(png|jpe?g|gif|webp)$/i.test(nome);
+  if(isPdf) {
+    frame.innerHTML = '<iframe src="'+url+'#toolbar=1" style="width:100%;height:100%;border:none;"></iframe>';
+  } else if(isImg) {
+    frame.innerHTML = '<img src="'+url+'" style="width:100%;height:100%;object-fit:contain;">';
+  } else {
+    frame.innerHTML = '<div style="padding:40px;text-align:center;font-family:DM Mono,monospace;color:#555;">'
+      + 'Este tipo de arquivo (' + _escapeHtml(nome) + ') não tem pré-visualização.<br><br>'
+      + '<a href="'+url+'" download="'+_escapeHtml(nome)+'" style="color:#2563eb;">⬇ Baixar para conferir</a></div>';
+  }
+  document.getElementById('viewerOverlay')._objUrl = url;
+  document.getElementById('viewerOverlay').classList.add('open');
+}
+// Remove um arquivo específico da lista
+function removerAnexoItem(slot, idx) {
+  if(!Array.isArray(_arqs[slot])) return;
+  _arqs[slot].splice(idx, 1);
+  _atualizarBoxAnexo(slot);
+}
+// Remove TODOS os arquivos de um tipo (usado no clearForm e após salvar)
 function removerAnexo(slot, e) {
   e && e.stopPropagation();
-  _arqs[slot] = null;
-  document.getElementById('inp_'+slot).value = '';
+  _arqs[slot] = [];
+  var inp = document.getElementById('inp_'+slot); if(inp) inp.value = '';
   document.getElementById('box_'+slot).classList.remove('tem-arquivo');
   document.getElementById('lbl_'+slot).style.display = '';
-  document.getElementById('nome_'+slot).textContent = '';
+  document.getElementById('nome_'+slot).innerHTML = '';
+}
+
+// Mostra na caixa os anexos JÁ SALVOS (na edição). Cada um com botão de
+// ver (abre do servidor) e de remover (tira da lista _editBoleto/_editNf).
+function _mostrarAnexosSalvos(slot, paths) {
+  const box = document.getElementById('box_'+slot);
+  const lbl = document.getElementById('lbl_'+slot);
+  const nm  = document.getElementById('nome_'+slot);
+  const novos = _arqs[slot] || [];
+  const salvos = paths || [];
+  if(!salvos.length && !novos.length) {
+    box.classList.remove('tem-arquivo');
+    lbl.style.display = '';
+    nm.innerHTML = '';
+    return;
+  }
+  box.classList.add('tem-arquivo');
+  box.style.borderColor = '#3d7a52';
+  lbl.style.display = 'none';
+  var htmlSalvos = salvos.map(function(p, i){
+    var nome = p.split('/').pop().split('?')[0];
+    return '<div style="display:flex;align-items:center;gap:8px;justify-content:center;margin:3px 0;flex-wrap:wrap;">' +
+      '<span style="font-size:12px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">✅ ' + _escapeHtml(nome) + '</span>' +
+      '<span onclick="event.stopPropagation();abrirAnexo(\'' + p.replace(/'/g,"\\\\'") + '\')" ' +
+        'style="font-size:10px;color:#2563eb;cursor:pointer;border:1px solid #93c5fd;background:#eff6ff;border-radius:6px;padding:2px 7px;font-family:DM Mono,monospace;">👁 ver</span>' +
+      '<span onclick="event.stopPropagation();removerAnexoSalvo(\'' + slot + '\',' + i + ')" ' +
+        'style="font-size:10px;color:#c0392b;cursor:pointer;border:1px solid #f5b7b1;background:#fdedec;border-radius:6px;padding:2px 7px;font-family:DM Mono,monospace;">✕</span>' +
+    '</div>';
+  }).join('');
+  nm.innerHTML = htmlSalvos;
+  // Acrescenta os arquivos novos (ainda não salvos), se houver
+  if(novos.length) {
+    var htmlNovos = novos.map(function(f, i){
+      return '<div style="display:flex;align-items:center;gap:8px;justify-content:center;margin:3px 0;flex-wrap:wrap;">' +
+        '<span style="font-size:12px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📎 ' + _escapeHtml(f.name) + '</span>' +
+        '<span onclick="event.stopPropagation();previewAnexoLocal(\'' + slot + '\',' + i + ')" ' +
+          'style="font-size:10px;color:#2563eb;cursor:pointer;border:1px solid #93c5fd;background:#eff6ff;border-radius:6px;padding:2px 7px;font-family:DM Mono,monospace;">👁 ver</span>' +
+        '<span onclick="event.stopPropagation();removerAnexoItem(\'' + slot + '\',' + i + ')" ' +
+          'style="font-size:10px;color:#c0392b;cursor:pointer;border:1px solid #f5b7b1;background:#fdedec;border-radius:6px;padding:2px 7px;font-family:DM Mono,monospace;">✕</span>' +
+      '</div>';
+    }).join('');
+    nm.innerHTML += htmlNovos;
+  }
+  var total = salvos.length + novos.length;
+  if(total < MAX_ANEXOS) {
+    nm.innerHTML += '<div onclick="event.stopPropagation();document.getElementById(\'inp_'+slot+'\').click()" style="margin-top:6px;font-size:11px;color:#15803d;cursor:pointer;font-family:DM Mono,monospace;">＋ adicionar outro</div>';
+  }
+}
+
+// Remove um anexo já salvo (da lista de edição) e re-renderiza
+function removerAnexoSalvo(slot, idx) {
+  var arr = (slot === 'boleto') ? _editBoleto : _editNf;
+  if(!Array.isArray(arr)) return;
+  arr.splice(idx, 1);
+  _mostrarAnexosSalvos(slot, arr);
 }
 
 async function uploadAnexoBlob(blob, lancId, slot) {
@@ -1101,6 +1229,50 @@ async function uploadAnexo(file, lancId, slot) {
   });
   if(!res.ok) { console.error('Upload erro:', await res.text()); return null; }
   return path;
+}
+
+// Faz upload de uma LISTA de arquivos (múltiplos anexos do mesmo tipo).
+// Cada arquivo recebe um caminho único (slot_0, slot_1, …).
+// Retorna um array de paths (só os que subiram com sucesso).
+async function uploadAnexosLista(files, lancId, slot) {
+  if(!files || !files.length) return [];
+  const paths = [];
+  for(let i = 0; i < files.length; i++) {
+    const file = files[i];
+    if(!file) continue;
+    const ext = (file.name.split('.').pop() || 'pdf').toLowerCase();
+    const path = `${lancId}/${slot}_${i}.${ext}`;
+    try {
+      const res = await fetch(`${SB_URL}/storage/v1/object/${SB_BUCKET}/${path}`, {
+        method: 'POST',
+        headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`,
+                   'Content-Type': file.type, 'x-upsert': 'true' },
+        body: file
+      });
+      if(res.ok) paths.push(path);
+      else console.error('Upload erro (' + slot + ' ' + i + '):', await res.text());
+    } catch(e) { console.error('Upload exceção:', e.message); }
+  }
+  return paths;
+}
+
+// Dado um lançamento, retorna a LISTA de boletos (colunas nova OU antiga).
+function getBoletoPaths(l) {
+  if(l && Array.isArray(l.boleto_paths) && l.boleto_paths.length) return l.boleto_paths;
+  if(l && l.boleto_paths && typeof l.boleto_paths === 'string') {
+    try { var a = JSON.parse(l.boleto_paths); if(Array.isArray(a) && a.length) return a; } catch(e){}
+  }
+  if(l && l.boleto_path) return [l.boleto_path]; // compatibilidade com dados antigos
+  return [];
+}
+// Idem para NF.
+function getNfPaths(l) {
+  if(l && Array.isArray(l.nf_paths) && l.nf_paths.length) return l.nf_paths;
+  if(l && l.nf_paths && typeof l.nf_paths === 'string') {
+    try { var a = JSON.parse(l.nf_paths); if(Array.isArray(a) && a.length) return a; } catch(e){}
+  }
+  if(l && l.nf_path) return [l.nf_path];
+  return [];
 }
 
 async function getUrlAnexo(path) {
@@ -1132,6 +1304,9 @@ async function abrirAnexo(path) {
 function fecharViewer() {
   document.getElementById('viewerOverlay').classList.remove('open');
   document.getElementById('viewerFrame').innerHTML = '';
+  // Libera URL de pré-visualização local, se houver
+  var ov = document.getElementById('viewerOverlay');
+  if(ov._objUrl) { try { URL.revokeObjectURL(ov._objUrl); } catch(e){} ov._objUrl = null; }
 }
 
 
@@ -1749,8 +1924,8 @@ async function executarDownloadLote() {
     var d = l.vencimento || l.data_doc || '';
     if (ini && d < ini) return false;
     if (fim && d > fim) return false;
-    if (tipos.includes('boleto') && l.boleto_path) return true;
-    if (tipos.includes('nf') && l.nf_path) return true;
+    if (tipos.includes('boleto') && getBoletoPaths(l).length) return true;
+    if (tipos.includes('nf') && getNfPaths(l).length) return true;
     if (tipos.includes('recibo') && l.recibo_path) return true;
     return false;
   });
@@ -1798,15 +1973,23 @@ async function executarDownloadLote() {
     var forn = (l.fornecedor || 'forn').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 20);
     btnDl.textContent = 'Baixando ' + (i + 1) + '/' + candidatos.length + '…';
 
-    if (tipos.includes('boleto') && l.boleto_path) {
-      var ext = (l.boleto_path.split('.').pop().split('?')[0] || 'pdf').toLowerCase();
-      var urlB = await getUrlAnexo(l.boleto_path);
-      if (urlB) await fetchParaZip(urlB, 'boletos/' + forn + '_' + l.id + '.' + ext);
+    if (tipos.includes('boleto')) {
+      var bolPaths = getBoletoPaths(l);
+      for (var bi = 0; bi < bolPaths.length; bi++) {
+        var extB = (bolPaths[bi].split('.').pop().split('?')[0] || 'pdf').toLowerCase();
+        var urlB = await getUrlAnexo(bolPaths[bi]);
+        var sufB = bolPaths.length > 1 ? ('_' + (bi+1)) : '';
+        if (urlB) await fetchParaZip(urlB, 'boletos/' + forn + '_' + l.id + sufB + '.' + extB);
+      }
     }
-    if (tipos.includes('nf') && l.nf_path) {
-      var extNf = (l.nf_path.split('.').pop().split('?')[0] || 'pdf').toLowerCase();
-      var urlN = await getUrlAnexo(l.nf_path);
-      if (urlN) await fetchParaZip(urlN, 'notas_fiscais/' + forn + '_' + l.id + '.' + extNf);
+    if (tipos.includes('nf')) {
+      var nfPaths = getNfPaths(l);
+      for (var ni = 0; ni < nfPaths.length; ni++) {
+        var extNf = (nfPaths[ni].split('.').pop().split('?')[0] || 'pdf').toLowerCase();
+        var urlN = await getUrlAnexo(nfPaths[ni]);
+        var sufN = nfPaths.length > 1 ? ('_' + (ni+1)) : '';
+        if (urlN) await fetchParaZip(urlN, 'notas_fiscais/' + forn + '_' + l.id + sufN + '.' + extNf);
+      }
     }
     if (tipos.includes('recibo') && l.recibo_path) {
       var extR = (l.recibo_path.split('.').pop().split('?')[0] || 'pdf').toLowerCase();
@@ -1984,8 +2167,8 @@ function salvarParcelas(base, n, boletoPb, nfPb) {
     obj.documento  = docParc;
     obj.status     = 'A PAGAR';
     obj.pagamento  = null;
-    if(boletoPb) obj.boleto_path = boletoPb;
-    if(nfPb)     obj.nf_path     = nfPb;
+    if(boletoPb && boletoPb.length) obj.boleto_paths = boletoPb;
+    if(nfPb && nfPb.length)         obj.nf_paths     = nfPb;
     promessas.push(
       (async function(objParc, idx) {
         var saved = await sb(TABLE, {method:'POST', body:JSON.stringify(objParc)});
@@ -2173,16 +2356,16 @@ async function saveLancamento() {
       const eidDel = editingId;
       editingId = null;
       // Upload de anexos se houver (usa ID do original como base temporária)
-      var boletoPb = _editBoleto || null;
-      var nfPb = _editNf || null;
-      if(_arqs.boleto || _arqs.nf) {
+      var boletoPb = _editBoleto ? _editBoleto.slice() : [];
+      var nfPb = _editNf ? _editNf.slice() : [];
+      if((_arqs.boleto && _arqs.boleto.length) || (_arqs.nf && _arqs.nf.length)) {
         showToast('📎 Enviando anexos…');
         const [pb, pn] = await Promise.all([
-          uploadAnexo(_arqs.boleto, eidDel, 'boleto'),
-          uploadAnexo(_arqs.nf,     eidDel, 'nf')
+          uploadAnexosLista(_arqs.boleto, eidDel, 'boleto'),
+          uploadAnexosLista(_arqs.nf,     eidDel, 'nf')
         ]);
-        if(pb) boletoPb = pb;
-        if(pn) nfPb = pn;
+        if(pb && pb.length) boletoPb = boletoPb.concat(pb);
+        if(pn && pn.length) nfPb = nfPb.concat(pn);
         removerAnexo('boleto'); removerAnexo('nf');
       }
       // Deletar o registro original
@@ -2194,46 +2377,49 @@ async function saveLancamento() {
       showToast('✓ ' + nParc + ' parcelas salvas!');
     } else if(editingId) {
       // Edição simples (à vista → à vista)
-      if(_editBoleto && !_arqs.boleto) obj.boleto_path = _editBoleto;
-      if(_editNf     && !_arqs.nf)     obj.nf_path     = _editNf;
+      // Anexos já existentes (mantidos) + novos que o usuário selecionou
       const eid = editingId; // capturar ANTES de qualquer zeragem
-      await sb(`${TABLE}?id=eq.${eid}`,{method:'PATCH',body:JSON.stringify(obj)});
-      // Upload de novos anexos se o usuário selecionou
-      if(_arqs.boleto || _arqs.nf || _reciboBlob) {
+      var boletoFinal = _editBoleto ? _editBoleto.slice() : [];
+      var nfFinal     = _editNf ? _editNf.slice() : [];
+      const temNovos = (_arqs.boleto && _arqs.boleto.length) || (_arqs.nf && _arqs.nf.length) || _reciboBlob;
+      if(temNovos) {
         showToast('📎 Enviando anexos…');
         editingId = null;
         const [pb, pn, pr] = await Promise.all([
-          uploadAnexo(_arqs.boleto, eid, 'boleto'),
-          uploadAnexo(_arqs.nf,     eid, 'nf'),
+          uploadAnexosLista(_arqs.boleto, eid, 'boleto'),
+          uploadAnexosLista(_arqs.nf,     eid, 'nf'),
           _reciboBlob ? uploadAnexoBlob(_reciboBlob, eid, 'recibo') : Promise.resolve(null)
         ]);
-        const upd = {};
-        if(pb) upd.boleto_path = pb;
-        if(pn) upd.nf_path     = pn;
-        if(pr) upd.recibo_path = pr;
-        if(Object.keys(upd).length)
-          await sb(`${TABLE}?id=eq.${eid}`, {method:'PATCH', body:JSON.stringify(upd)});
+        if(pb && pb.length) boletoFinal = boletoFinal.concat(pb);
+        if(pn && pn.length) nfFinal     = nfFinal.concat(pn);
+        if(pr) obj.recibo_path = pr;
         removerAnexo('boleto'); removerAnexo('nf');
         _reciboBlob = null;
       } else {
         editingId = null;
       }
+      obj.boleto_paths = boletoFinal;
+      obj.nf_paths     = nfFinal;
+      // Zera as colunas antigas (a fonte da verdade agora é *_paths)
+      obj.boleto_path = null;
+      obj.nf_path     = null;
+      await sb(`${TABLE}?id=eq.${eid}`,{method:'PATCH',body:JSON.stringify(obj)});
       _editBoleto = null; _editNf = null;
       showToast('✓ Atualizado!');
     } else if(nParc > 1) {
       // Salvar múltiplas parcelas — fazer upload dos anexos primeiro se houver
-      var boletoPb = null, nfPb = null;
-      if(_arqs.boleto || _arqs.nf) {
+      var boletoPb = [], nfPb = [];
+      if((_arqs.boleto && _arqs.boleto.length) || (_arqs.nf && _arqs.nf.length)) {
         showToast('📎 Enviando anexos…');
         // Upload temporário: salva uma linha primeiro só para pegar o path dos anexos
         const tmpSaved = await sb(TABLE,{method:'POST',body:JSON.stringify(obj)});
         if(tmpSaved && tmpSaved[0]) {
           const lid = tmpSaved[0].id;
           const [pb, pn] = await Promise.all([
-            uploadAnexo(_arqs.boleto, lid, 'boleto'),
-            uploadAnexo(_arqs.nf,     lid, 'nf')
+            uploadAnexosLista(_arqs.boleto, lid, 'boleto'),
+            uploadAnexosLista(_arqs.nf,     lid, 'nf')
           ]);
-          boletoPb = pb; nfPb = pn;
+          boletoPb = pb || []; nfPb = pn || [];
           // Deletar essa linha temporária — as parcelas serão salvas com os paths corretos
           await sb(`${TABLE}?id=eq.${lid}`, {method:'DELETE'});
           removerAnexo('boleto'); removerAnexo('nf');
@@ -2245,17 +2431,18 @@ async function saveLancamento() {
     } else {
       // Parcela única
       const saved = await sb(TABLE,{method:'POST',body:JSON.stringify(obj)});
-      if(saved && saved[0] && (_arqs.boleto || _arqs.nf || _reciboBlob)) {
+      const temAnexos = (_arqs.boleto && _arqs.boleto.length) || (_arqs.nf && _arqs.nf.length) || _reciboBlob;
+      if(saved && saved[0] && temAnexos) {
         showToast('📎 Enviando anexos…');
         const lid = saved[0].id;
         const [pb, pn, pr] = await Promise.all([
-          uploadAnexo(_arqs.boleto, lid, 'boleto'),
-          uploadAnexo(_arqs.nf,     lid, 'nf'),
+          uploadAnexosLista(_arqs.boleto, lid, 'boleto'),
+          uploadAnexosLista(_arqs.nf,     lid, 'nf'),
           _reciboBlob ? uploadAnexoBlob(_reciboBlob, lid, 'recibo') : Promise.resolve(null)
         ]);
         const upd = {};
-        if(pb) upd.boleto_path  = pb;
-        if(pn) upd.nf_path      = pn;
+        if(pb && pb.length) upd.boleto_paths = pb;
+        if(pn && pn.length) upd.nf_paths     = pn;
         if(pr) upd.recibo_path  = pr;
         if(Object.keys(upd).length)
           await sb(`${TABLE}?id=eq.${lid}`, {method:'PATCH', body:JSON.stringify(upd)});
@@ -2273,13 +2460,16 @@ async function saveLancamento() {
 
 function clearForm() {
   editingId=null;
-  _editBoleto=null; _editNf=null;
+  _editBoleto=[]; _editNf=[];
+  _arqs.boleto=[]; _arqs.nf=[];
   // Restaurar label dos boxes de anexo
   ['boleto','nf'].forEach(function(slot){
     var lbl = document.getElementById('lbl_'+slot);
     if(lbl) lbl.style.display = '';
     var box = document.getElementById('box_'+slot);
     if(box) { box.classList.remove('tem-arquivo'); box.style.borderColor=''; }
+    var nm = document.getElementById('nome_'+slot);
+    if(nm) nm.innerHTML = '';
   });
   // Resetar recibo
   _reciboBlob = null;
@@ -2374,10 +2564,15 @@ function renderTable() {
       <td class="mono" style="text-align:right">R$ ${(+l.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
       <td><span class="badge ${l.status==='PAGO'?'badge-pago':'badge-apagar'}">${l.status}</span></td>
       <td style="text-align:center;font-size:10px;font-weight:700;letter-spacing:.03em;white-space:nowrap;">
-        ${l.boleto_path?'<span title="Boleto anexado" style="display:inline-block;background:#1a3d2b;color:#f5f0e8;border-radius:4px;padding:2px 5px;margin:1px;">B</span>':''}
-        ${l.nf_path?'<span title="Nota Fiscal anexada" style="display:inline-block;background:#b45309;color:#fff;border-radius:4px;padding:2px 4px;margin:1px;">NF</span>':''}
-        ${l.recibo_path?'<span title="Recibo gerado" style="display:inline-block;background:#2563eb;color:#fff;border-radius:4px;padding:2px 4px;margin:1px;">R</span>':''}
-        ${(!l.boleto_path&&!l.nf_path&&!l.recibo_path)?'<span style="color:#ccc;">—</span>':''}
+        ${(function(){
+          var nb = getBoletoPaths(l).length, nf = getNfPaths(l).length;
+          var s = '';
+          if(nb) s += '<span title="Boleto(s) anexado(s)" style="display:inline-block;background:#1a3d2b;color:#f5f0e8;border-radius:4px;padding:2px 5px;margin:1px;">B'+(nb>1?' '+nb:'')+'</span>';
+          if(nf) s += '<span title="Nota(s) Fiscal(is) anexada(s)" style="display:inline-block;background:#b45309;color:#fff;border-radius:4px;padding:2px 4px;margin:1px;">NF'+(nf>1?' '+nf:'')+'</span>';
+          if(l.recibo_path) s += '<span title="Recibo gerado" style="display:inline-block;background:#2563eb;color:#fff;border-radius:4px;padding:2px 4px;margin:1px;">R</span>';
+          if(!s) s = '<span style="color:#ccc;">—</span>';
+          return s;
+        })()}
       </td>
       <td>${esc(l.fazenda)}</td>
       <td style="font-size:12px;max-width:150px">${esc(l.cg)}</td>
@@ -2496,15 +2691,23 @@ function openDetail(id) {
     <div class="detail-item"><div class="dl">Correntista</div><div class="dv">${esc(l.correntista)||'—'}</div></div>
     <div class="detail-item"><div class="dl">Lançador</div><div class="dv">${esc(l.lancador)||'—'}</div></div>
     <div class="detail-item full"><div class="dl">Histórico</div><div class="dv" style="white-space:pre-wrap">${esc(l.historico)||'—'}</div></div>
-    ${(l.boleto_path||l.nf_path||l.recibo_path)?`
-    <div style="margin-top:18px;padding-top:18px;border-top:1px solid var(--cinza-light);">
-      <div style="font-size:11px;font-weight:700;color:var(--cinza);letter-spacing:.08em;margin-bottom:10px;">ANEXOS</div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;">
-        ${l.boleto_path?`<button class="btn-ver-anexo" onclick="abrirAnexo('${l.boleto_path}')">📄 Ver Boleto</button>`:''}
-        ${l.nf_path?`<button class="btn-ver-anexo" onclick="abrirAnexo('${l.nf_path}')">🧾 Ver NF / Recibo</button>`:''}
-        ${l.recibo_path?`<button class="btn-ver-anexo" style="border-color:#2563eb;color:#2563eb" onclick="abrirAnexo('${l.recibo_path}')">🧾 Ver Recibo</button>`:''}
-      </div>
-    </div>`:''}
+    ${(function(){
+      var bol = getBoletoPaths(l), nfs = getNfPaths(l), rec = l.recibo_path;
+      if(!bol.length && !nfs.length && !rec) return '';
+      var botoes = '';
+      bol.forEach(function(p, i){
+        var rot = bol.length > 1 ? ('📄 Ver Boleto ' + (i+1)) : '📄 Ver Boleto';
+        botoes += '<button class="btn-ver-anexo" onclick="abrirAnexo(\'' + p.replace(/'/g,"\\\\'") + '\')">' + rot + '</button>';
+      });
+      nfs.forEach(function(p, i){
+        var rot = nfs.length > 1 ? ('🧾 Ver NF ' + (i+1)) : '🧾 Ver NF / Recibo';
+        botoes += '<button class="btn-ver-anexo" onclick="abrirAnexo(\'' + p.replace(/'/g,"\\\\'") + '\')">' + rot + '</button>';
+      });
+      if(rec) botoes += '<button class="btn-ver-anexo" style="border-color:#2563eb;color:#2563eb" onclick="abrirAnexo(\'' + rec.replace(/'/g,"\\\\'") + '\')">🧾 Ver Recibo</button>';
+      return '<div style="margin-top:18px;padding-top:18px;border-top:1px solid var(--cinza-light);">' +
+        '<div style="font-size:11px;font-weight:700;color:var(--cinza);letter-spacing:.08em;margin-bottom:10px;">ANEXOS</div>' +
+        '<div style="display:flex;gap:10px;flex-wrap:wrap;">' + botoes + '</div></div>';
+    })()}
   `;
   document.getElementById('modalDeleteBtn').onclick=async()=>{
     if(!confirm('Excluir?')) return;
@@ -2567,23 +2770,11 @@ function editLancamento(id) {
   editingId=id;
   // Limpar anexos do lançamento anterior
   removerAnexo('boleto'); removerAnexo('nf');
-  _editBoleto = l.boleto_path || null;
-  _editNf     = l.nf_path     || null;
-  // Mostrar indicador visual se já tem arquivo salvo
-  if(_editBoleto) {
-    var nomeB = _editBoleto.split('/').pop().split('?')[0];
-    document.getElementById('nome_boleto').textContent = '📎 ' + nomeB;
-    document.getElementById('lbl_boleto').style.display = 'none';
-    document.getElementById('box_boleto').classList.add('tem-arquivo');
-    document.getElementById('box_boleto').style.borderColor = '#3d7a52';
-  }
-  if(_editNf) {
-    var nomeN = _editNf.split('/').pop().split('?')[0];
-    document.getElementById('nome_nf').textContent = '📎 ' + nomeN;
-    document.getElementById('lbl_nf').style.display = 'none';
-    document.getElementById('box_nf').classList.add('tem-arquivo');
-    document.getElementById('box_nf').style.borderColor = '#3d7a52';
-  }
+  _editBoleto = getBoletoPaths(l);   // lista de paths já salvos
+  _editNf     = getNfPaths(l);
+  // Mostrar os anexos já salvos (somente leitura, com botão de ver)
+  _mostrarAnexosSalvos('boleto', _editBoleto);
+  _mostrarAnexosSalvos('nf', _editNf);
   document.getElementById('formTitle').textContent='Editando Lançamento';
   showView('form');
   document.getElementById('f_fornecedor').value=l.fornecedor||'';
