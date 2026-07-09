@@ -2575,13 +2575,14 @@ function renderTable() {
       <td class="mono">${fmtDate(l.vencimento)}</td>
       <td class="mono" style="text-align:right">R$ ${(+l.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
       <td><span class="badge ${l.status==='PAGO'?'badge-pago':'badge-apagar'}">${l.status}</span></td>
-      <td style="text-align:center;font-size:10px;font-weight:700;letter-spacing:.03em;white-space:nowrap;">
+      <td style="text-align:center;font-size:10px;font-weight:700;letter-spacing:.03em;white-space:nowrap;" onclick="event.stopPropagation()">
         ${(function(){
-          var nb = getBoletoPaths(l).length, nf = getNfPaths(l).length;
+          var bols = getBoletoPaths(l), nfs = getNfPaths(l);
+          var nb = bols.length, nf = nfs.length;
           var s = '';
-          if(nb) s += '<span title="Boleto(s) anexado(s)" style="display:inline-block;background:#1a3d2b;color:#f5f0e8;border-radius:4px;padding:2px 5px;margin:1px;">B'+(nb>1?' '+nb:'')+'</span>';
-          if(nf) s += '<span title="Nota(s) Fiscal(is) anexada(s)" style="display:inline-block;background:#b45309;color:#fff;border-radius:4px;padding:2px 4px;margin:1px;">NF'+(nf>1?' '+nf:'')+'</span>';
-          if(l.recibo_path) s += '<span title="Recibo gerado" style="display:inline-block;background:#2563eb;color:#fff;border-radius:4px;padding:2px 4px;margin:1px;">R</span>';
+          if(nb) s += '<span title="Ver boleto(s)" onclick="verBoletoLinha('+l.id+')" style="cursor:pointer;display:inline-block;background:#1a3d2b;color:#f5f0e8;border-radius:4px;padding:2px 5px;margin:1px;">B'+(nb>1?' '+nb:'')+'</span>';
+          if(nf) s += '<span title="Ver nota(s) fiscal(is)" onclick="verNfLinha('+l.id+')" style="cursor:pointer;display:inline-block;background:#b45309;color:#fff;border-radius:4px;padding:2px 4px;margin:1px;">NF'+(nf>1?' '+nf:'')+'</span>';
+          if(l.recibo_path) s += '<span title="Ver recibo" onclick="verReciboLinha('+l.id+')" style="cursor:pointer;display:inline-block;background:#2563eb;color:#fff;border-radius:4px;padding:2px 4px;margin:1px;">R</span>';
           if(!s) s = '<span style="color:#ccc;">—</span>';
           return s;
         })()}
@@ -2590,7 +2591,10 @@ function renderTable() {
       <td style="font-size:12px;max-width:150px">${esc(l.cg)}</td>
       <td style="font-size:12px">${esc(l.conta)}</td>
       <td style="font-size:12px;color:var(--cinza)">${esc(l.lancador)}</td>
-      <td onclick="event.stopPropagation()" style="text-align:center">
+      <td onclick="event.stopPropagation()" style="text-align:center;white-space:nowrap;">
+        ${l.status==='PAGO'
+          ? '<button class="btn btn-secondary" onclick="desfazerBaixaLinha('+l.id+')" style="padding:4px 9px;font-size:11px;color:#c0392b;border-color:#e8b4b0;">↺ Desfazer</button>'
+          : '<button class="btn btn-primary" onclick="baixaRapida('+l.id+', event)" style="padding:4px 11px;font-size:11px;background:#16a34a;border-color:#16a34a;">✓ Baixa</button>'}
         <button class="btn btn-secondary" onclick="editLancamento(${l.id})" style="padding:4px 10px;font-size:11px">✎</button>
       </td>
     </tr>`).join('');
@@ -2754,6 +2758,103 @@ function closeModal(){
 function fecharBaixarPanel(){
   document.getElementById('modalBaixarPanel').style.display='none';
 }
+
+// ═══ Ver documento direto da linha (badge B/NF/R clicável) ═══
+function verBoletoLinha(id) {
+  var l = lancamentos.find(function(x){ return x.id===id; });
+  if(!l) return;
+  var paths = getBoletoPaths(l);
+  if(!paths.length) { showToast('⚠ Nenhum boleto', true); return; }
+  abrirAnexo(paths[0]);
+  if(paths.length > 1) showToast('ℹ ' + paths.length + ' boletos — abrindo o 1º (veja os demais no detalhe)');
+}
+function verNfLinha(id) {
+  var l = lancamentos.find(function(x){ return x.id===id; });
+  if(!l) return;
+  var paths = getNfPaths(l);
+  if(!paths.length) { showToast('⚠ Nenhuma NF', true); return; }
+  abrirAnexo(paths[0]);
+  if(paths.length > 1) showToast('ℹ ' + paths.length + ' notas — abrindo a 1ª (veja as demais no detalhe)');
+}
+function verReciboLinha(id) {
+  var l = lancamentos.find(function(x){ return x.id===id; });
+  if(!l || !l.recibo_path) { showToast('⚠ Nenhum recibo', true); return; }
+  abrirAnexo(l.recibo_path);
+}
+
+// ═══ Baixa rápida direto na linha (popup inline) ═══
+function baixaRapida(id, ev) {
+  if(ev) ev.stopPropagation();
+  var l = lancamentos.find(function(x){ return x.id===id; });
+  if(!l) return;
+  // Remove popup anterior se houver
+  var antigo = document.getElementById('popup-baixa-rapida');
+  if(antigo) antigo.remove();
+
+  var contasHtml = ['ADRIANA BB','IVAN BASA','IVAN BB','IVAN BRADESCO','IVAN SICOOB','JOAO BB','JOAO SICOOB','NEILA BB','NEILA SICOOB']
+    .map(function(c){ return '<option>'+c+'</option>'; }).join('');
+
+  var hoje = new Date().toISOString().split('T')[0];
+  var pop = document.createElement('div');
+  pop.id = 'popup-baixa-rapida';
+  pop.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  pop.innerHTML =
+    '<div style="background:#fff;border-radius:14px;padding:22px;width:min(420px,92vw);box-shadow:0 20px 60px rgba(0,0,0,.3);" onclick="event.stopPropagation()">' +
+      '<div style="font-family:Syne,sans-serif;font-weight:700;font-size:17px;color:var(--verde);margin-bottom:4px;">✓ Baixa Rápida</div>' +
+      '<div style="font-size:12px;color:var(--cinza);margin-bottom:16px;">'+esc(l.fornecedor)+' · R$ '+(+l.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2})+'</div>' +
+      '<div style="margin-bottom:12px;">' +
+        '<label style="font-size:11px;color:var(--cinza);display:block;margin-bottom:4px;">Data de pagamento ★</label>' +
+        '<input type="date" id="brapida-data" value="'+hoje+'" style="width:100%;font-size:14px;padding:8px;border:1.5px solid var(--cinza-light);border-radius:8px;">' +
+      '</div>' +
+      '<div style="margin-bottom:18px;">' +
+        '<label style="font-size:11px;color:var(--cinza);display:block;margin-bottom:4px;">Conta ★</label>' +
+        '<select id="brapida-conta" style="width:100%;font-size:14px;padding:8px;border:1.5px solid var(--cinza-light);border-radius:8px;"><option value="">Selecionar…</option>'+contasHtml+'</select>' +
+      '</div>' +
+      '<div style="display:flex;gap:10px;justify-content:flex-end;">' +
+        '<button onclick="document.getElementById(\'popup-baixa-rapida\').remove()" style="padding:9px 16px;font-size:13px;border:1.5px solid var(--cinza-light);background:#fff;border-radius:8px;cursor:pointer;font-family:DM Mono,monospace;">Cancelar</button>' +
+        '<button id="brapida-confirmar" onclick="confirmarBaixaRapida('+id+')" style="padding:9px 18px;font-size:13px;background:#16a34a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:DM Mono,monospace;font-weight:700;">✓ Confirmar</button>' +
+      '</div>' +
+    '</div>';
+  pop.onclick = function(){ pop.remove(); };
+  document.body.appendChild(pop);
+  // Pré-preenche a conta se o lançamento já tiver uma
+  if(l.conta) { var sc=document.getElementById('brapida-conta'); if(sc) sc.value=l.conta; }
+}
+
+async function confirmarBaixaRapida(id) {
+  var dataPag = document.getElementById('brapida-data').value;
+  var conta   = document.getElementById('brapida-conta').value;
+  if(!dataPag) { showToast('⚠ Informe a data de pagamento', true); return; }
+  if(!conta)   { showToast('⚠ Selecione a conta', true); return; }
+  var btn = document.getElementById('brapida-confirmar');
+  btn.disabled = true; btn.textContent = 'Salvando…';
+  try {
+    await sb(TABLE + '?id=eq.' + id, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'PAGO', pagamento: dataPag, conta: conta })
+    });
+    var pop = document.getElementById('popup-baixa-rapida'); if(pop) pop.remove();
+    await loadData();
+    showToast('✓ Baixado como PAGO!');
+  } catch(e) {
+    showToast('⚠ Erro: ' + e.message, true);
+    btn.disabled = false; btn.textContent = '✓ Confirmar';
+  }
+}
+
+// ═══ Desfazer baixa direto na linha ═══
+async function desfazerBaixaLinha(id) {
+  if(!confirm('Desfazer a baixa? O lançamento voltará para A PAGAR.')) return;
+  try {
+    await sb(TABLE + '?id=eq.' + id, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'A PAGAR', pagamento: null })
+    });
+    await loadData();
+    showToast('↺ Baixa desfeita');
+  } catch(e) { showToast('⚠ Erro: ' + e.message, true); }
+}
+
 async function confirmarBaixaModal() {
   var dataPag  = document.getElementById('modalBaixarData').value;
   var conta    = document.getElementById('modalBaixarConta').value;
