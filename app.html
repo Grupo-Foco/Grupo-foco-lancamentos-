@@ -107,12 +107,12 @@ textarea{resize:vertical;min-height:80px;}
 .table-toolbar{padding:14px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--creme-dark);}
 .table-count{font-family:'DM Mono',monospace;font-size:11px;color:var(--cinza);}
 table{width:100%;border-collapse:collapse;font-size:13px;}
-thead th{background:var(--verde);color:rgba(245,240,232,0.8);font-family:'DM Mono',monospace;font-size:9px;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;padding:10px 14px;text-align:left;white-space:nowrap;cursor:pointer;user-select:none;}
+thead th{background:var(--verde);color:rgba(245,240,232,0.8);font-family:'DM Mono',monospace;font-size:9px;font-weight:500;letter-spacing:0.06em;text-transform:uppercase;padding:9px 8px;text-align:left;white-space:nowrap;cursor:pointer;user-select:none;}
 thead th:hover{color:var(--ouro-light);}
 thead th.sort-asc::after{content:' ▲';}thead th.sort-desc::after{content:' ▼';}
 tbody tr{border-bottom:1px solid var(--creme-dark);transition:background 0.15s;cursor:pointer;}
 tbody tr:hover{background:#f0ede5;}tbody tr:last-child{border-bottom:none;}
-td{padding:10px 14px;color:var(--texto);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px;}
+td{padding:9px 8px;color:var(--texto);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px;}
 td.mono{font-family:'DM Mono',monospace;font-size:12px;}
 .badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-family:'DM Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.04em;}
 .badge-apagar{background:#fff3cd;color:#856404;}
@@ -2571,7 +2571,7 @@ function renderTable() {
     <tr onclick="openDetail(${l.id})">
       <td onclick="event.stopPropagation()"><input type="checkbox" class="row-check" data-id="${l.id}" onchange="checkSel()"></td>
       <td class="mono" style="color:var(--cinza)">${l.codigo||String(l.id).padStart(4,'0')}</td>
-      <td style="font-weight:500;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(l.fornecedor)}">${esc(l.fornecedor)}</td>
+      <td style="font-weight:500;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(l.fornecedor)}">${esc(l.fornecedor)}</td>
       <td class="mono">${fmtDate(l.vencimento)}</td>
       <td class="mono" style="text-align:right">R$ ${(+l.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
       <td><span class="badge ${l.status==='PAGO'?'badge-pago':'badge-apagar'}">${l.status}</span></td>
@@ -2588,14 +2588,14 @@ function renderTable() {
         })()}
       </td>
       <td>${esc(l.fazenda)}</td>
-      <td style="font-size:12px;max-width:150px">${esc(l.cg)}</td>
+      <td style="font-size:12px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(l.cg)}">${esc(l.cg)}</td>
       <td style="font-size:12px">${esc(l.conta)}</td>
       <td style="font-size:12px;color:var(--cinza)">${esc(l.lancador)}</td>
-      <td onclick="event.stopPropagation()" style="text-align:center;white-space:nowrap;">
+      <td onclick="event.stopPropagation()" style="text-align:center;white-space:nowrap;padding-right:6px;">
         ${l.status==='PAGO'
-          ? '<button class="btn btn-secondary" onclick="desfazerBaixaLinha('+l.id+')" style="padding:4px 9px;font-size:11px;color:#c0392b;border-color:#e8b4b0;">↺ Desfazer</button>'
-          : '<button class="btn btn-primary" onclick="baixaRapida('+l.id+', event)" style="padding:4px 11px;font-size:11px;background:#16a34a;border-color:#16a34a;">✓ Baixa</button>'}
-        <button class="btn btn-secondary" onclick="editLancamento(${l.id})" style="padding:4px 10px;font-size:11px">✎</button>
+          ? '<button class="btn btn-secondary" title="Desfazer baixa" onclick="desfazerBaixaLinha('+l.id+')" style="padding:4px 8px;font-size:10px;color:#c0392b;border-color:#e8b4b0;">↺</button>'
+          : '<button class="btn btn-primary" title="Dar baixa" onclick="baixaRapida('+l.id+', event)" style="padding:4px 9px;font-size:10px;background:#16a34a;border-color:#16a34a;">✓ Baixa</button>'}
+        <button class="btn btn-secondary" title="Editar" onclick="editLancamento(${l.id})" style="padding:4px 8px;font-size:10px">✎</button>
       </td>
     </tr>`).join('');
   // Sempre recalcular estado dos botões após re-renderizar
