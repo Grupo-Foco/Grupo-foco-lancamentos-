@@ -542,23 +542,68 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
       <div class="section-label">01 — Venda</div>
       <div class="form-grid">
         <div class="field"><label>Produto <span class="req">★</span></label>
-          <select id="f_produto"><option value="">Selecionar…</option>
+          <select id="f_produto" onchange="onProdutoChange()"><option value="">Selecionar…</option>
             <option>SOJA</option><option>MILHO</option><option>SORGO</option><option>GADO</option>
             <option>MÁQUINA</option><option>PORCO</option><option>LEITE</option><option>AVIÃO</option><option>BAG</option><option>OUTROS</option>
           </select>
         </div>
         <div class="field col-span-2"><label>Comprador (empresa/pessoa) <span class="req">★</span></label>
-          <input type="text" id="f_comprador" placeholder="Nome da empresa ou pessoa" list="lista-compradores" autocomplete="off">
+          <input type="text" id="f_comprador" placeholder="Nome da empresa ou pessoa" list="lista-compradores" autocomplete="off" oninput="autoPreencherCNPJ()" onchange="autoPreencherCNPJ()">
           <datalist id="lista-compradores"></datalist>
         </div>
         <div class="field"><label>CNPJ / CPF</label>
           <input type="text" id="f_cnpj" placeholder="00.000.000/0000-00" maxlength="18" oninput="mascaraCNPJ(this)">
         </div>
-        <div class="field"><label>Valor <span class="req">★</span></label>
+        <div class="field"><label id="lbl_valor">Valor <span class="req">★</span></label>
           <div class="valor-wrapper"><span class="valor-prefix">R$</span><input type="number" id="f_valor" placeholder="0,00" step="0.01" min="0"></div>
+          <span id="hint_valor" style="display:none;font-size:10px;color:var(--verde);font-family:'DM Mono',monospace;margin-top:3px;">calculado automaticamente</span>
         </div>
         <div class="field"><label>Data de Recebimento</label>
           <input type="date" id="f_data_receb">
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ SEÇÃO CONDICIONAL: GRÃOS (Soja / Milho / Sorgo) ═══ -->
+    <div class="form-section" id="secao-graos" style="display:none;">
+      <div class="section-label" style="color:var(--verde);">◈ Dados do Contrato — Grãos</div>
+      <div class="form-grid">
+        <div class="field"><label>Nº do Contrato</label>
+          <input type="text" id="f_numero_contrato" placeholder="Ex: CT-2026-001">
+        </div>
+        <div class="field"><label>Quantidade Vendida (kg) <span class="req">★</span></label>
+          <input type="number" id="f_qtd_kg" placeholder="0,00" step="0.001" min="0" oninput="calcularGrao()">
+        </div>
+        <div class="field"><label>Sacas (60 kg)</label>
+          <input type="text" id="f_sacas" readonly style="background:#f0ede6;font-family:'IBM Plex Mono',monospace;font-weight:700;color:var(--verde);" value="0,00">
+        </div>
+        <div class="field"><label>Valor Unitário da Saca <span class="req">★</span></label>
+          <div class="valor-wrapper"><span class="valor-prefix">R$</span><input type="number" id="f_valor_unit" placeholder="0,00" step="0.0001" min="0" oninput="calcularGrao()"></div>
+        </div>
+        <div class="field"><label>Valor Bruto</label>
+          <div class="valor-wrapper"><span class="valor-prefix">R$</span><input type="text" id="f_valor_bruto" readonly style="background:#f0ede6;font-family:'IBM Plex Mono',monospace;font-weight:700;color:var(--verde);" value="0,00"></div>
+        </div>
+        <div class="field"><label>Descontos</label>
+          <div class="valor-wrapper"><span class="valor-prefix">R$</span><input type="number" id="f_descontos" placeholder="0,00" step="0.01" min="0" oninput="calcularGrao()"></div>
+        </div>
+      </div>
+      <!-- Resumo do cálculo -->
+      <div id="resumo-grao" style="margin-top:14px;padding:14px 18px;background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+        <span style="font-size:12px;color:#15803d;font-family:'DM Mono',monospace;" id="resumo-formula">— informe quantidade e valor da saca —</span>
+        <span style="font-size:18px;font-weight:700;color:#15803d;font-family:'IBM Plex Mono',monospace;" id="resumo-liquido">R$ 0,00</span>
+      </div>
+    </div>
+
+    <!-- ═══ SEÇÃO CONDICIONAL: CONTAS DE RECEBIMENTO (rateio) ═══ -->
+    <div class="form-section" id="secao-contas" style="display:none;">
+      <div class="section-label" style="color:var(--verde);">◈ Contas de Recebimento (rateio)</div>
+      <div id="lista-contas"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;flex-wrap:wrap;gap:10px;">
+        <button type="button" class="btn btn-secondary" onclick="addContaRec()" style="font-size:12px;padding:7px 14px;">＋ Adicionar conta</button>
+        <div style="font-family:'DM Mono',monospace;font-size:12px;" id="rateio-status">
+          <span style="color:var(--cinza);">Rateado:</span>
+          <span id="rateio-total" style="font-weight:700;">R$ 0,00</span>
+          <span id="rateio-dif" style="margin-left:8px;"></span>
         </div>
       </div>
     </div>
@@ -592,10 +637,10 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
              ondragover="event.preventDefault();this.classList.add('drag-over')"
              ondragleave="this.classList.remove('drag-over')"
              ondrop="dropAnexo(event)">
-          <input type="file" id="inp_comprovante" accept=".pdf,.png,.jpg,.jpeg,.xml" onchange="selecionarAnexo(this)">
+          <input type="file" id="inp_comprovante" accept=".pdf,.png,.jpg,.jpeg,.xml" multiple onchange="selecionarAnexo(this)">
           <button class="anexo-remove" onclick="removerAnexo(event)">✕</button>
           <span class="anexo-icon">🧾</span>
-          <span class="anexo-label" id="lbl_comprovante">Clique ou arraste<br><strong>Nota / Recibo / Contrato de venda</strong></span>
+          <span class="anexo-label" id="lbl_comprovante">Clique ou arraste<br><strong>Contrato · Termo de Ajustamento · Fixação de Preço · NF</strong><br><span style="font-size:10px;color:var(--cinza);">até 5 arquivos</span></span>
           <span class="anexo-nome" id="nome_comprovante"></span>
         </div>
       </div>
@@ -718,7 +763,6 @@ const TABLE  = 'receitas';
 const SB_BUCKET = 'anexos';
 
 let receitas=[], filtered=[], sortKey='data_receb', sortDir=1, editingId=null;
-let _editComprovante=null;
 
 var currentUser = sessionStorage.getItem('gf_user') || '';
 var currentRole = sessionStorage.getItem('gf_role') || 'funcionario';
@@ -774,12 +818,216 @@ function popularCompradores() {
   dl.innerHTML = nomes.map(function(n){ return '<option value="'+esc(n)+'">'; }).join('');
 }
 
-let _arqComprovante = null;
-function selecionarAnexo(input) { const f=input.files[0]; if(!f) return; _arqComprovante=f; _atualizarBox(f.name); }
-function dropAnexo(e) { e.preventDefault(); document.getElementById('box_comprovante').classList.remove('drag-over'); const f=e.dataTransfer.files[0]; if(!f) return; _arqComprovante=f; _atualizarBox(f.name); }
-function _atualizarBox(nome) { document.getElementById('box_comprovante').classList.add('tem-arquivo'); document.getElementById('lbl_comprovante').style.display='none'; document.getElementById('nome_comprovante').textContent='📎 '+nome; }
-function removerAnexo(e) { e&&e.stopPropagation(); _arqComprovante=null; document.getElementById('inp_comprovante').value=''; document.getElementById('box_comprovante').classList.remove('tem-arquivo'); document.getElementById('lbl_comprovante').style.display=''; document.getElementById('nome_comprovante').textContent=''; }
+// ═══════════ ANEXOS (múltiplos — até 5) ═══════════
+const MAX_ANEXOS = 5;
+const KG_POR_SACA = 60;
+let _arqComprovante = [];   // arquivos novos (ainda não enviados)
+let _editComprovantes = []; // paths já salvos (na edição)
+
+function selecionarAnexo(input) {
+  const novos = Array.from(input.files||[]);
+  if(!novos.length) return;
+  _addArquivos(novos);
+  input.value = '';
+}
+function dropAnexo(e) {
+  e.preventDefault();
+  document.getElementById('box_comprovante').classList.remove('drag-over');
+  const novos = Array.from(e.dataTransfer.files||[]);
+  if(!novos.length) return;
+  _addArquivos(novos);
+}
+function _addArquivos(novos) {
+  const total = _arqComprovante.length + _editComprovantes.length;
+  const espaco = MAX_ANEXOS - total;
+  if(espaco <= 0) { showToast('⚠ Máximo de '+MAX_ANEXOS+' documentos', true); return; }
+  _arqComprovante = _arqComprovante.concat(novos.slice(0, espaco));
+  if(novos.length > espaco) showToast('⚠ Só cabem '+MAX_ANEXOS+' — alguns não entraram', true);
+  _atualizarBox();
+}
+function _atualizarBox() {
+  const box = document.getElementById('box_comprovante');
+  const lbl = document.getElementById('lbl_comprovante');
+  const nm  = document.getElementById('nome_comprovante');
+  const total = _arqComprovante.length + _editComprovantes.length;
+  if(!total) {
+    box.classList.remove('tem-arquivo');
+    lbl.style.display = '';
+    nm.innerHTML = '';
+    return;
+  }
+  box.classList.add('tem-arquivo');
+  lbl.style.display = 'none';
+  var h = '';
+  // Já salvos (na edição)
+  _editComprovantes.forEach(function(p, i){
+    var nome = p.split('/').pop().split('?')[0];
+    h += '<div style="display:flex;align-items:center;gap:8px;justify-content:center;margin:3px 0;flex-wrap:wrap;">' +
+      '<span style="font-size:12px;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">✅ '+esc(nome)+'</span>' +
+      '<span onclick="event.stopPropagation();abrirAnexo(\''+p.replace(/'/g,"\\'")+'\')" style="font-size:10px;color:#2563eb;cursor:pointer;border:1px solid #93c5fd;background:#eff6ff;border-radius:6px;padding:2px 7px;font-family:DM Mono,monospace;">👁 ver</span>' +
+      '<span onclick="event.stopPropagation();removerSalvo('+i+')" style="font-size:10px;color:#c0392b;cursor:pointer;border:1px solid #f5b7b1;background:#fdedec;border-radius:6px;padding:2px 7px;font-family:DM Mono,monospace;">✕</span>' +
+    '</div>';
+  });
+  // Novos (ainda não enviados)
+  _arqComprovante.forEach(function(f, i){
+    h += '<div style="display:flex;align-items:center;gap:8px;justify-content:center;margin:3px 0;flex-wrap:wrap;">' +
+      '<span style="font-size:12px;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📎 '+esc(f.name)+'</span>' +
+      '<span onclick="event.stopPropagation();previewLocal('+i+')" style="font-size:10px;color:#2563eb;cursor:pointer;border:1px solid #93c5fd;background:#eff6ff;border-radius:6px;padding:2px 7px;font-family:DM Mono,monospace;">👁 ver</span>' +
+      '<span onclick="event.stopPropagation();removerNovo('+i+')" style="font-size:10px;color:#c0392b;cursor:pointer;border:1px solid #f5b7b1;background:#fdedec;border-radius:6px;padding:2px 7px;font-family:DM Mono,monospace;">✕</span>' +
+    '</div>';
+  });
+  if(total < MAX_ANEXOS) {
+    h += '<div onclick="event.stopPropagation();document.getElementById(\'inp_comprovante\').click()" style="margin-top:6px;font-size:11px;color:#15803d;cursor:pointer;font-family:DM Mono,monospace;">＋ adicionar outro</div>';
+  }
+  nm.innerHTML = h;
+}
+function removerNovo(i){ _arqComprovante.splice(i,1); _atualizarBox(); }
+function removerSalvo(i){ _editComprovantes.splice(i,1); _atualizarBox(); }
+function removerAnexo(e) {
+  e && e.stopPropagation();
+  _arqComprovante = []; _editComprovantes = [];
+  var inp=document.getElementById('inp_comprovante'); if(inp) inp.value='';
+  _atualizarBox();
+}
 function resetAnexo() { removerAnexo(); }
+
+// Pré-visualiza arquivo local (ainda não enviado)
+function previewLocal(i) {
+  const f = _arqComprovante[i];
+  if(!f) return;
+  const url = URL.createObjectURL(f);
+  document.getElementById('viewerNome').textContent = f.name + '  (ainda não salvo)';
+  const frame = document.getElementById('viewerFrame');
+  if(/\.pdf$/i.test(f.name)) frame.innerHTML = '<iframe src="'+url+'#toolbar=1" style="width:100%;height:100%;border:none;"></iframe>';
+  else if(/\.(png|jpe?g|gif|webp)$/i.test(f.name)) frame.innerHTML = '<img src="'+url+'" style="width:100%;height:100%;object-fit:contain;">';
+  else frame.innerHTML = '<div style="padding:40px;text-align:center;font-family:DM Mono,monospace;color:#555;">Sem pré-visualização.<br><br><a href="'+url+'" download="'+esc(f.name)+'" style="color:#2563eb;">⬇ Baixar</a></div>';
+  document.getElementById('viewerOverlay')._objUrl = url;
+  document.getElementById('viewerOverlay').classList.add('open');
+}
+
+// Lista de comprovantes de um registro (nova coluna OU antiga)
+function getComprovantePaths(r) {
+  if(r && Array.isArray(r.comprovante_paths) && r.comprovante_paths.length) return r.comprovante_paths;
+  if(r && typeof r.comprovante_paths === 'string') {
+    try { var a = JSON.parse(r.comprovante_paths); if(Array.isArray(a) && a.length) return a; } catch(e){}
+  }
+  if(r && r.comprovante_path) return [r.comprovante_path];
+  return [];
+}
+
+// ═══════════ GRÃOS: exibição condicional e cálculo ═══════════
+const PRODUTOS_GRAO = ['SOJA','MILHO','SORGO'];
+function ehGrao() {
+  return PRODUTOS_GRAO.indexOf(document.getElementById('f_produto').value) >= 0;
+}
+function onProdutoChange() {
+  var grao = ehGrao();
+  document.getElementById('secao-graos').style.display  = grao ? '' : 'none';
+  document.getElementById('secao-contas').style.display = grao ? '' : 'none';
+  var fv = document.getElementById('f_valor');
+  var lbl = document.getElementById('lbl_valor');
+  var hint = document.getElementById('hint_valor');
+  if(grao) {
+    lbl.innerHTML = 'Valor Líquido <span class="req">★</span>';
+    fv.readOnly = true;
+    fv.style.background = '#f0ede6';
+    fv.style.fontWeight = '700';
+    hint.style.display = '';
+    if(!document.querySelectorAll('.linha-conta').length) addContaRec();
+    calcularGrao();
+  } else {
+    lbl.innerHTML = 'Valor <span class="req">★</span>';
+    fv.readOnly = false;
+    fv.style.background = '';
+    fv.style.fontWeight = '';
+    hint.style.display = 'none';
+  }
+}
+function calcularGrao() {
+  var kg   = parseFloat(document.getElementById('f_qtd_kg').value) || 0;
+  var unit = parseFloat(document.getElementById('f_valor_unit').value) || 0;
+  var desc = parseFloat(document.getElementById('f_descontos').value) || 0;
+  var sacas  = kg / KG_POR_SACA;
+  var bruto  = sacas * unit;
+  var liquido = bruto - desc;
+  document.getElementById('f_sacas').value = sacas.toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('f_valor_bruto').value = bruto.toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('f_valor').value = liquido > 0 ? liquido.toFixed(2) : '';
+  // Resumo
+  var rf = document.getElementById('resumo-formula');
+  var rl = document.getElementById('resumo-liquido');
+  if(kg > 0 && unit > 0) {
+    rf.textContent = sacas.toLocaleString('pt-BR',{maximumFractionDigits:2}) + ' sacas × R$ ' +
+      unit.toLocaleString('pt-BR',{minimumFractionDigits:2}) + ' = R$ ' +
+      bruto.toLocaleString('pt-BR',{minimumFractionDigits:2}) +
+      (desc > 0 ? '  −  descontos R$ ' + desc.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '');
+  } else {
+    rf.textContent = '— informe quantidade e valor da saca —';
+  }
+  rl.textContent = 'R$ ' + liquido.toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
+  rl.style.color = liquido < 0 ? '#b91c1c' : '#15803d';
+  atualizarRateio();
+}
+
+// ═══════════ CONTAS DE RECEBIMENTO (rateio) ═══════════
+const CONTAS = ['ADRIANA BB','IVAN BASA','IVAN BB','IVAN BRADESCO','IVAN SICOOB','JOAO BB','JOAO SICOOB','NEILA BB','NEILA SICOOB'];
+function addContaRec(conta, valor) {
+  var lista = document.getElementById('lista-contas');
+  var div = document.createElement('div');
+  div.className = 'linha-conta';
+  div.style.cssText = 'display:grid;grid-template-columns:1fr 180px 40px;gap:10px;align-items:center;margin-bottom:8px;';
+  var opts = '<option value="">Selecionar conta…</option>' + CONTAS.map(function(c){
+    return '<option'+(conta===c?' selected':'')+'>'+c+'</option>';
+  }).join('');
+  div.innerHTML =
+    '<select class="conta-sel" style="font-size:13px;padding:8px;border:1.5px solid var(--cinza-light);border-radius:8px;">'+opts+'</select>' +
+    '<div class="valor-wrapper" style="margin:0;"><span class="valor-prefix">R$</span>' +
+      '<input type="number" class="conta-val" step="0.01" min="0" placeholder="0,00" value="'+(valor!=null?valor:'')+'" oninput="atualizarRateio()" style="font-size:13px;"></div>' +
+    '<button type="button" onclick="this.parentNode.remove();atualizarRateio();" style="background:#fdedec;border:1px solid #f5b7b1;color:#c0392b;border-radius:8px;padding:7px;cursor:pointer;font-size:12px;">✕</button>';
+  lista.appendChild(div);
+  atualizarRateio();
+}
+function getContasRateio() {
+  var out = [];
+  document.querySelectorAll('.linha-conta').forEach(function(d){
+    var c = d.querySelector('.conta-sel').value;
+    var v = parseFloat(d.querySelector('.conta-val').value) || 0;
+    if(c && v > 0) out.push({ conta: c, valor: v });
+  });
+  return out;
+}
+function atualizarRateio() {
+  var contas = getContasRateio();
+  var somaRat = contas.reduce(function(s,c){ return s + c.valor; }, 0);
+  var liquido = parseFloat(document.getElementById('f_valor').value) || 0;
+  document.getElementById('rateio-total').textContent = 'R$ ' + somaRat.toLocaleString('pt-BR',{minimumFractionDigits:2});
+  var dif = liquido - somaRat;
+  var el = document.getElementById('rateio-dif');
+  if(!contas.length) { el.textContent = ''; return; }
+  if(Math.abs(dif) < 0.01) {
+    el.textContent = '✓ confere';
+    el.style.color = '#15803d';
+  } else if(dif > 0) {
+    el.textContent = '⚠ faltam R$ ' + dif.toLocaleString('pt-BR',{minimumFractionDigits:2});
+    el.style.color = '#b45309';
+  } else {
+    el.textContent = '⚠ excede R$ ' + Math.abs(dif).toLocaleString('pt-BR',{minimumFractionDigits:2});
+    el.style.color = '#b91c1c';
+  }
+}
+
+// ═══════════ CNPJ automático pelo comprador ═══════════
+function autoPreencherCNPJ() {
+  var nome = (document.getElementById('f_comprador').value||'').trim().toUpperCase();
+  if(!nome) return;
+  var campoCnpj = document.getElementById('f_cnpj');
+  // Não sobrescreve se o usuário já digitou um CNPJ
+  if(campoCnpj.value.trim()) return;
+  var achado = receitas.find(function(r){
+    return (r.comprador||'').trim().toUpperCase() === nome && (r.cnpj_cpf||'').trim();
+  });
+  if(achado) campoCnpj.value = achado.cnpj_cpf;
+}
 
 async function uploadAnexo(file, recId) {
   if(!file) return null;
@@ -790,6 +1038,29 @@ async function uploadAnexo(file, recId) {
   });
   if(!res.ok) { console.error('Upload erro:', await res.text()); return null; }
   return path;
+}
+
+// Upload de vários documentos (contrato, termo, fixação…) — caminhos únicos
+async function uploadAnexosLista(files, recId) {
+  if(!files || !files.length) return [];
+  const paths = [];
+  for(let i=0; i<files.length; i++) {
+    const f = files[i];
+    if(!f) continue;
+    const ext = (f.name.split('.').pop()||'pdf').toLowerCase();
+    const ts = Date.now() + '_' + i;   // evita colisão ao reeditar
+    const path = `receitas/${recId}/doc_${ts}.${ext}`;
+    try {
+      const res = await fetch(`${SB_URL}/storage/v1/object/${SB_BUCKET}/${path}`, {
+        method:'POST',
+        headers:{ 'apikey':SB_KEY,'Authorization':`Bearer ${SB_KEY}`,'Content-Type':f.type,'x-upsert':'true' },
+        body:f
+      });
+      if(res.ok) paths.push(path);
+      else console.error('Upload erro:', await res.text());
+    } catch(e) { console.error(e); }
+  }
+  return paths;
 }
 async function getUrlAnexo(path) {
   const res = await fetch(`${SB_URL}/storage/v1/object/sign/${SB_BUCKET}/${path}`, {
@@ -831,25 +1102,58 @@ async function saveReceita() {
   if(!safra){showToast('Selecione a safra',true);return;}
   if(status==='RECEBIDO'&&!dataReceb){showToast('Informe a data de recebimento',true);return;}
   const obj={ produto, comprador:comprador.toUpperCase(), cnpj_cpf:cnpj||null, data_receb:dataReceb||null, status, valor, fazenda:faz, safra, historico:hist, lancador:currentUser||'—' };
+
+  // ── Campos de GRÃOS (só quando produto é SOJA/MILHO/SORGO) ──
+  if(ehGrao()) {
+    var kg   = parseFloat(document.getElementById('f_qtd_kg').value) || 0;
+    var unit = parseFloat(document.getElementById('f_valor_unit').value) || 0;
+    var desc = parseFloat(document.getElementById('f_descontos').value) || 0;
+    if(kg <= 0)   { showToast('Informe a quantidade em kg', true); return; }
+    if(unit <= 0) { showToast('Informe o valor unitário da saca', true); return; }
+    var sacas = kg / KG_POR_SACA;
+    var bruto = sacas * unit;
+    obj.numero_contrato = document.getElementById('f_numero_contrato').value.trim() || null;
+    obj.quantidade_kg   = kg;
+    obj.sacas           = +sacas.toFixed(4);
+    obj.valor_unitario  = unit;
+    obj.descontos       = desc;
+    obj.valor_bruto     = +bruto.toFixed(2);
+    // Rateio das contas de recebimento
+    var contasRat = getContasRateio();
+    obj.contas_recebimento = contasRat.length ? contasRat : null;
+    // Aviso (não bloqueia) se o rateio não fecha com o líquido
+    if(contasRat.length) {
+      var somaRat = contasRat.reduce(function(s,c){return s+c.valor;},0);
+      if(Math.abs(somaRat - valor) > 0.01) {
+        if(!confirm('O rateio das contas (R$ ' + somaRat.toLocaleString('pt-BR',{minimumFractionDigits:2}) +
+          ') não fecha com o valor líquido (R$ ' + valor.toLocaleString('pt-BR',{minimumFractionDigits:2}) +
+          ').\n\nSalvar mesmo assim?')) { return; }
+      }
+    }
+  }
+
   const btn=document.getElementById('btnSalvar'); btn.disabled=true; btn.textContent='Salvando…';
   try {
     if(editingId) {
-      if(_editComprovante && !_arqComprovante) obj.comprovante_path=_editComprovante;
       const eid=editingId;
+      var docsFinal = _editComprovantes.slice();  // os que permaneceram
+      if(_arqComprovante.length) {
+        showToast('📎 Enviando documentos…');
+        const novos = await uploadAnexosLista(_arqComprovante, eid);
+        docsFinal = docsFinal.concat(novos);
+      }
+      obj.comprovante_paths = docsFinal;
+      obj.comprovante_path  = null;  // fonte da verdade agora é a lista
+      editingId=null;
       await sb(`${TABLE}?id=eq.${eid}`,{method:'PATCH',body:JSON.stringify(obj)});
-      if(_arqComprovante) {
-        showToast('📎 Enviando comprovante…'); editingId=null;
-        const pc=await uploadAnexo(_arqComprovante, eid);
-        if(pc) await sb(`${TABLE}?id=eq.${eid}`,{method:'PATCH',body:JSON.stringify({comprovante_path:pc})});
-        removerAnexo();
-      } else { editingId=null; }
-      _editComprovante=null; showToast('✓ Atualizado!');
+      removerAnexo();
+      showToast('✓ Atualizado!');
     } else {
       const saved=await sb(TABLE,{method:'POST',body:JSON.stringify(obj)});
-      if(saved && saved[0] && _arqComprovante) {
-        showToast('📎 Enviando comprovante…');
-        const pc=await uploadAnexo(_arqComprovante, saved[0].id);
-        if(pc) await sb(`${TABLE}?id=eq.${saved[0].id}`,{method:'PATCH',body:JSON.stringify({comprovante_path:pc})});
+      if(saved && saved[0] && _arqComprovante.length) {
+        showToast('📎 Enviando documentos…');
+        const paths = await uploadAnexosLista(_arqComprovante, saved[0].id);
+        if(paths.length) await sb(`${TABLE}?id=eq.${saved[0].id}`,{method:'PATCH',body:JSON.stringify({comprovante_paths:paths})});
         removerAnexo();
       }
       showToast('✓ Receita salva!');
@@ -862,13 +1166,21 @@ async function saveReceita() {
 }
 
 function clearForm() {
-  editingId=null; _editComprovante=null; resetAnexo();
+  editingId=null; resetAnexo();
   document.getElementById('formTitle').textContent='Nova Receita';
   ['f_comprador','f_cnpj','f_valor','f_data_receb','f_historico'].forEach(id=>document.getElementById(id).value='');
   ['f_produto','f_fazenda','f_safra'].forEach(id=>document.getElementById(id).value='');
+  // Campos de grão
+  ['f_numero_contrato','f_qtd_kg','f_valor_unit','f_descontos'].forEach(function(id){
+    var e=document.getElementById(id); if(e) e.value='';
+  });
+  document.getElementById('f_sacas').value='0,00';
+  document.getElementById('f_valor_bruto').value='0,00';
+  document.getElementById('lista-contas').innerHTML='';
   document.getElementById('f_status').value='A RECEBER';
   document.querySelectorAll('.status-btn').forEach(b=>b.classList.remove('active'));
   document.querySelector('.status-btn.apagar').classList.add('active');
+  onProdutoChange();  // esconde seções de grão
 }
 
 function applyFilters() {
@@ -916,7 +1228,7 @@ function renderTable() {
       <td class="mono" style="text-align:right">R$ ${(+r.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
       <td><span class="badge ${r.status==='RECEBIDO'?'badge-pago':'badge-apagar'}">${r.status}</span></td>
       <td style="text-align:center;font-size:10px;font-weight:700;">
-        ${r.comprovante_path?'<span title="Comprovante" style="display:inline-block;background:#2563eb;color:#fff;border-radius:4px;padding:2px 5px;">📎</span>':'<span style="color:#ccc;">—</span>'}
+        ${(function(){var d=getComprovantePaths(r);return d.length?'<span title="'+d.length+' documento(s)" style="display:inline-block;background:#2563eb;color:#fff;border-radius:4px;padding:2px 5px;">📎'+(d.length>1?' '+d.length:'')+'</span>':'<span style="color:#ccc;">—</span>';})()}
       </td>
       <td>${esc(r.fazenda)}</td>
       <td style="font-size:12px">${esc(r.safra)}</td>
@@ -957,8 +1269,46 @@ function openDetail(id) {
     <div class="detail-item"><div class="dl">Fazenda</div><div class="dv">${esc(r.fazenda)}</div></div>
     <div class="detail-item"><div class="dl">Safra</div><div class="dv">${esc(r.safra)}</div></div>
     <div class="detail-item"><div class="dl">Lançador</div><div class="dv">${esc(r.lancador)||'—'}</div></div>
+    ${(function(){
+      // Bloco de GRÃOS (só se houver dados de contrato)
+      if(!r.quantidade_kg && !r.valor_unitario && !r.numero_contrato) return '';
+      var kg = +r.quantidade_kg||0, sc = +r.sacas||0, un = +r.valor_unitario||0;
+      var br = +r.valor_bruto||0, ds = +r.descontos||0;
+      return '<div class="detail-item full" style="margin-top:6px;padding:12px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;">' +
+        '<div class="dl" style="color:#15803d;margin-bottom:8px;">◈ DADOS DO CONTRATO</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;font-size:13px;">' +
+          (r.numero_contrato ? '<div><span style="color:var(--cinza);font-size:11px;">Contrato</span><br><b>'+esc(r.numero_contrato)+'</b></div>' : '') +
+          '<div><span style="color:var(--cinza);font-size:11px;">Quantidade</span><br><b>'+kg.toLocaleString('pt-BR',{minimumFractionDigits:2})+' kg</b></div>' +
+          '<div><span style="color:var(--cinza);font-size:11px;">Sacas (60kg)</span><br><b>'+sc.toLocaleString('pt-BR',{maximumFractionDigits:2})+'</b></div>' +
+          '<div><span style="color:var(--cinza);font-size:11px;">Valor/saca</span><br><b>R$ '+un.toLocaleString('pt-BR',{minimumFractionDigits:2})+'</b></div>' +
+          '<div><span style="color:var(--cinza);font-size:11px;">Bruto</span><br><b>R$ '+br.toLocaleString('pt-BR',{minimumFractionDigits:2})+'</b></div>' +
+          (ds ? '<div><span style="color:var(--cinza);font-size:11px;">Descontos</span><br><b style="color:#b91c1c;">− R$ '+ds.toLocaleString('pt-BR',{minimumFractionDigits:2})+'</b></div>' : '') +
+        '</div></div>';
+    })()}
+    ${(function(){
+      // Rateio das contas
+      var contas = r.contas_recebimento;
+      if(typeof contas === 'string') { try { contas = JSON.parse(contas); } catch(e){ return ''; } }
+      if(!Array.isArray(contas) || !contas.length) return '';
+      var linhas = contas.map(function(c){
+        return '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px dashed #ddd;font-size:13px;">' +
+          '<span>'+esc(c.conta)+'</span>' +
+          '<b style="font-family:IBM Plex Mono,monospace;">R$ '+(+c.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2})+'</b></div>';
+      }).join('');
+      return '<div class="detail-item full" style="margin-top:6px;padding:12px 14px;background:#faf8f4;border:1px solid var(--cinza-light);border-radius:10px;">' +
+        '<div class="dl" style="margin-bottom:6px;">◈ CONTAS DE RECEBIMENTO</div>' + linhas + '</div>';
+    })()}
     <div class="detail-item full"><div class="dl">Histórico</div><div class="dv" style="white-space:pre-wrap">${esc(r.historico)||'—'}</div></div>
-    ${r.comprovante_path?`<div class="detail-item full" style="margin-top:8px;"><button class="btn-ver-anexo" onclick="abrirAnexo('${r.comprovante_path}')">🧾 Ver Comprovante</button></div>`:''}
+    ${(function(){
+      var docs = getComprovantePaths(r);
+      if(!docs.length) return '';
+      var btns = docs.map(function(p, i){
+        var nome = p.split('/').pop().split('?')[0];
+        var rot = docs.length > 1 ? ('🧾 Doc '+(i+1)) : '🧾 Ver Documento';
+        return '<button class="btn-ver-anexo" title="'+esc(nome)+'" onclick="abrirAnexo(\''+p.replace(/'/g,"\\'")+'\')">'+rot+'</button>';
+      }).join(' ');
+      return '<div class="detail-item full" style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">'+btns+'</div>';
+    })()}
   `;
   document.getElementById('modalDeleteBtn').onclick=async()=>{
     if(!confirm('Excluir?')) return;
@@ -990,14 +1340,14 @@ document.getElementById('detailModal').addEventListener('click',e=>{if(e.target=
 function editReceita(id) {
   const r=receitas.find(x=>x.id===id); if(!r) return;
   editingId=id; resetAnexo();
-  _editComprovante=r.comprovante_path||null;
-  if(_editComprovante) { document.getElementById('nome_comprovante').textContent='📎 '+_editComprovante.split('/').pop(); document.getElementById('lbl_comprovante').style.display='none'; document.getElementById('box_comprovante').classList.add('tem-arquivo'); }
+  // Documentos já salvos
+  _editComprovantes = getComprovantePaths(r).slice();
+  _atualizarBox();
   document.getElementById('formTitle').textContent='Editando Receita';
   showView('form');
   document.getElementById('f_produto').value=r.produto||'';
   document.getElementById('f_comprador').value=r.comprador||'';
   document.getElementById('f_cnpj').value=r.cnpj_cpf||'';
-  document.getElementById('f_valor').value=r.valor||'';
   document.getElementById('f_data_receb').value=r.data_receb||'';
   document.getElementById('f_fazenda').value=r.fazenda||'';
   document.getElementById('f_safra').value=r.safra||'';
@@ -1005,6 +1355,22 @@ function editReceita(id) {
   document.getElementById('f_status').value=r.status;
   document.querySelectorAll('.status-btn').forEach(b=>b.classList.remove('active'));
   document.querySelector(`.status-btn.${r.status==='RECEBIDO'?'pago':'apagar'}`).classList.add('active');
+
+  // Campos de grão
+  document.getElementById('f_numero_contrato').value = r.numero_contrato||'';
+  document.getElementById('f_qtd_kg').value          = r.quantidade_kg||'';
+  document.getElementById('f_valor_unit').value      = r.valor_unitario||'';
+  document.getElementById('f_descontos').value       = r.descontos||'';
+  // Contas de recebimento (rateio)
+  document.getElementById('lista-contas').innerHTML = '';
+  var contas = r.contas_recebimento;
+  if(typeof contas === 'string') { try { contas = JSON.parse(contas); } catch(e){ contas = null; } }
+  if(Array.isArray(contas)) contas.forEach(function(c){ addContaRec(c.conta, c.valor); });
+
+  onProdutoChange();  // mostra/esconde seções e recalcula
+  if(ehGrao()) calcularGrao();
+  else document.getElementById('f_valor').value = r.valor||'';
+
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
@@ -1013,13 +1379,29 @@ async function exportXLSX() {
   if(!dados.length) { showToast('⚠ Nenhuma receita para exportar', true); return; }
   showToast(`⏳ Gerando planilha com ${dados.length} receitas…`);
   try {
-    const linhas=dados.map(r=>({
-      'ID':r.id,'Produto':r.produto||'','Comprador':r.comprador||'','CNPJ/CPF':r.cnpj_cpf||'',
-      'Data Recebimento':r.data_receb?fmtDate(r.data_receb):'','Status':r.status||'','Valor (R$)':+r.valor||0,
-      'Fazenda':r.fazenda||'','Safra':r.safra||'','Histórico':r.historico||'','Lançador':r.lancador||''
-    }));
+    const linhas=dados.map(r=>{
+      // Contas de recebimento em texto (ex: "IVAN BB: 100.000,00 | JOAO BB: 50.000,00")
+      var contas = r.contas_recebimento;
+      if(typeof contas === 'string') { try { contas = JSON.parse(contas); } catch(e){ contas = null; } }
+      var contasTxt = Array.isArray(contas) ? contas.map(function(c){
+        return c.conta + ': ' + (+c.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2});
+      }).join(' | ') : '';
+      return {
+        'ID':r.id,'Produto':r.produto||'','Comprador':r.comprador||'','CNPJ/CPF':r.cnpj_cpf||'',
+        'Nº Contrato':r.numero_contrato||'',
+        'Data Recebimento':r.data_receb?fmtDate(r.data_receb):'','Status':r.status||'',
+        'Quantidade (kg)': r.quantidade_kg!=null ? +r.quantidade_kg : '',
+        'Sacas (60kg)':    r.sacas!=null ? +r.sacas : '',
+        'Valor Unit. Saca (R$)': r.valor_unitario!=null ? +r.valor_unitario : '',
+        'Valor Bruto (R$)':      r.valor_bruto!=null ? +r.valor_bruto : '',
+        'Descontos (R$)':        r.descontos!=null ? +r.descontos : '',
+        'Valor Líquido (R$)':+r.valor||0,
+        'Contas de Recebimento': contasTxt,
+        'Fazenda':r.fazenda||'','Safra':r.safra||'','Histórico':r.historico||'','Lançador':r.lancador||''
+      };
+    });
     const ws=XLSX.utils.json_to_sheet(linhas);
-    ws['!cols']=[{wch:6},{wch:12},{wch:30},{wch:20},{wch:16},{wch:12},{wch:16},{wch:18},{wch:16},{wch:40},{wch:14}];
+    ws['!cols']=[{wch:6},{wch:12},{wch:30},{wch:20},{wch:16},{wch:16},{wch:12},{wch:16},{wch:14},{wch:18},{wch:16},{wch:14},{wch:18},{wch:38},{wch:18},{wch:16},{wch:36},{wch:14}];
     const wb=XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Receitas');
     const date=new Date().toISOString().split('T')[0];
