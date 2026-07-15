@@ -653,6 +653,7 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
       <span class="table-count" id="lanc-count">—</span>
       <div style="display:flex;gap:8px;" id="toolbar-lanc-gestores">
         <button class="btn btn-warn btn-sm" id="btn-baixar-sel" style="display:none;" onclick="abrirBaixaEmMassa()">✓ Baixar selecionados</button>
+        <button class="btn btn-sm" id="btn-excluir-sel" style="display:none;background:#fdedec;border:1.5px solid #e8b4b0;color:#c0392b;" onclick="excluirLancSelecionados()">🗑 Excluir selecionados</button>
       </div>
     </div>
     <div style="overflow-x:auto;">
@@ -1377,7 +1378,48 @@ function toggleAllLanc(chk) {
 
 function checkSelLanc() {
   var sels = document.querySelectorAll('.chk-l:checked');
-  document.getElementById('btn-baixar-sel').style.display = sels.length > 0 && isGestor() ? '' : 'none';
+  var mostrar = sels.length > 0 && isGestor() ? '' : 'none';
+  document.getElementById('btn-baixar-sel').style.display = mostrar;
+  var btnEx = document.getElementById('btn-excluir-sel');
+  if(btnEx) btnEx.style.display = mostrar;
+}
+
+// Exclui as parcelas selecionadas (com dupla confirmação — apaga do banco)
+async function excluirLancSelecionados() {
+  if(!isGestor()) { showBlockedMsg(); return; }
+  var ids = Array.from(document.querySelectorAll('.chk-l:checked')).map(function(c){ return parseInt(c.dataset.id); });
+  if(!ids.length) { showToast('Nenhuma parcela selecionada', 'warn'); return; }
+
+  // Monta um resumo do que será excluído, para o gestor conferir
+  var itens = ids.map(function(id){ return lancamentos.find(function(x){ return x.id===id; }); }).filter(Boolean);
+  var soma = itens.reduce(function(s,l){ return s + (+l.valor_parcela||0); }, 0);
+  var resumo = itens.slice(0,8).map(function(l){
+    return '• ' + (l.modalidade||'') + ' ' + (l.ano||'') + ' — R$ ' + (+l.valor_parcela||0).toLocaleString('pt-BR',{minimumFractionDigits:2});
+  }).join('\n');
+  if(itens.length > 8) resumo += '\n… e mais ' + (itens.length-8) + ' parcela(s)';
+
+  if(!confirm('EXCLUIR ' + ids.length + ' parcela(s)?\n\n' + resumo +
+    '\n\nTotal: R$ ' + soma.toLocaleString('pt-BR',{minimumFractionDigits:2}) +
+    '\n\n⚠ Esta ação NÃO pode ser desfeita.')) return;
+
+  // Segunda confirmação, mais enfática
+  if(!confirm('Tem certeza? As parcelas serão apagadas permanentemente do banco de dados.')) return;
+
+  showToast('🗑 Excluindo…');
+  try {
+    // Apaga em uma requisição usando filtro OR (ou uma a uma, se necessário)
+    var filtro = ids.map(function(id){ return 'id.eq.' + id; }).join(',');
+    await sb(TB_LANCAMENTOS + '?or=(' + filtro + ')', { method:'DELETE', prefer:'return=minimal' });
+    // Remove do cache local
+    lancamentos = lancamentos.filter(function(l){ return ids.indexOf(l.id) < 0; });
+    var ca = document.getElementById('chk-all-l'); if(ca) ca.checked = false;
+    renderLancamentos();
+    if(typeof renderContratos==='function') renderContratos();
+    if(typeof renderDashboard==='function') renderDashboard();
+    showToast('✓ ' + ids.length + ' parcela(s) excluída(s)');
+  } catch(e) {
+    showToast('⚠ Erro ao excluir: ' + e.message, 'err');
+  }
 }
 
 function limparFiltrosLanc() {
