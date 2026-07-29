@@ -560,6 +560,13 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
     <div class="filter-group"><label>Conta Gerencial</label>
       <select id="filtro-cg" onchange="gerar()"><option value="">Todas</option></select>
     </div>
+    <div class="filter-group"><label>Status</label>
+      <select id="filtro-status" onchange="onStatusChange()">
+        <option value="">Todos</option>
+        <option value="PAGO">Pago (balanço realizado)</option>
+        <option value="A PAGAR">A pagar</option>
+      </select>
+    </div>
     <div class="filter-group"><label>Período — De</label>
       <input type="date" id="filtro-data-ini" onchange="gerar()" style="font-family:'DM Mono',monospace;font-size:12px;padding:6px 10px;border:1.5px solid var(--cinza-light);border-radius:8px;background:var(--branco);color:var(--texto);cursor:pointer;">
     </div>
@@ -750,11 +757,23 @@ function getDataLanc(l) {
   return (l[base] || l.vencimento || l.data_doc || '').substring(0,10);
 }
 
+// Ao trocar o status, sugere a base de data mais adequada:
+// - PAGO → data de pagamento (quando o dinheiro saiu = balanço realizado)
+// - A PAGAR/Todos → vencimento
+function onStatusChange() {
+  var st = document.getElementById('filtro-status').value;
+  var base = document.getElementById('filtro-base-data');
+  if(st === 'PAGO' && base.value === 'vencimento') base.value = 'pagamento';
+  else if(st === '' && base.value === 'pagamento') base.value = 'vencimento';
+  gerar();
+}
+
 function gerar() {
   var fFaz = document.getElementById('filtro-fazenda').value;
   var fSafra = document.getElementById('filtro-safra').value;
   var fCult = document.getElementById('filtro-cultura').value;
   var fCg = document.getElementById('filtro-cg').value;
+  var fStatus = document.getElementById('filtro-status').value;
   var dIni = document.getElementById('filtro-data-ini').value;
   var dFim = document.getElementById('filtro-data-fim').value;
 
@@ -763,6 +782,7 @@ function gerar() {
     if(fSafra && l.safra !== fSafra) return false;
     if(fCult && l.cultura !== fCult) return false;
     if(fCg && l.cg !== fCg) return false;
+    if(fStatus && l.status !== fStatus) return false;
     if(dIni || dFim) {
       var d = getDataLanc(l);
       if(dIni && (!d || d < dIni)) return false;
@@ -1013,7 +1033,7 @@ function htmlDetalhado() {
 
 // ── FILTROS: limpar ──
 function limparFiltros() {
-  ['filtro-fazenda','filtro-safra','filtro-cultura','filtro-cg','filtro-data-ini','filtro-data-fim'].forEach(function(id){
+  ['filtro-fazenda','filtro-safra','filtro-cultura','filtro-cg','filtro-status','filtro-data-ini','filtro-data-fim'].forEach(function(id){
     document.getElementById(id).value = '';
   });
   document.getElementById('filtro-base-data').value = 'vencimento';
@@ -1106,6 +1126,7 @@ function _descFiltros() {
   var sf=document.getElementById('filtro-safra').value; if(sf) f.push('Safra: '+sf);
   var cu=document.getElementById('filtro-cultura').value; if(cu) f.push('Cultura: '+cu);
   var cg=document.getElementById('filtro-cg').value; if(cg) f.push('Conta: '+cg);
+  var st=document.getElementById('filtro-status').value; if(st) f.push('Status: '+st);
   var di=document.getElementById('filtro-data-ini').value;
   var df=document.getElementById('filtro-data-fim').value;
   if(di||df) f.push('Período: '+(di?fmtD(di):'início')+' a '+(df?fmtD(df):'hoje'));
