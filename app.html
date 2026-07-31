@@ -533,6 +533,21 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
 .cb-band .cb-svg{max-width:640px;}
 .cb-band .cb-linha{margin-bottom:0;}
 
+
+/* PIX QR Code */
+/* selo Pix na coluna DOCS */
+.doc-badge.pix{background:#0d9488;font-size:13px;}
+
+/* bloco do QR (detalhe e popup) */
+.pix-box{border-top:1px solid var(--creme-dark);margin-top:18px;padding-top:16px;}
+.pix-head{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--verde);font-weight:700;margin-bottom:8px;}
+.pix-msg{font-size:12px;color:var(--cinza);margin:4px 0 10px;}
+.pix-wrap{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;}
+.pix-qr{width:200px;height:200px;flex:0 0 auto;background:#fff;border:1px solid var(--creme-dark);border-radius:10px;padding:8px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;}
+.pix-qr svg{width:100%;height:100%;display:block;}
+.pix-side{flex:1;min-width:220px;}
+.pix-cc{font-family:'DM Mono',monospace;font-size:11px;line-height:1.5;color:var(--texto);word-break:break-all;background:var(--creme);border:1px solid var(--creme-dark);border-radius:8px;padding:10px;margin-bottom:10px;max-height:130px;overflow:auto;}
+
 </style>
 </head>
 <body>
@@ -637,6 +652,11 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
             <button type="button" class="forma-btn" id="forma-pix" onclick="setFormaPag('PIX',this)">⚡ PIX</button>
           </div>
           <input type="hidden" id="f_forma_pag" value="BOLETO">
+        </div>
+        <div class="field col-span-2" id="box_chave_pix" style="display:none;">
+          <label>Chave Pix <span style="color:var(--cinza);font-weight:400;">(gera o QR de pagamento)</span></label>
+          <input type="text" id="f_chave_pix" placeholder="CPF, CNPJ, telefone, e-mail ou chave aleatória" oninput="atualizarHintChavePix()">
+          <span id="hint_chave_pix" style="display:none;font-size:11px;color:#0d9488;font-family:'DM Mono',monospace;margin-top:3px;"></span>
         </div>
         <div class="field"><label>Correntista <span class="req">★</span></label>
           <select id="f_correntista"><option value="">Selecionar…</option><option>AVIÃO AGRÍCOLA</option><option>AVIÃO COMERCIAL</option><option>CAMINHÃO</option><option>COLHEITADEIRA</option><option>OUTROS</option><option>PIVÔ</option><option>PLANTADEIRA</option><option>PULVERIZADOR</option><option>TRATOR</option></select>
@@ -811,7 +831,9 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
       </div>
       <button class="modal-close" onclick="closeModal()">✕</button>
     </div>
-    <div class="modal-body"><div class="detail-grid" id="modalContent"></div></div>
+    <div class="modal-body"><div class="detail-grid" id="modalContent"></div>
+      <div id="det-pix" class="pix-box" style="display:none"></div>
+    </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal()">Fechar</button>
       <button class="btn btn-danger" id="modalDeleteBtn">🗑 Excluir</button>
@@ -1787,6 +1809,10 @@ function setFormaPag(forma, btn) {
   document.querySelectorAll('.forma-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
 
+  // Campo de Chave Pix: só aparece quando forma = PIX
+  var boxChave = document.getElementById('box_chave_pix');
+  if(boxChave) boxChave.style.display = (forma === 'PIX') ? '' : 'none';
+
   // Mostrar/esconder box_recibo conforme forma
   var boxRecibo = document.getElementById('box_recibo');
   if (forma === 'CHEQUE' || forma === 'PIX') {
@@ -1795,6 +1821,19 @@ function setFormaPag(forma, btn) {
   } else {
     if (boxRecibo) boxRecibo.style.display = 'none';
     _reciboBlob = null;
+  }
+}
+
+// Mostra o tipo de chave detectado abaixo do campo (feedback ao digitar)
+function atualizarHintChavePix() {
+  var chave = document.getElementById('f_chave_pix').value.trim();
+  var hint = document.getElementById('hint_chave_pix');
+  if(!hint) return;
+  if(!chave) { hint.style.display='none'; return; }
+  if(typeof pixTipoChave === 'function') {
+    var det = pixTipoChave(chave);
+    hint.textContent = '⚡ Detectado: ' + det.tipo + (det.tipo==='Telefone' ? ' → ' + det.valor : '');
+    hint.style.display = '';
   }
 }
 
@@ -2441,6 +2480,7 @@ async function saveLancamento() {
     cg,lancador:currentUser||'—',historico:document.getElementById('f_historico').value.trim(),
     forma_pagamento:(document.getElementById('f_forma_pag')||{value:'BOLETO'}).value,
     cnpj:cnpjForn||null,
+    chave_pix:(document.getElementById('f_chave_pix')||{value:''}).value.trim()||null,
     codigo_barras: (typeof pendingCodigoBarras !== 'undefined' && pendingCodigoBarras) ? pendingCodigoBarras : null
   };
   // ── Verificar duplicata (mesmo fornecedor + valor + documento) ──
@@ -2599,6 +2639,12 @@ function clearForm() {
   if(fb) fb.classList.add('active');
   var fpEl = document.getElementById('f_forma_pag');
   if(fpEl) fpEl.value = 'BOLETO';
+  var boxChavePix = document.getElementById('box_chave_pix');
+  if(boxChavePix) boxChavePix.style.display = 'none';
+  var fChavePix = document.getElementById('f_chave_pix');
+  if(fChavePix) fChavePix.value = '';
+  var hintChavePix = document.getElementById('hint_chave_pix');
+  if(hintChavePix) hintChavePix.style.display = 'none';
   document.getElementById('formTitle').textContent='Novo Lançamento';
   ['f_fornecedor','f_cnpj','f_documento','f_data_doc','f_vencimento','f_pagamento','f_valor','f_historico'].forEach(id=>document.getElementById(id).value='');
   ['f_solicitante','f_conta','f_correntista','f_fazenda','f_cg'].forEach(id=>document.getElementById(id).value='');
@@ -2699,6 +2745,7 @@ function renderTable() {
           if(nb) s += '<span title="Ver boleto(s)" onclick="verBoletoLinha('+l.id+')" style="cursor:pointer;display:inline-block;background:#1a3d2b;color:#f5f0e8;border-radius:4px;padding:2px 5px;margin:1px;">B'+(nb>1?' '+nb:'')+'</span>';
           if(nf) s += '<span title="Ver nota(s) fiscal(is)" onclick="verNfLinha('+l.id+')" style="cursor:pointer;display:inline-block;background:#b45309;color:#fff;border-radius:4px;padding:2px 4px;margin:1px;">NF'+(nf>1?' '+nf:'')+'</span>';
           if(l.recibo_path) s += '<span title="Ver recibo" onclick="verReciboLinha('+l.id+')" style="cursor:pointer;display:inline-block;background:#2563eb;color:#fff;border-radius:4px;padding:2px 4px;margin:1px;">R</span>';
+          if(String(l.forma_pagamento||'').toUpperCase()==='PIX' && l.chave_pix) s += '<span title="Pagar com Pix (QR)" onclick="pixPopup('+l.id+')" style="cursor:pointer;display:inline-block;background:#0d9488;color:#fff;border-radius:4px;padding:2px 5px;margin:1px;font-size:12px;">⚡</span>';
           if(!s) s = '<span style="color:#ccc;">—</span>';
           return s;
         })()}
@@ -2883,6 +2930,7 @@ function openDetail(id) {
     btnBaixar.style.display = 'none';
     panel.style.display = 'none';
   }
+  if(typeof renderPix === 'function') renderPix(l);
   document.getElementById('detailModal').classList.add('open');
 }
 function closeModal(){
@@ -3055,6 +3103,19 @@ function editLancamento(id) {
   document.getElementById('f_cultura').value=l.cultura||'';
   document.getElementById('f_cg').value=l.cg||'';
   document.getElementById('f_historico').value=l.historico||'';
+  // Restaurar forma de pagamento (botões visuais) + campo Chave Pix
+  var formaSalva = (l.forma_pagamento || 'BOLETO').toUpperCase();
+  document.getElementById('f_forma_pag').value = formaSalva;
+  document.querySelectorAll('.forma-btn').forEach(function(b){ b.classList.remove('active'); });
+  var btnForma = document.getElementById('forma-' + formaSalva.toLowerCase());
+  if(btnForma) btnForma.classList.add('active');
+  var campoChavePix = document.getElementById('f_chave_pix');
+  if(campoChavePix) {
+    campoChavePix.value = l.chave_pix || '';
+    if(typeof atualizarHintChavePix === 'function') atualizarHintChavePix();
+  }
+  var boxChave = document.getElementById('box_chave_pix');
+  if(boxChave) boxChave.style.display = (formaSalva === 'PIX') ? '' : 'none';
   // Preservar path do recibo na edição
   if(l.recibo_path) { window._editRecibo = l.recibo_path; } else { window._editRecibo = null; }
   document.getElementById('f_status').value=l.status;
@@ -3616,6 +3677,109 @@ async function viewerAutoLer(it, idx){
   }catch(e){ done(); }
 }
 
+
+
+/* ═══════════ MÓDULO PIX (QR + COPIA E COLA) ═══════════ */
+/* ===================== PIX (QR + COPIA E COLA) ===================== */
+const CDN_QR=['https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js','https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js'];
+async function ensureQR(){ if(window.qrcode) return; await loadFirst(CDN_QR); }
+async function copiarTexto(txt,msg){ try{ await navigator.clipboard.writeText(txt); showToast(msg||'Copiado.'); }
+  catch(e){ const t=document.createElement('textarea'); t.value=txt; document.body.appendChild(t); t.select(); try{ document.execCommand('copy'); showToast(msg||'Copiado.'); }catch(_){ showToast('Copie manualmente.',true); } t.remove(); } }
+
+function pixCrc16(str){ let crc=0xFFFF;
+  for(let i=0;i<str.length;i++){ crc^=(str.charCodeAt(i)&0xFF)<<8;
+    for(let j=0;j<8;j++){ crc=(crc&0x8000)?((crc<<1)^0x1021):(crc<<1); crc&=0xFFFF; } }
+  return crc.toString(16).toUpperCase().padStart(4,'0'); }
+function pixTlv(id,v){ return id+String(v.length).padStart(2,'0')+v; }
+function pixAscii(s){ return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\x20-\x7E]/g,'').trim(); }
+function pixValidaCPF(c){ c=String(c||'').replace(/\D/g,''); if(c.length!==11||/^(\d)\1{10}$/.test(c)) return false;
+  let s=0; for(let i=0;i<9;i++) s+=+c[i]*(10-i); let d=(s*10)%11; if(d===10)d=0; if(d!==+c[9]) return false;
+  s=0; for(let i=0;i<10;i++) s+=+c[i]*(11-i); d=(s*10)%11; if(d===10)d=0; return d===+c[10]; }
+function pixTipoChave(chave){ chave=String(chave||'').trim();
+  if(chave.includes('@')) return {tipo:'E-mail', valor:chave.toLowerCase()};
+  if(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(chave)) return {tipo:'Aleatória', valor:chave.toLowerCase()};
+  const d=chave.replace(/\D/g,'');
+  if(chave.startsWith('+')) return {tipo:'Telefone', valor:'+'+d};
+  if(d.length===14) return {tipo:'CNPJ', valor:d};
+  if(d.length===11) return pixValidaCPF(d)? {tipo:'CPF', valor:d} : {tipo:'Telefone', valor:'+55'+d};
+  if(d.length===10) return {tipo:'Telefone', valor:'+55'+d};
+  return {tipo:'?', valor:chave}; }
+function pixBRCode({chave, valor, nome, cidade, txid}){
+  const nom=(pixAscii(nome).toUpperCase().slice(0,25))||'RECEBEDOR';
+  const cid=(pixAscii(cidade).toUpperCase().slice(0,15))||'BRASIL';
+  const tx=(txid&&pixAscii(txid).replace(/[^A-Za-z0-9]/g,'').slice(0,25))||'***';
+  const mai=pixTlv('26', pixTlv('00','br.gov.bcb.pix')+pixTlv('01',chave));
+  let p=pixTlv('00','01')+mai+pixTlv('52','0000')+pixTlv('53','986');
+  if(valor&&+valor>0) p+=pixTlv('54',(+valor).toFixed(2));
+  p+=pixTlv('58','BR')+pixTlv('59',nom)+pixTlv('60',cid)+pixTlv('62',pixTlv('05',tx))+'6304';
+  return p+pixCrc16(p); }
+
+let pixState={chave:'',tipo:'',valor:0,nome:'',brcode:''}; let pixTarget='det-pix';
+function renderPix(d){
+  const box=$('det-pix'); if(!box) return;
+  const forma=(d.forma_pagamento||'').toUpperCase();
+  if(forma!=='PIX' || !d.chave_pix){ box.style.display='none'; box.innerHTML=''; return; }
+  pixTarget='det-pix';
+  const det=pixTipoChave(d.chave_pix);
+  pixState={chave:det.valor, tipo:det.tipo, valor:+d.valor||0, nome:d.fornecedor||'RECEBEDOR', brcode:''};
+  pixMontar();
+}
+function pixMontar(){
+  const box=$(pixTarget); if(!box) return; box.style.display='block';
+  const brcode=pixBRCode({chave:pixState.chave, valor:pixState.valor, nome:pixState.nome, cidade:'BRASIL', txid:''});
+  pixState.brcode=brcode;
+  box.innerHTML=`
+    <div class="pix-head">⚡ Pagar com Pix — escaneie o QR no app do banco</div>
+    <div class="pix-msg">Chave (${esc(pixState.tipo)}): <b>${esc(pixState.chave)}</b>${pixState.valor?` · valor ${money(pixState.valor)}`:''}</div>
+    <div class="pix-wrap">
+      <div class="pix-qr"></div>
+      <div class="pix-side">
+        <div class="pix-cc">${esc(brcode)}</div>
+        <div class="cb-acts">
+          <button type="button" class="btn btn-primary btn-sm" onclick="pixCopiar()">⧉ Copiar Pix copia e cola</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="pixCorrigir()">✎ Chave errada?</button>
+        </div>
+      </div>
+    </div>`;
+  pixDesenharQR(box.querySelector('.pix-qr'), brcode);
+}
+async function pixDesenharQR(el, texto){
+  if(!el) return; el.innerHTML='';
+  try{ await ensureQR();
+    const qr=window.qrcode(0,'M'); qr.addData(texto); qr.make();
+    el.innerHTML=qr.createSvgTag({cellSize:6, margin:2, scalable:true});
+  }catch(e){ el.innerHTML='<div class="pix-msg">QR indisponível (sem internet?) — use “Copiar”.</div>'; }
+}
+function pixCopiar(){ copiarTexto(pixState.brcode, 'Pix copia e cola copiado.'); }
+function pixCorrigir(){
+  const box=$(pixTarget); if(!box) return;
+  box.innerHTML=`<div class="pix-head">⚡ Ajustar chave Pix</div>
+    <div class="pix-msg">Tipo detectado: <b>${esc(pixState.tipo)}</b>. Se estiver errado, escolha o tipo e confirme:</div>
+    <select class="cb-sel pix-tipo"><option>CPF</option><option>CNPJ</option><option>Telefone</option><option>E-mail</option><option>Aleatória</option></select>
+    <input class="cb-input pix-chave" value="${esc(pixState.chave)}" placeholder="chave Pix">
+    <div class="cb-acts" style="margin-top:10px"><button type="button" class="btn btn-primary btn-sm" onclick="pixAplicarManual()">Gerar QR</button></div>`;
+  const sel=box.querySelector('.pix-tipo'); if(sel) sel.value=pixState.tipo;
+}
+function pixAplicarManual(){
+  const box=$(pixTarget); if(!box) return;
+  const tipo=box.querySelector('.pix-tipo').value; let chave=(box.querySelector('.pix-chave').value||'').trim();
+  if(tipo==='CPF'||tipo==='CNPJ') chave=chave.replace(/\D/g,'');
+  else if(tipo==='Telefone'){ const d=chave.replace(/\D/g,''); chave=chave.startsWith('+')?('+'+d):('+55'+d); }
+  else if(tipo==='E-mail') chave=chave.toLowerCase();
+  pixState.chave=chave; pixState.tipo=tipo; pixMontar();
+}
+
+function pixPopup(id){
+  const d=lancamentos.find(x=>x.id===id); if(!d||!d.chave_pix) return;
+  pixTarget='pix-pop-body';
+  const det=pixTipoChave(d.chave_pix);
+  pixState={chave:det.valor, tipo:det.tipo, valor:+d.valor||0, nome:d.fornecedor||'RECEBEDOR', brcode:''};
+  const t=$('pix-pop-title'); if(t) t.textContent=d.fornecedor||'Pagar com Pix';
+  $('pixPopOverlay').style.display='flex';
+  pixMontar();
+}
+function fecharPixPop(){ const o=$('pixPopOverlay'); if(o) o.style.display='none'; pixTarget='det-pix'; }
+
 </script>
 
 <!-- MODAL DOWNLOAD EM LOTE -->
@@ -3835,6 +3999,16 @@ async function viewerAutoLer(it, idx){
 
 
 <!-- VIEWER DE ANEXO -->
+<div id="pixPopOverlay" style="display:none;position:fixed;inset:0;background:rgba(39,64,31,.5);backdrop-filter:blur(3px);z-index:420;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto;" onclick="if(event.target===this)fecharPixPop()">
+  <div style="background:#fff;border-radius:16px;max-width:560px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden">
+    <div style="padding:16px 22px;border-bottom:1px solid var(--cinza-light);display:flex;align-items:center;justify-content:space-between;gap:12px">
+      <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:18px;color:var(--verde)" id="pix-pop-title">Pagar com Pix</div>
+      <button class="btn btn-secondary" onclick="fecharPixPop()" style="padding:5px 12px;">✕</button>
+    </div>
+    <div style="padding:18px 22px"><div id="pix-pop-body"></div></div>
+  </div>
+</div>
+
 <div class="viewer-overlay" id="viewerOverlay" onclick="if(event.target===this)fecharViewer()">
   <div class="viewer-bar">
     <span id="viewerNome" style="font-weight:600"></span>
