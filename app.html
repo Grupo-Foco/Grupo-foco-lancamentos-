@@ -752,16 +752,16 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
     <div class="stat-card ok"><div class="stat-label">Pago</div><div class="stat-value money" id="stat-pago">—</div></div>
   </div>
   <div class="filters-bar">
-    <div class="filter-group filter-search"><label>Buscar</label><input type="text" id="filter-search" placeholder="Fornecedor, histórico, NF…" oninput="applyFilters()"></div>
+    <div class="filter-group filter-search"><label>Buscar</label><input type="text" id="filter-search" placeholder="Fornecedor, histórico, NF…" oninput="applyFiltersDebounced()"></div>
     <div class="filter-group"><label>Status</label><select id="filter-status" onchange="applyFilters()"><option value="">Todos</option><option>A PAGAR</option><option>PAGO</option></select></div>
     <div class="filter-group"><label>Fazenda</label><select id="filter-fazenda" onchange="applyFilters()"><option value="">Todas</option><option>ARMAZÉM</option><option>AVIÃO</option><option>BRASIL</option><option>CASA JOÃO E NEILA</option><option>ESCRITÓRIO - GO</option><option>LAGEADO</option><option>MAYARA</option><option>RATEIO</option><option>SANTA ANGELINA</option><option>SÃO BENTO</option></select></div>
     <div class="filter-group"><label>Conta Gerencial</label><select id="filter-cg" onchange="applyFilters()"><option value="">Todas</option></select></div>
     
     <div class="filter-group"><label>Vencimento — De</label>
-      <input type="date" id="filter-venc-ini" onchange="applyFilters()" oninput="applyFilters()" style="font-family:'DM Mono',monospace;font-size:12px;padding:6px 10px;border:1.5px solid var(--cinza-light);border-radius:8px;background:var(--branco);color:var(--texto);cursor:pointer;">
+      <input type="date" id="filter-venc-ini" onchange="applyFilters()" style="font-family:'DM Mono',monospace;font-size:12px;padding:6px 10px;border:1.5px solid var(--cinza-light);border-radius:8px;background:var(--branco);color:var(--texto);cursor:pointer;">
     </div>
     <div class="filter-group"><label>Vencimento — Até</label>
-      <input type="date" id="filter-venc-fim" onchange="applyFilters()" oninput="applyFilters()" style="font-family:'DM Mono',monospace;font-size:12px;padding:6px 10px;border:1.5px solid var(--cinza-light);border-radius:8px;background:var(--branco);color:var(--texto);cursor:pointer;">
+      <input type="date" id="filter-venc-fim" onchange="applyFilters()" style="font-family:'DM Mono',monospace;font-size:12px;padding:6px 10px;border:1.5px solid var(--cinza-light);border-radius:8px;background:var(--branco);color:var(--texto);cursor:pointer;">
     </div>
     <div class="filter-group"><label>Data de lançamento</label>
       <input type="date" id="filter-data-lanc" onchange="applyFilters()" style="font-family:'DM Mono',monospace;font-size:12px;padding:6px 10px;border:1.5px solid var(--cinza-light);border-radius:8px;background:var(--branco);color:var(--texto);cursor:pointer;">
@@ -1037,6 +1037,27 @@ async function salvarFornecedorSeNovo(nome, cnpj) {
     const novo = await sb(TABLE_FORNEC, {method:'POST', body:JSON.stringify({nome:nomeUpper, cnpj:cnpj||null})});
     if(novo && novo[0]) fornecedoresBD.push(novo[0]);
   } catch(e) { console.warn('Fornecedor não salvo:', e.message); }
+}
+
+// Recarga leve: só os lançamentos (não refaz fornecedores). Usada após salvar/baixar.
+async function loadDataLeve() {
+  setSyncState('syncing','Atualizando…');
+  try {
+    var novos = [];
+    var offset = 0;
+    while(true) {
+      var page = await sb(`${TABLE}?order=vencimento.asc&limit=1000&offset=${offset}`);
+      if(!page || page.length === 0) break;
+      novos = novos.concat(page);
+      if(page.length < 1000) break;
+      offset += 1000;
+    }
+    lancamentos = novos;
+    setSyncState('online',`${lancamentos.length} registros`);
+    applyFilters();
+    const el = document.getElementById('panel-subtitle');
+    if(el) el.textContent=`${lancamentos.length} lançamentos no total — ${filtered.length} exibidos`;
+  } catch(e) { setSyncState('error','Erro'); showToast('⚠ '+e.message,true); }
 }
 
 async function loadData() {
@@ -2549,7 +2570,7 @@ async function saveLancamento() {
     }
     clearForm();
     const fb=document.getElementById('saveFeedback'); fb.classList.add('show'); setTimeout(()=>fb.classList.remove('show'),2500);
-    await loadData();
+    await loadDataLeve();
   } catch(e) { showToast('⚠ Erro: '+e.message,true); }
   finally { btn.disabled=false; btn.textContent='＋ Salvar Lançamento'; }
 }
@@ -2603,7 +2624,15 @@ function populateCGFilter() {
   sel.innerHTML='<option value="">Todas</option>'+cgs.map(c=>`<option${c===cur?' selected':''}>${c}</option>`).join('');
 }
 
+// Debounce: espera o usuário parar de digitar antes de filtrar (evita refiltrar a cada tecla)
+var _filterTimer = null;
+function applyFiltersDebounced() {
+  clearTimeout(_filterTimer);
+  _filterTimer = setTimeout(applyFilters, 250);
+}
+
 function applyFilters() {
+  _renderLimit = 200;  // volta ao limite inicial a cada novo filtro
   const search=document.getElementById('filter-search')?.value.toLowerCase()||'';
   const status=document.getElementById('filter-status')?.value||'';
   const fazenda=document.getElementById('filter-fazenda')?.value||'';
@@ -2648,11 +2677,13 @@ function renderStats() {
   document.getElementById('stat-pago').textContent='R$ '+pg.toLocaleString('pt-BR',{minimumFractionDigits:2});
 }
 
+var _renderLimit = 200;  // quantas linhas mostrar por vez
 function renderTable() {
   const tbody=document.getElementById('tableBody');
   document.getElementById('table-count').textContent=filtered.length+' lançamentos';
   document.getElementById('emptyState').style.display=filtered.length?'none':'block';
-  tbody.innerHTML=filtered.map(l=>`
+  var mostrados = filtered.slice(0, _renderLimit);
+  tbody.innerHTML=mostrados.map(l=>`
     <tr onclick="openDetail(${l.id})">
       <td onclick="event.stopPropagation()"><input type="checkbox" class="row-check" data-id="${l.id}" onchange="checkSel()"></td>
       <td class="mono" style="color:var(--cinza)">${l.codigo||String(l.id).padStart(4,'0')}</td>
@@ -2683,6 +2714,24 @@ function renderTable() {
         <button class="btn btn-secondary" title="Editar" onclick="editLancamento(${l.id})" style="padding:4px 8px;font-size:10px">✎</button>
       </td>
     </tr>`).join('');
+  // Se há mais linhas do que o limite, mostra um botão "carregar mais"
+  var aviso = document.getElementById('render-mais-box');
+  if(!aviso) {
+    aviso = document.createElement('div');
+    aviso.id = 'render-mais-box';
+    aviso.style.cssText = 'text-align:center;padding:14px;';
+    var wrap = document.querySelector('.table-wrapper') || tbody.parentNode.parentNode;
+    if(wrap) wrap.appendChild(aviso);
+  }
+  if(filtered.length > _renderLimit) {
+    var restantes = filtered.length - _renderLimit;
+    aviso.innerHTML = '<div style="font-size:12px;color:var(--cinza);margin-bottom:8px;font-family:\'DM Mono\',monospace;">Mostrando ' + _renderLimit + ' de ' + filtered.length + ' — ' + restantes + ' não exibidos</div>' +
+      '<button class="btn btn-secondary" onclick="_renderLimit+=500;renderTable();" style="font-size:12px;">↓ Carregar mais 500</button>' +
+      ' <button class="btn btn-secondary" onclick="_renderLimit=999999;renderTable();" style="font-size:12px;">Mostrar todos</button>';
+    aviso.style.display = 'block';
+  } else {
+    aviso.style.display = 'none';
+  }
   // Sempre recalcular estado dos botões após re-renderizar
   checkSel();
 }
@@ -2766,7 +2815,7 @@ async function deleteSelected() {
   try {
     const filter=ids.map(id=>`id.eq.${id}`).join(',');
     await sb(`${TABLE}?or=(${filter})`,{method:'DELETE',prefer:'return=minimal'});
-    await loadData(); checkSel(); showToast(`🗑 ${ids.length} excluído(s)`);
+    await loadDataLeve(); checkSel(); showToast(`🗑 ${ids.length} excluído(s)`);
   } catch(e) { showToast('⚠ '+e.message,true); }
 }
 
@@ -2812,7 +2861,7 @@ function openDetail(id) {
   `;
   document.getElementById('modalDeleteBtn').onclick=async()=>{
     if(!confirm('Excluir?')) return;
-    try { await sb(`${TABLE}?id=eq.${id}`,{method:'DELETE',prefer:'return=minimal'}); await loadData(); closeModal(); showToast('🗑 Excluído'); }
+    try { await sb(`${TABLE}?id=eq.${id}`,{method:'DELETE',prefer:'return=minimal'}); await loadDataLeve(); closeModal(); showToast('🗑 Excluído'); }
     catch(e) { showToast('⚠ '+e.message,true); }
   };
   document.getElementById('modalEditBtn').onclick=()=>{closeModal();editLancamento(id);};
@@ -2927,7 +2976,7 @@ async function confirmarBaixaRapida(id) {
       body: JSON.stringify({ status: 'PAGO', pagamento: dataPag, conta: conta })
     });
     var pop = document.getElementById('popup-baixa-rapida'); if(pop) pop.remove();
-    await loadData();
+    await loadDataLeve();
     showToast('✓ Baixado como PAGO!');
   } catch(e) {
     showToast('⚠ Erro: ' + e.message, true);
@@ -2943,7 +2992,7 @@ async function desfazerBaixaLinha(id) {
       method: 'PATCH',
       body: JSON.stringify({ status: 'A PAGAR', pagamento: null })
     });
-    await loadData();
+    await loadDataLeve();
     showToast('↺ Baixa desfeita');
   } catch(e) { showToast('⚠ Erro: ' + e.message, true); }
 }
@@ -2961,7 +3010,7 @@ async function confirmarBaixaModal() {
       method: 'PATCH',
       body: JSON.stringify({ status: 'PAGO', pagamento: dataPag, conta: conta })
     });
-    await loadData();
+    await loadDataLeve();
     closeModal();
     showToast('✓ Lançamento baixado como PAGO!');
   } catch(e) {
@@ -3299,7 +3348,7 @@ async function confirmarBaixa() {
       btn.textContent = `Salvando ${ok}/${ids.length}…`;
     }
     document.getElementById('modalBaixa').classList.remove('open');
-    await loadData();
+    await loadDataLeve();
     checkSel();
     showToast(`✓ ${ids.length} lançamento${ids.length>1?'s':''} baixado${ids.length>1?'s':''}!`);
   } catch(e) {
