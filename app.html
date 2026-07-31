@@ -508,6 +508,31 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
   .detail-item.full { grid-column: span 1; }
   .nav-tab { font-size: 8px; padding: 8px 2px; }
 }
+
+/* Código de barras */
+/* --- posiciona o selo de leitura sobre o visualizador --- */
+.viewer-body{position:relative;}
+.cb-reading{position:absolute;top:10px;left:16px;z-index:5;background:rgba(255,255,255,.96);color:var(--verde);font-size:12px;font-weight:700;font-family:'DM Sans',sans-serif;padding:7px 13px;border-radius:9px;box-shadow:0 4px 14px rgba(0,0,0,.2);}
+/* --- caixa de preview (formulário) e banda (visualizador) --- */
+.cb-box{margin-top:12px;border:1px solid var(--creme-dark);background:var(--branco);border-radius:12px;padding:14px 16px;}
+.cb-head{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--verde-light);font-weight:600;margin-bottom:8px;}
+.cb-msg{font-size:12px;color:var(--cinza);margin:4px 0;}
+.cb-meta{font-size:13px;color:var(--texto);margin:6px 0 8px;font-family:'DM Sans',sans-serif;}
+.cb-sel{width:100%;margin:4px 0 10px;padding:8px 10px;border:1px solid var(--cinza-light);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;background:#fff;}
+.cb-input{width:100%;padding:10px 12px;border:1px solid var(--cinza-light);border-radius:8px;font-family:'DM Mono',monospace;font-size:13px;}
+.cb-svg{width:100%;max-width:520px;height:auto;display:block;margin:6px 0;}
+.cb-linha{font-family:'DM Mono',monospace;font-size:15px;font-weight:500;color:var(--texto);word-break:break-all;letter-spacing:.02em;margin:6px 0 12px;line-height:1.5;}
+.cb-acts{display:flex;gap:8px;flex-wrap:wrap;}
+.cb-load{font-size:13px;color:var(--cinza);padding:6px 0;}
+.cb-view-wrap{display:flex;flex-direction:column;width:min(940px,100%);height:100%;}
+.cb-band{background:#fff;border-radius:8px 8px 0 0;border-bottom:2px solid var(--creme-dark);padding:14px 18px 16px;}
+.cb-view-wrap iframe{flex:1;width:100%;height:auto;border-radius:0 0 8px 8px;}
+.cb-view-wrap img{max-height:100%;border-radius:0 0 8px 8px;}
+.cb-band-top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:6px;}
+.cb-band-t{font-size:13px;color:var(--verde);font-weight:600;font-family:'DM Sans',sans-serif;}
+.cb-band .cb-svg{max-width:640px;}
+.cb-band .cb-linha{margin-bottom:0;}
+
 </style>
 </head>
 <body>
@@ -682,6 +707,7 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
           <span class="anexo-nome" id="nome_recibo"></span>
         </div>
       </div>
+      <div id="cb-preview" class="cb-box" style="display:none"></div>
     </div>
 
     <div id="parcelas-preview-box" class="parcelas-preview" style="display:none;margin:0 0 16px;">
@@ -1060,6 +1086,7 @@ function selecionarAnexo(input, slot) {
   if(!novos.length) return;
   _adicionarArquivos(slot, novos);
   input.value = ''; // permite re-selecionar o mesmo arquivo depois
+  if(slot === 'boleto' && typeof autoLerBoleto === 'function') autoLerBoleto(novos);
 }
 function dropAnexo(e, slot) {
   e.preventDefault();
@@ -1067,6 +1094,7 @@ function dropAnexo(e, slot) {
   const novos = Array.from(e.dataTransfer.files || []);
   if(!novos.length) return;
   _adicionarArquivos(slot, novos);
+  if(slot === 'boleto' && typeof autoLerBoleto === 'function') autoLerBoleto(novos);
 }
 function _adicionarArquivos(slot, novos) {
   if(!Array.isArray(_arqs[slot])) _arqs[slot] = [];
@@ -1288,19 +1316,30 @@ async function getUrlAnexo(path) {
   return `${SB_URL}/storage/v1${d.signedURL}`;
 }
 
-async function abrirAnexo(path) {
+async function abrirAnexo(path, isBoleto, linhaSalva) {
   showToast('⏳ Carregando…');
   const url = await getUrlAnexo(path);
   if(!url) { showToast('⚠ Não foi possível abrir o anexo', true); return; }
   const nome = path.split('/').pop();
   document.getElementById('viewerNome').textContent = nome;
   const frame = document.getElementById('viewerFrame');
-  if(/\.pdf$/i.test(nome)) {
-    frame.innerHTML = `<iframe src="${url}#toolbar=1" style="width:100%;height:100%;border:none;"></iframe>`;
-  } else {
-    frame.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:contain;">`;
+  const isImg = !/\.pdf$/i.test(nome);
+  const _doc = isImg
+    ? `<img src="${url}" style="width:100%;height:100%;object-fit:contain;">`
+    : `<iframe src="${url}#toolbar=1" style="width:100%;height:100%;border:none;"></iframe>`;
+  // Faixa do código de barras (se for boleto com linha válida)
+  var _band = '';
+  if(isBoleto && linhaSalva && typeof cbLinhaValida === 'function' && cbLinhaValida(linhaSalva)) {
+    _band = barcodeBandHTML(linhaSalva);
   }
+  frame.innerHTML = _band ? `<div class="cb-view-wrap">${_band}${_doc}</div>` : _doc;
   document.getElementById('viewerOverlay').classList.add('open');
+  if(_band) {
+    desenharBarcode('cb-svg-view', linhaSalva);
+  } else if(isBoleto && typeof viewerAutoLerGF === 'function') {
+    // Registro antigo sem código salvo: tenta ler na hora
+    viewerAutoLerGF(url, nome, isImg);
+  }
 }
 function fecharViewer() {
   document.getElementById('viewerOverlay').classList.remove('open');
@@ -1308,6 +1347,50 @@ function fecharViewer() {
   // Libera URL de pré-visualização local, se houver
   var ov = document.getElementById('viewerOverlay');
   if(ov._objUrl) { try { URL.revokeObjectURL(ov._objUrl); } catch(e){} ov._objUrl = null; }
+}
+
+// Lê o código na hora ao abrir um boleto antigo (sem código salvo)
+async function viewerAutoLerGF(url, nome, isImg) {
+  const frame = document.getElementById('viewerFrame');
+  if(!frame) return;
+  var chip = document.createElement('div');
+  chip.className = 'cb-reading';
+  chip.textContent = '🔍 lendo código do boleto…';
+  frame.appendChild(chip);
+  var remover = function(){ if(chip && chip.parentNode) chip.parentNode.removeChild(chip); };
+  try {
+    var linhas = [];
+    try {
+      var resp = await fetch(url);
+      if(resp.ok) {
+        var blob = await resp.blob();
+        var isPdf = /pdf/i.test(blob.type) || /\.pdf($|\?)/i.test(url);
+        var file = new File([blob], (nome||'boleto').replace(/\s+/g,'_') + (isPdf?'.pdf':'.jpg'), {type: blob.type || (isPdf?'application/pdf':'image/jpeg')});
+        linhas = await lerCodigosDeArquivo(file);
+      }
+    } catch(e){}
+    // Fallback: pdf.js direto pela URL (caso CORS bloqueie o fetch de PDF)
+    if(!linhas.length && !isImg && /\.pdf($|\?)/i.test(url)) {
+      try {
+        var lib = await ensurePdfjs();
+        var docp = await lib.getDocument({url:url}).promise;
+        var full = '';
+        for(var pg=1; pg<=docp.numPages; pg++){ var page=await docp.getPage(pg); var tc=await page.getTextContent(); full += tc.items.map(function(x){return x.str;}).join(' ')+'\n'; }
+        linhas = extrairLinhasDeTexto(full);
+      } catch(e){}
+    }
+    if(!linhas.length) { remover(); return; }
+    var parc = cbOrdena(linhas);
+    var pick = parc[cbEscolherParcela(parc)];
+    if(!pick) { remover(); return; }
+    // Se o visualizador ainda está aberto, injeta a faixa
+    if(!document.getElementById('viewerOverlay').classList.contains('open')) { remover(); return; }
+    var _doc = isImg
+      ? `<img src="${url}" style="width:100%;height:100%;object-fit:contain;">`
+      : `<iframe src="${url}#toolbar=1" style="width:100%;height:100%;border:none;"></iframe>`;
+    frame.innerHTML = `<div class="cb-view-wrap">${barcodeBandHTML(pick.linha)}${_doc}</div>`;
+    desenharBarcode('cb-svg-view', pick.linha);
+  } catch(e){ remover(); }
 }
 
 
@@ -2336,7 +2419,8 @@ async function saveLancamento() {
     safra:document.getElementById('f_safra').value,cultura:document.getElementById('f_cultura').value,
     cg,lancador:currentUser||'—',historico:document.getElementById('f_historico').value.trim(),
     forma_pagamento:(document.getElementById('f_forma_pag')||{value:'BOLETO'}).value,
-    cnpj:cnpjForn||null
+    cnpj:cnpjForn||null,
+    codigo_barras: (typeof pendingCodigoBarras !== 'undefined' && pendingCodigoBarras) ? pendingCodigoBarras : null
   };
   // ── Verificar duplicata (mesmo fornecedor + valor + documento) ──
   if(!editingId && documento) {
@@ -2474,6 +2558,7 @@ function clearForm() {
   editingId=null;
   _editBoleto=[]; _editNf=[];
   _arqs.boleto=[]; _arqs.nf=[];
+  if(typeof cbLimpar === 'function') cbLimpar();
   // Restaurar label dos boxes de anexo
   ['boleto','nf'].forEach(function(slot){
     var lbl = document.getElementById('lbl_'+slot);
@@ -2713,7 +2798,7 @@ function openDetail(id) {
       var botoes = '';
       bol.forEach(function(p, i){
         var rot = bol.length > 1 ? ('📄 Ver Boleto ' + (i+1)) : '📄 Ver Boleto';
-        botoes += '<button class="btn-ver-anexo" onclick="abrirAnexo(\'' + p.replace(/'/g,"\\\\'") + '\')">' + rot + '</button>';
+        botoes += '<button class="btn-ver-anexo" onclick="verBoletoDetalhe(' + l.id + ',' + i + ')">' + rot + '</button>';
       });
       nfs.forEach(function(p, i){
         var rot = nfs.length > 1 ? ('🧾 Ver NF ' + (i+1)) : '🧾 Ver NF / Recibo';
@@ -2765,8 +2850,16 @@ function verBoletoLinha(id) {
   if(!l) return;
   var paths = getBoletoPaths(l);
   if(!paths.length) { showToast('⚠ Nenhum boleto', true); return; }
-  abrirAnexo(paths[0]);
+  abrirAnexo(paths[0], true, l.codigo_barras || null);
   if(paths.length > 1) showToast('ℹ ' + paths.length + ' boletos — abrindo o 1º (veja os demais no detalhe)');
+}
+// Abre um boleto específico do modal de detalhe (com faixa de código)
+function verBoletoDetalhe(id, i) {
+  var l = lancamentos.find(function(x){ return x.id===id; });
+  if(!l) return;
+  var paths = getBoletoPaths(l);
+  if(!paths[i]) return;
+  abrirAnexo(paths[i], true, l.codigo_barras || null);
 }
 function verNfLinha(id) {
   var l = lancamentos.find(function(x){ return x.id===id; });
@@ -2883,6 +2976,14 @@ function editLancamento(id) {
   editingId=id;
   // Limpar anexos do lançamento anterior
   removerAnexo('boleto'); removerAnexo('nf');
+  // Carregar código de barras salvo (se houver)
+  if(typeof cbLimpar === 'function') cbLimpar();
+  if(l.codigo_barras && typeof cbParse === 'function') {
+    pendingCodigoBarras = l.codigo_barras;
+    cbParcelas = [cbParse(pendingCodigoBarras)].filter(Boolean);
+    cbIdx = 0;
+    if(typeof renderCbPreview === 'function') renderCbPreview();
+  }
   _editBoleto = getBoletoPaths(l);   // lista de paths já salvos
   _editNf     = getNfPaths(l);
   // Mostrar os anexos já salvos (somente leitura, com botão de ver)
@@ -3210,6 +3311,262 @@ async function confirmarBaixa() {
 }
 
 init();
+
+
+/* ═══════════ MÓDULO CÓDIGO DE BARRAS (BOLETO) ═══════════ */
+/* ===== Helpers locais p/ o módulo de código de barras (Grupo Foco) ===== */
+if(typeof window.$ === 'undefined') window.$ = function(id){ return document.getElementById(id); };
+if(typeof window.money === 'undefined') window.money = function(v){ return 'R$ ' + (Number(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); };
+var $ = window.$, money = window.money;
+/* ===================== CÓDIGO DE BARRAS (BOLETO) ===================== */
+let pendingCodigoBarras='', cbParcelas=[], cbIdx=0; const _cbLibs={};
+const CDN_PDF=['https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js','https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js'];
+const CDN_PDFW=['https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js','https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'];
+const CDN_ZX=['https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js','https://cdnjs.cloudflare.com/ajax/libs/zxing-library/0.21.3/umd/index.min.js'];
+const CDN_BAR=['https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js','https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js'];
+
+function cbDigits(s){ return String(s==null?'':s).replace(/\D/g,''); }
+function cbMod10(num){ let sum=0,w=2; for(let i=num.length-1;i>=0;i--){ let n=(+num[i])*w; if(n>9)n=(n-10)+1; sum+=n; w=w===2?1:2; } return (10-(sum%10))%10; }
+function cbFmtLinha(l){ l=cbDigits(l); if(l.length!==47) return l;
+  return `${l.slice(0,5)}.${l.slice(5,10)} ${l.slice(10,15)}.${l.slice(15,21)} ${l.slice(21,26)}.${l.slice(26,32)} ${l[32]} ${l.slice(33)}`; }
+function cbLinhaParaBarcode(l){ l=cbDigits(l); if(l.length!==47) return null;
+  const livre=l.slice(4,9)+l.slice(10,20)+l.slice(21,31);
+  const bc=l.slice(0,4)+l[32]+l.slice(33,47)+livre; return bc.length===44?bc:null; }
+function cbBarcodeParaLinha(bc){ bc=cbDigits(bc); if(bc.length!==44) return null;
+  const banco=bc.slice(0,4), dvGeral=bc[4], fatorValor=bc.slice(5,19), livre=bc.slice(19,44);
+  const c1=banco+livre.slice(0,5), c2=livre.slice(5,15), c3=livre.slice(15,25);
+  return (c1+cbMod10(c1))+(c2+cbMod10(c2))+(c3+cbMod10(c3))+dvGeral+fatorValor; }
+function cbDV(bc43){ const p=[2,3,4,5,6,7,8,9]; let s=0,k=0; for(let i=bc43.length-1;i>=0;i--){ s+=(+bc43[i])*p[k%8]; k++; } let dv=11-(s%11); if(dv===0||dv>9) dv=1; return dv; }
+function cbBarcodeValido(bc){ bc=cbDigits(bc); if(bc.length!==44) return false; return cbDV(bc.slice(0,4)+bc.slice(5))===(+bc[4]); }
+function cbLinhaValida(l){ l=cbDigits(l);
+  if(l.length!==47 || l[3]!=='9') return false;
+  if(cbMod10(l.slice(0,9))!==(+l[9])) return false;
+  if(cbMod10(l.slice(10,20))!==(+l[20])) return false;
+  if(cbMod10(l.slice(21,31))!==(+l[31])) return false;
+  return cbBarcodeValido(cbLinhaParaBarcode(l)); }
+function cbFatorData(f){ f=parseInt(f,10); if(!f) return null; const base=Date.UTC(2025,1,22); return new Date(base+(f-1000)*86400000); }
+function cbFmtData(d){ if(!d) return '—'; const p=n=>String(n).padStart(2,'0'); return `${p(d.getUTCDate())}/${p(d.getUTCMonth()+1)}/${d.getUTCFullYear()}`; }
+function cbParse(l){ l=cbDigits(l); if(l.length!==47) return null; return { linha:l, venc:cbFatorData(l.slice(33,37)), valor:(+l.slice(37,47))/100 }; }
+
+function loadScript(url){ return new Promise((res,rej)=>{ if(_cbLibs[url]) return res();
+  const s=document.createElement('script'); s.src=url; s.onload=()=>{_cbLibs[url]=1;res();}; s.onerror=()=>rej(new Error('CDN '+url)); document.head.appendChild(s); }); }
+async function loadFirst(urls){ let err; for(const u of urls){ try{ await loadScript(u); return u; }catch(e){ err=e; } } throw err||new Error('CDN'); }
+async function ensurePdfjs(){ if(window.pdfjsLib) return window.pdfjsLib;
+  const u=await loadFirst(CDN_PDF); const w=u.includes('cdnjs')?CDN_PDFW[1]:CDN_PDFW[0];
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc=w; return window.pdfjsLib; }
+async function ensureZxing(){ if(window.ZXing) return window.ZXing; await loadFirst(CDN_ZX); return window.ZXing; }
+async function ensureBar(){ if(window.JsBarcode) return; await loadFirst(CDN_BAR); }
+
+async function pdfTextoCompleto(file){
+  const lib=await ensurePdfjs(); const buf=await file.arrayBuffer();
+  const doc=await lib.getDocument({data:buf}).promise; let full='';
+  for(let p=1;p<=doc.numPages;p++){ const pg=await doc.getPage(p); const tc=await pg.getTextContent(); full+=tc.items.map(i=>i.str).join(' ')+'\n'; }
+  return full;
+}
+function extrairLinhasDeTexto(txt){
+  const out=new Set();
+  const re=/\d{5}\.\d{5}\s+\d{5}\.\d{6}\s+\d{5}\.\d{6}\s+\d\s+\d{14}/g;
+  for(const m of txt.matchAll(re)){ const l=cbDigits(m[0]); if(l.length===47 && cbLinhaValida(l)) out.add(l); }
+  if(!out.size){ const d=cbDigits(txt);
+    for(let i=0;i+47<=d.length;i++){ const w=d.slice(i,i+47); if(cbLinhaValida(w)) out.add(w); } }
+  return [...out];
+}
+async function pdfExtrairLinhas(file){ return extrairLinhasDeTexto(await pdfTextoCompleto(file)); }
+
+function canvasToLum(canvas){
+  const w=canvas.width,h=canvas.height; const data=canvas.getContext('2d').getImageData(0,0,w,h).data;
+  const lum=new Uint8ClampedArray(w*h);
+  for(let i=0;i<w*h;i++){ lum[i]=(data[i*4]*0.299+data[i*4+1]*0.587+data[i*4+2]*0.114)|0; }
+  return {lum,w,h};
+}
+function zxScanLum(lum,w,h){
+  const ZXing=window.ZXing; if(!ZXing) return [];
+  const src=new ZXing.RGBLuminanceSource(lum,w,h);
+  const hints=new Map(); hints.set(ZXing.DecodeHintType.TRY_HARDER,true);
+  const achados=new Set();
+  const regions=[[0,0,w,h]]; const by=Math.floor(h*0.55); if(h-by>60) regions.push([0,by,w,h-by]);
+  for(const [rx,ry,rw,rh] of regions){
+    let sub;
+    if(rx===0&&ry===0&&rw===w&&rh===h){ sub=src; }
+    else { const cl=new Uint8ClampedArray(rw*rh); for(let y=0;y<rh;y++){ const off=(ry+y)*w+rx; for(let x=0;x<rw;x++) cl[y*rw+x]=lum[off+x]; } sub=new ZXing.RGBLuminanceSource(cl,rw,rh); }
+    for(const Bin of [ZXing.HybridBinarizer, ZXing.GlobalHistogramBinarizer]){
+      let bmp; try{ bmp=new ZXing.BinaryBitmap(new Bin(sub)); }catch(e){ continue; }
+      const reader=new ZXing.ITFReader(); const N=200;
+      for(let k=0;k<N;k++){ const y=Math.floor(rh*(k+0.5)/N);
+        try{ const row=bmp.getBlackRow(y,null); const res=reader.decodeRow(y,row,hints); const txt=cbDigits(res.getText());
+          if(txt.length===44){ const linha=cbBarcodeParaLinha(txt); if(linha && cbLinhaValida(linha)) achados.add(linha); }
+        }catch(e){}
+      }
+      if(achados.size) return [...achados];
+    }
+  }
+  return [...achados];
+}
+function zxDecodeCanvas(srcCanvas){
+  if(!window.ZXing) return [];
+  const W=srcCanvas.width, H=srcCanvas.height;
+  for(const f of [1,0.95,0.9,0.85,0.8,0.75,0.7,0.65,0.6,0.55,0.5,0.45]){
+    let lum,w,h;
+    if(f===1){ const o=canvasToLum(srcCanvas); lum=o.lum; w=o.w; h=o.h; }
+    else { w=Math.max(1,Math.round(W*f)); h=Math.max(1,Math.round(H*f));
+      const c=document.createElement('canvas'); c.width=w; c.height=h; const ctx=c.getContext('2d');
+      ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high'; ctx.drawImage(srcCanvas,0,0,w,h);
+      lum=canvasToLum(c).lum; }
+    const r=zxScanLum(lum,w,h); if(r.length) return r;
+  }
+  return [];
+}
+
+async function pdfDecodeImagem(file){
+  const lib=await ensurePdfjs(); await ensureZxing();
+  const buf=await file.arrayBuffer(); const doc=await lib.getDocument({data:buf}).promise; const out=[];
+  for(let p=1;p<=doc.numPages;p++){ const page=await doc.getPage(p);
+    const base=page.getViewport({scale:1}); const scale=Math.min(6, Math.max(4.5, 3300/base.width));
+    const vp=page.getViewport({scale});
+    const canvas=document.createElement('canvas'); canvas.width=Math.floor(vp.width); canvas.height=Math.floor(vp.height);
+    await page.render({canvasContext:canvas.getContext('2d'),viewport:vp}).promise;
+    zxDecodeCanvas(canvas).forEach(l=>out.push(l));
+    canvas.width=canvas.height=0;
+  }
+  return [...new Set(out)];
+}
+
+async function imagemDecode(file){
+  await ensureZxing(); const url=URL.createObjectURL(file);
+  try{ const img=await new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>res(im); im.onerror=rej; im.src=url; });
+    let w=img.naturalWidth||img.width, h=img.naturalHeight||img.height; const max=3200;
+    if(Math.max(w,h)>max){ const s=max/Math.max(w,h); w=Math.round(w*s); h=Math.round(h*s); }
+    const canvas=document.createElement('canvas'); canvas.width=w; canvas.height=h;
+    const ctx=canvas.getContext('2d'); ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high'; ctx.drawImage(img,0,0,w,h);
+    return zxDecodeCanvas(canvas);
+  } finally { URL.revokeObjectURL(url); }
+}
+
+function ehPdf(f){ return /pdf/i.test(f.type||'')||/\.pdf($|\?)/i.test(f.name||''); }
+function ehImagem(f){ return /^image\//i.test(f.type||'')||/\.(png|jpe?g|webp|gif|bmp|heic|heif)($|\?)/i.test(f.name||''); }
+
+async function lerCodigosDeArquivo(file){
+  if(ehPdf(file)){
+    try{ const ls=await pdfExtrairLinhas(file); if(ls.length) return ls; }catch(e){}
+    try{ const ls=await pdfDecodeImagem(file); if(ls.length) return ls; }catch(e){}
+    return [];
+  }
+  if(ehImagem(file)){ try{ return await imagemDecode(file); }catch(e){ return []; } }
+  return [];
+}
+
+function cbEscolherParcela(parcelas){
+  const h=new Date(); const hj=Date.UTC(h.getFullYear(),h.getMonth(),h.getDate());
+  let idx=parcelas.findIndex(p=>p.venc && p.venc.getTime()>=hj); if(idx<0) idx=parcelas.length-1; return idx;
+}
+function cbOrdena(linhas){ return linhas.map(cbParse).filter(Boolean).sort((a,b)=>((a.venc&&a.venc.getTime())||0)-((b.venc&&b.venc.getTime())||0)); }
+
+async function autoLerBoleto(files){
+  const f=[...files].find(x=>ehPdf(x)||ehImagem(x)); if(!f) return;
+  const box=$('cb-preview'); if(box){ box.style.display='block'; box.innerHTML='<div class="cb-load">🔍 Lendo código de barras do boleto…</div>'; }
+  try{
+    const linhas=await lerCodigosDeArquivo(f);
+    if(!linhas.length){ cbManualUI('Não consegui ler o código automaticamente (boleto ruim?). Cole a linha digitável:'); return; }
+    cbParcelas=cbOrdena(linhas); cbIdx=cbEscolherParcela(cbParcelas); pendingCodigoBarras=cbParcelas[cbIdx].linha; renderCbPreview();
+  }catch(e){ cbManualUI('Leitura automática indisponível (sem internet?). Cole a linha digitável:'); }
+}
+
+function cbManualUI(msg){
+  const box=$('cb-preview'); if(!box) return; box.style.display='block';
+  box.innerHTML=`<div class="cb-head">🏦 Código de barras do boleto</div>
+    <div class="cb-msg">${esc(msg||'Cole a linha digitável (47 dígitos):')}</div>
+    <input id="cb-manual" class="cb-input" inputmode="numeric" placeholder="00000.00000 00000.000000 00000.000000 0 00000000000000" oninput="cbManualInput(this.value)">
+    <div id="cb-manual-status" class="cb-msg"></div>`;
+  if(pendingCodigoBarras){ const inp=$('cb-manual'); if(inp) inp.value=cbFmtLinha(pendingCodigoBarras); }
+}
+function cbManualInput(v){
+  const st=$('cb-manual-status');
+  if(cbLinhaValida(v)){ pendingCodigoBarras=cbDigits(v); cbParcelas=[cbParse(pendingCodigoBarras)]; cbIdx=0;
+    if(st) st.innerHTML='<span style="color:var(--sucesso)">✓ Linha válida — código gerado abaixo</span>'; renderCbPreview(); }
+  else { const n=cbDigits(v).length; if(st) st.textContent = n? `${n}/47 dígitos${n===47?' — dígito verificador não confere':''}` : ''; }
+}
+
+function renderCbPreview(){
+  const box=$('cb-preview'); if(!box) return;
+  if(!pendingCodigoBarras){ box.style.display='none'; box.innerHTML=''; return; }
+  box.style.display='block';
+  const p=cbParcelas[cbIdx]||cbParse(pendingCodigoBarras);
+  let sel='';
+  if(cbParcelas.length>1){
+    sel=`<select class="cb-sel" onchange="cbPick(this.value)">`+cbParcelas.map((x,i)=>`<option value="${i}" ${i===cbIdx?'selected':''}>Parcela ${i+1}/${cbParcelas.length} — venc ${cbFmtData(x.venc)} — ${money(x.valor)}</option>`).join('')+`</select>`;
+  }
+  box.innerHTML=`
+    <div class="cb-head">🏦 Código de barras detectado</div>
+    ${cbParcelas.length>1?`<div class="cb-msg">Carnê com ${cbParcelas.length} parcelas — selecionei a do vencimento mais próximo. Troque se precisar:</div>${sel}`:''}
+    <div class="cb-meta">Vencimento <b>${cbFmtData(p&&p.venc)}</b> · ${money(p?p.valor:0)}</div>
+    <svg id="cb-svg-form" class="cb-svg"></svg>
+    <div class="cb-linha">${cbFmtLinha(pendingCodigoBarras)}</div>
+    <div class="cb-acts">
+      <button type="button" class="btn btn-primary btn-sm" onclick="copiarLinha('${pendingCodigoBarras}')">⧉ Copiar linha digitável</button>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="cbManualUI('Cole/edite a linha digitável (47 dígitos):')">✎ Corrigir</button>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="cbLimpar()">✕ Remover</button>
+    </div>`;
+  desenharBarcode('cb-svg-form', pendingCodigoBarras);
+}
+function cbPick(i){ cbIdx=+i; pendingCodigoBarras=cbParcelas[cbIdx].linha; renderCbPreview(); }
+function cbLimpar(){ pendingCodigoBarras=''; cbParcelas=[]; cbIdx=0; const b=$('cb-preview'); if(b){ b.style.display='none'; b.innerHTML=''; } }
+
+async function desenharBarcode(svgId, linha){
+  const bc=cbLinhaParaBarcode(linha); const el=document.getElementById(svgId); if(!el||!bc) return;
+  try{ await ensureBar(); window.JsBarcode(el,bc,{format:'ITF',width:2,height:80,displayValue:false,margin:0}); }
+  catch(e){ el.outerHTML='<div class="cb-msg">Imagem do código indisponível offline — use “Copiar linha digitável”.</div>'; }
+}
+
+async function copiarLinha(linha){
+  const l=cbDigits(linha);
+  try{ await navigator.clipboard.writeText(l); showToast('Linha digitável copiada.'); }
+  catch(e){ const t=document.createElement('textarea'); t.value=l; document.body.appendChild(t); t.select(); try{ document.execCommand('copy'); showToast('Linha digitável copiada.'); }catch(_){ showToast('Copie manualmente.',true); } t.remove(); }
+}
+
+function barcodeBandHTML(linha){
+  const bc=cbLinhaParaBarcode(linha); if(!bc) return '';
+  const p=cbParse(linha);
+  return `<div class="cb-band">
+    <div class="cb-band-top">
+      <span class="cb-band-t">🏦 Código de barras — venc ${cbFmtData(p&&p.venc)} · ${money(p?p.valor:0)}</span>
+      <button class="btn btn-primary btn-sm" onclick="copiarLinha('${cbDigits(linha)}')">⧉ Copiar linha digitável</button>
+    </div>
+    <svg id="cb-svg-view" class="cb-svg"></svg>
+    <div class="cb-linha">${cbFmtLinha(linha)}</div>
+  </div>`;
+}
+
+async function viewerAutoLer(it, idx){
+  const bodyEl=$('viewer-body'); if(!bodyEl) return;
+  const chip=document.createElement('div'); chip.className='cb-reading'; chip.textContent='🔍 lendo código do boleto…'; bodyEl.appendChild(chip);
+  const done=()=>{ if(chip&&chip.parentNode) chip.parentNode.removeChild(chip); };
+  try{
+    let linhas=[];
+    try{
+      const resp=await fetch(it.url);
+      if(resp.ok){ const blob=await resp.blob();
+        const isPdf=/pdf/i.test(blob.type)||/\.pdf($|\?)/i.test(it.url);
+        const file=new File([blob],(it.nome||'boleto').replace(/\s+/g,'_')+(isPdf?'.pdf':'.jpg'),{type:blob.type||(isPdf?'application/pdf':'image/jpeg')});
+        linhas=await lerCodigosDeArquivo(file);
+      }
+    }catch(e){}
+    if(!linhas.length && !it.isImg && /\.pdf($|\?)/i.test(it.url)){
+      try{ const lib=await ensurePdfjs(); const doc=await lib.getDocument({url:it.url}).promise; let full='';
+        for(let pg=1;pg<=doc.numPages;pg++){ const page=await doc.getPage(pg); const tc=await page.getTextContent(); full+=tc.items.map(x=>x.str).join(' ')+'\n'; }
+        const re=/\d{5}\.\d{5}\s+\d{5}\.\d{6}\s+\d{5}\.\d{6}\s+\d\s+\d{14}/g;
+        linhas=[...new Set([...full.matchAll(re)].map(m=>cbDigits(m[0])).filter(l=>l.length===47))];
+      }catch(e){}
+    }
+    if(!linhas.length){ done(); return; }
+    const parc=cbOrdena(linhas); const pick=parc[cbEscolherParcela(parc)]; if(!pick){ done(); return; }
+    if(viewerIdx!==idx || !$('viewer').classList.contains('show')){ done(); return; }
+    it.linha=pick.linha;
+    const doc = it.isImg ? `<img src="${it.url}" alt="">` : `<iframe src="${it.url}"></iframe>`;
+    bodyEl.innerHTML=`<div class="cb-view-wrap">${barcodeBandHTML(pick.linha)}${doc}</div>`;
+    desenharBarcode('cb-svg-view', pick.linha);
+  }catch(e){ done(); }
+}
+
 </script>
 
 <!-- MODAL DOWNLOAD EM LOTE -->
