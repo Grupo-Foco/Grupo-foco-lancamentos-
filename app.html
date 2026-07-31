@@ -3719,31 +3719,60 @@ function pixValidaCNPJ(c){ c=String(c||'').replace(/\D/g,'');
 function pixExtrairDoTexto(texto){
   if(!texto) return null;
   var t = String(texto).replace(/[\n\t]/g,' ');
+
+  // 0) Se já houver um BR Code Pix pronto no texto, extrai a chave dele (campo 26>01)
+  //    Ex: "...br.gov.bcb.pix0114+5563991181361520400..."
+  var mBr = t.match(/br\.gov\.bcb\.pix01(\d{2})([^\s]{2,})/i);
+  if(mBr) {
+    var len = parseInt(mBr[1],10);
+    var resto = mBr[2];
+    if(len>0 && resto.length>=len) {
+      var chaveBr = resto.slice(0, len);
+      if(chaveBr.includes('@')) return { tipo:'E-mail', valor:chaveBr.toLowerCase() };
+      if(chaveBr.startsWith('+')) return { tipo:'Telefone', valor:chaveBr };
+      var dbr = chaveBr.replace(/\D/g,'');
+      if(dbr.length===14) return { tipo:'CNPJ', valor:dbr };
+      if(dbr.length===11) return pixValidaCPF(dbr) ? {tipo:'CPF',valor:dbr} : {tipo:'Telefone',valor:'+55'+dbr};
+      if(/^[0-9a-f-]{32,36}$/i.test(chaveBr)) return { tipo:'Aleatória', valor:chaveBr.toLowerCase() };
+    }
+  }
+
   // 1) E-mail
   var m = t.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
   if(m) return { tipo:'E-mail', valor:m[0].toLowerCase() };
+
   // 2) CNPJ formatado
   m = t.match(/\d{2}\.?\d{3}\.?\d{3}\/\d{4}-?\d{2}/);
   if(m && pixValidaCNPJ(m[0])) return { tipo:'CNPJ', valor:m[0].replace(/\D/g,'') };
+
   // 3) CPF formatado XXX.XXX.XXX-XX
   var re1 = /\d{3}\.\d{3}\.\d{3}-\d{2}/g, mm;
   while((mm = re1.exec(t)) !== null) {
     if(pixValidaCPF(mm[0])) return { tipo:'CPF', valor:mm[0].replace(/\D/g,'') };
   }
-  // 4) Telefone com DDD: "64 99661-1675", "63 984050521"
-  m = t.match(/\b(\d{2})\s+(\d{4,5})-?(\d{4})\b/);
+
+  // 4) Telefone: DDD (2) + espaço + resto com traço opcional. Aceita 8 ou 9 dígitos após DDD.
+  //    Cobre: "64 99661-1675", "63 984050521", "63 999118-1361" (com dígito extra), "64 9966-1675"
+  m = t.match(/\b(\d{2})\s+(\d{4,6})-?(\d{3,4})\b/);
   if(m) {
-    var tel = m[1]+m[2]+m[3];
-    if(tel.length===10 || tel.length===11) return { tipo:'Telefone', valor:'+55'+tel };
+    var tel = (m[1]+m[2]+m[3]).replace(/\D/g,'');
+    // normaliza: se vier com 12 dígitos (erro de digitação com 9 a mais), mantém como está mas marca
+    if(tel.length>=10 && tel.length<=12) return { tipo:'Telefone', valor:'+55'+tel };
   }
-  // 5) Após "PIX:" — 11 dígitos (CPF ou telefone)
-  m = t.match(/(?:chave\s+)?pix\s*:?\s*([0-9]{11})\b/i);
+
+  // 5) Após "PIX:" — sequência de 10 a 12 dígitos
+  m = t.match(/(?:chave\s+)?pix\s*:?\s*\+?([0-9]{10,12})\b/i);
   if(m) {
     var num = m[1];
-    if(pixValidaCPF(num)) return { tipo:'CPF', valor:num };
+    if(num.length===11 && pixValidaCPF(num)) return { tipo:'CPF', valor:num };
     return { tipo:'Telefone', valor:'+55'+num };
   }
-  // 6) Sequência de 11 dígitos avulsa
+
+  // 6) Chave aleatória (UUID)
+  m = t.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+  if(m) return { tipo:'Aleatória', valor:m[0].toLowerCase() };
+
+  // 7) Sequência de 11 dígitos avulsa (CPF ou telefone)
   m = t.match(/\b(\d{11})\b/);
   if(m) {
     var n2 = m[1];
@@ -3823,11 +3852,29 @@ function pixMontar(origem){
   pixDesenharQR(box.querySelector('.pix-qr'), brcode);
 }
 async function pixDesenharQR(el, texto){
-  if(!el) return; el.innerHTML='';
-  try{ await ensureQR();
-    const qr=window.qrcode(0,'M'); qr.addData(texto); qr.make();
-    el.innerHTML=qr.createSvgTag({cellSize:6, margin:2, scalable:true});
-  }catch(e){ el.innerHTML='<div class="pix-msg">QR indisponível (sem internet?) — use “Copiar”.</div>'; }
+  if(!el) return; el.innerHTML='<div class="pix-msg" style="padding:20px;text-align:center;">gerando QR…</div>';
+  // 1ª tentativa: biblioteca qrcode-generator (SVG, funciona offline após carregar)
+  try{
+    await ensureQR();
+    if(window.qrcode) {
+      const qr=window.qrcode(0,'M'); qr.addData(texto); qr.make();
+      el.innerHTML=qr.createSvgTag({cellSize:6, margin:2, scalable:true});
+      return;
+    }
+  }catch(e){ /* cai no fallback */ }
+  // 2ª tentativa (fallback): imagem via API pública de QR
+  try{
+    var img = new Image();
+    img.alt = 'QR Pix';
+    img.style.cssText = 'width:100%;height:100%;object-fit:contain;';
+    img.onload = function(){ el.innerHTML=''; el.appendChild(img); };
+    img.onerror = function(){
+      el.innerHTML='<div class="pix-msg" style="padding:14px;text-align:center;">Não foi possível desenhar o QR (sem internet?).<br>Use o botão <b>Copiar Pix copia e cola</b>.</div>';
+    };
+    img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=8&data=' + encodeURIComponent(texto);
+  }catch(e){
+    el.innerHTML='<div class="pix-msg" style="padding:14px;text-align:center;">Não foi possível desenhar o QR. Use <b>Copiar Pix copia e cola</b>.</div>';
+  }
 }
 function pixCopiar(){ copiarTexto(pixState.brcode, 'Pix copia e cola copiado.'); }
 function pixCorrigir(){
