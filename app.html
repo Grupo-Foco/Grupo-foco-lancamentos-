@@ -774,6 +774,7 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
   <div class="filters-bar">
     <div class="filter-group filter-search"><label>Buscar</label><input type="text" id="filter-search" placeholder="Fornecedor, histórico, NF…" oninput="applyFiltersDebounced()"></div>
     <div class="filter-group"><label>Status</label><select id="filter-status" onchange="applyFilters()"><option value="">Todos</option><option>A PAGAR</option><option>PAGO</option></select></div>
+    <div class="filter-group"><label>Forma Pgto</label><select id="filter-forma" onchange="applyFilters()"><option value="">Todas</option><option value="BOLETO">🏦 Boleto</option><option value="PIX">⚡ PIX</option><option value="CHEQUE">📝 Cheque</option><option value="OUTRO">Outro</option></select></div>
     <div class="filter-group"><label>Fazenda</label><select id="filter-fazenda" onchange="applyFilters()"><option value="">Todas</option><option>ARMAZÉM</option><option>AVIÃO</option><option>BRASIL</option><option>CASA JOÃO E NEILA</option><option>ESCRITÓRIO - GO</option><option>LAGEADO</option><option>MAYARA</option><option>RATEIO</option><option>SANTA ANGELINA</option><option>SÃO BENTO</option></select></div>
     <div class="filter-group"><label>Conta Gerencial</label><select id="filter-cg" onchange="applyFilters()"><option value="">Todas</option></select></div>
     
@@ -2681,6 +2682,7 @@ function applyFilters() {
   _renderLimit = 200;  // volta ao limite inicial a cada novo filtro
   const search=document.getElementById('filter-search')?.value.toLowerCase()||'';
   const status=document.getElementById('filter-status')?.value||'';
+  const forma=document.getElementById('filter-forma')?.value||'';
   const fazenda=document.getElementById('filter-fazenda')?.value||'';
   const cg=document.getElementById('filter-cg')?.value||'';
   const vencIni=document.getElementById('filter-venc-ini')?.value||'';
@@ -2692,6 +2694,11 @@ function applyFilters() {
     var valorStr2 = (l.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2});
     if(search&&!`${l.fornecedor||''} ${l.historico||''} ${l.documento||''} ${valorStr} ${valorStr2}`.toLowerCase().includes(search)) return false;
     if(status&&l.status!==status) return false;
+    if(forma) {
+      var fp = String(l.forma_pagamento||'BOLETO').toUpperCase();
+      if(forma==='OUTRO') { if(fp==='BOLETO'||fp==='PIX'||fp==='CHEQUE') return false; }
+      else if(fp!==forma) return false;
+    }
     if(fazenda&&l.fazenda!==fazenda) return false;
     if(cg&&l.cg!==cg) return false;
     if(vencIni) {
@@ -2745,7 +2752,11 @@ function renderTable() {
           if(nb) s += '<span title="Ver boleto(s)" onclick="verBoletoLinha('+l.id+')" style="cursor:pointer;display:inline-block;background:#1a3d2b;color:#f5f0e8;border-radius:4px;padding:2px 5px;margin:1px;">B'+(nb>1?' '+nb:'')+'</span>';
           if(nf) s += '<span title="Ver nota(s) fiscal(is)" onclick="verNfLinha('+l.id+')" style="cursor:pointer;display:inline-block;background:#b45309;color:#fff;border-radius:4px;padding:2px 4px;margin:1px;">NF'+(nf>1?' '+nf:'')+'</span>';
           if(l.recibo_path) s += '<span title="Ver recibo" onclick="verReciboLinha('+l.id+')" style="cursor:pointer;display:inline-block;background:#2563eb;color:#fff;border-radius:4px;padding:2px 4px;margin:1px;">R</span>';
-          if(String(l.forma_pagamento||'').toUpperCase()==='PIX' && l.chave_pix) s += '<span title="Pagar com Pix (QR)" onclick="pixPopup('+l.id+')" style="cursor:pointer;display:inline-block;background:#0d9488;color:#fff;border-radius:4px;padding:2px 5px;margin:1px;font-size:12px;">⚡</span>';
+          if(String(l.forma_pagamento||'').toUpperCase()==='PIX') {
+            var _temChave = l.chave_pix || pixChaveEfetiva(l);
+            if(_temChave) s += '<span title="Pagar com Pix (QR)" onclick="pixPopup('+l.id+')" style="cursor:pointer;display:inline-block;background:#0d9488;color:#fff;border-radius:4px;padding:2px 5px;margin:1px;font-size:12px;">⚡</span>';
+            else s += '<span title="PIX sem chave — clique para adicionar" onclick="pixSemChave('+l.id+')" style="cursor:pointer;display:inline-block;background:#e5e7eb;color:#9ca3af;border-radius:4px;padding:2px 5px;margin:1px;font-size:12px;">⚡</span>';
+          }
           if(!s) s = '<span style="color:#ccc;">—</span>';
           return s;
         })()}
@@ -2788,7 +2799,7 @@ function sortTable(key) {
   applyFilters();
 }
 function clearFilters() {
-  ['filter-search','filter-status','filter-fazenda','filter-cg','filter-venc-ini','filter-venc-fim','filter-data-lanc'].forEach(id=>{
+  ['filter-search','filter-status','filter-forma','filter-fazenda','filter-cg','filter-venc-ini','filter-venc-fim','filter-data-lanc'].forEach(id=>{
     var el = document.getElementById(id); if(el) el.value='';
   });
   var ca = document.getElementById('checkAll'); if(ca) ca.checked = false;
@@ -3695,6 +3706,61 @@ function pixAscii(s){ return String(s||'').normalize('NFD').replace(/[\u0300-\u0
 function pixValidaCPF(c){ c=String(c||'').replace(/\D/g,''); if(c.length!==11||/^(\d)\1{10}$/.test(c)) return false;
   let s=0; for(let i=0;i<9;i++) s+=+c[i]*(10-i); let d=(s*10)%11; if(d===10)d=0; if(d!==+c[9]) return false;
   s=0; for(let i=0;i<10;i++) s+=+c[i]*(11-i); d=(s*10)%11; if(d===10)d=0; return d===+c[10]; }
+
+// Extrai a chave Pix do texto do histórico (para lançamentos antigos sem chave_pix preenchida)
+// Testado com dados reais: acerta CPF, CNPJ, telefone e e-mail.
+function pixValidaCNPJ(c){ c=String(c||'').replace(/\D/g,'');
+  if(c.length!==14 || /^(\d)\1{13}$/.test(c)) return false;
+  function dv(base, pesos){ var s=0; for(var i=0;i<pesos.length;i++) s+=(+base[i])*pesos[i]; var r=s%11; return r<2?0:11-r; }
+  var d1=dv(c.slice(0,12),[5,4,3,2,9,8,7,6,5,4,3,2]);
+  var d2=dv(c.slice(0,13),[6,5,4,3,2,9,8,7,6,5,4,3,2]);
+  return d1===+c[12] && d2===+c[13];
+}
+function pixExtrairDoTexto(texto){
+  if(!texto) return null;
+  var t = String(texto).replace(/[\n\t]/g,' ');
+  // 1) E-mail
+  var m = t.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+  if(m) return { tipo:'E-mail', valor:m[0].toLowerCase() };
+  // 2) CNPJ formatado
+  m = t.match(/\d{2}\.?\d{3}\.?\d{3}\/\d{4}-?\d{2}/);
+  if(m && pixValidaCNPJ(m[0])) return { tipo:'CNPJ', valor:m[0].replace(/\D/g,'') };
+  // 3) CPF formatado XXX.XXX.XXX-XX
+  var re1 = /\d{3}\.\d{3}\.\d{3}-\d{2}/g, mm;
+  while((mm = re1.exec(t)) !== null) {
+    if(pixValidaCPF(mm[0])) return { tipo:'CPF', valor:mm[0].replace(/\D/g,'') };
+  }
+  // 4) Telefone com DDD: "64 99661-1675", "63 984050521"
+  m = t.match(/\b(\d{2})\s+(\d{4,5})-?(\d{4})\b/);
+  if(m) {
+    var tel = m[1]+m[2]+m[3];
+    if(tel.length===10 || tel.length===11) return { tipo:'Telefone', valor:'+55'+tel };
+  }
+  // 5) Após "PIX:" — 11 dígitos (CPF ou telefone)
+  m = t.match(/(?:chave\s+)?pix\s*:?\s*([0-9]{11})\b/i);
+  if(m) {
+    var num = m[1];
+    if(pixValidaCPF(num)) return { tipo:'CPF', valor:num };
+    return { tipo:'Telefone', valor:'+55'+num };
+  }
+  // 6) Sequência de 11 dígitos avulsa
+  m = t.match(/\b(\d{11})\b/);
+  if(m) {
+    var n2 = m[1];
+    if(pixValidaCPF(n2)) return { tipo:'CPF', valor:n2 };
+    return { tipo:'Telefone', valor:'+55'+n2 };
+  }
+  return null;
+}
+// Chave efetiva: a salva (prioridade) OU a extraída do histórico/documento
+function pixChaveEfetiva(l){
+  if(l && l.chave_pix) return { valor: l.chave_pix, origem:'salva' };
+  var ext = pixExtrairDoTexto((l && l.historico) || '');
+  if(!ext) ext = pixExtrairDoTexto((l && l.documento) || '');
+  if(ext) return { valor: ext.valor, origem:'historico' };
+  return null;
+}
+
 function pixTipoChave(chave){ chave=String(chave||'').trim();
   if(chave.includes('@')) return {tipo:'E-mail', valor:chave.toLowerCase()};
   if(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(chave)) return {tipo:'Aleatória', valor:chave.toLowerCase()};
@@ -3718,19 +3784,32 @@ let pixState={chave:'',tipo:'',valor:0,nome:'',brcode:''}; let pixTarget='det-pi
 function renderPix(d){
   const box=$('det-pix'); if(!box) return;
   const forma=(d.forma_pagamento||'').toUpperCase();
-  if(forma!=='PIX' || !d.chave_pix){ box.style.display='none'; box.innerHTML=''; return; }
+  if(forma!=='PIX'){ box.style.display='none'; box.innerHTML=''; return; }
+  // Chave: salva OU extraída do histórico
+  var ef = pixChaveEfetiva(d);
+  if(!ef){
+    box.style.display='block';
+    box.innerHTML='<div class="pix-head">⚡ Pagamento via Pix</div>' +
+      '<div class="pix-msg">Este lançamento é PIX mas não foi possível identificar a chave (nem cadastrada, nem no histórico), então o QR não pode ser gerado.</div>' +
+      '<button class="btn btn-primary btn-sm" onclick="closeModal();editLancamento('+d.id+')" style="margin-top:6px;">✎ Adicionar chave Pix</button>';
+    return;
+  }
   pixTarget='det-pix';
-  const det=pixTipoChave(d.chave_pix);
+  const det=pixTipoChave(ef.valor);
   pixState={chave:det.valor, tipo:det.tipo, valor:+d.valor||0, nome:d.fornecedor||'RECEBEDOR', brcode:''};
-  pixMontar();
+  pixMontar(ef.origem);
 }
-function pixMontar(){
+function pixMontar(origem){
   const box=$(pixTarget); if(!box) return; box.style.display='block';
   const brcode=pixBRCode({chave:pixState.chave, valor:pixState.valor, nome:pixState.nome, cidade:'BRASIL', txid:''});
   pixState.brcode=brcode;
+  var avisoOrigem = (origem==='historico')
+    ? '<div style="font-size:11px;color:#b45309;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:6px 9px;margin:6px 0;">⚠ Chave lida automaticamente do histórico. Confira antes de pagar.</div>'
+    : '';
   box.innerHTML=`
     <div class="pix-head">⚡ Pagar com Pix — escaneie o QR no app do banco</div>
     <div class="pix-msg">Chave (${esc(pixState.tipo)}): <b>${esc(pixState.chave)}</b>${pixState.valor?` · valor ${money(pixState.valor)}`:''}</div>
+    ${avisoOrigem}
     <div class="pix-wrap">
       <div class="pix-qr"></div>
       <div class="pix-side">
@@ -3769,14 +3848,23 @@ function pixAplicarManual(){
   pixState.chave=chave; pixState.tipo=tipo; pixMontar();
 }
 
+// Lançamento PIX sem chave cadastrada: avisa e oferece editar
+function pixSemChave(id){
+  var l = lancamentos.find(function(x){ return x.id===id; });
+  if(!l) return;
+  if(confirm('Este lançamento é PIX mas ainda não tem a chave cadastrada, por isso o QR não pode ser gerado.\n\nDeseja editar agora para adicionar a chave Pix?')) {
+    editLancamento(id);
+  }
+}
 function pixPopup(id){
-  const d=lancamentos.find(x=>x.id===id); if(!d||!d.chave_pix) return;
+  const d=lancamentos.find(x=>x.id===id); if(!d) return;
+  var ef = pixChaveEfetiva(d); if(!ef) return;
   pixTarget='pix-pop-body';
-  const det=pixTipoChave(d.chave_pix);
+  const det=pixTipoChave(ef.valor);
   pixState={chave:det.valor, tipo:det.tipo, valor:+d.valor||0, nome:d.fornecedor||'RECEBEDOR', brcode:''};
   const t=$('pix-pop-title'); if(t) t.textContent=d.fornecedor||'Pagar com Pix';
   $('pixPopOverlay').style.display='flex';
-  pixMontar();
+  pixMontar(ef.origem);
 }
 function fecharPixPop(){ const o=$('pixPopOverlay'); if(o) o.style.display='none'; pixTarget='det-pix'; }
 
