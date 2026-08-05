@@ -2484,20 +2484,44 @@ async function saveLancamento() {
     chave_pix:(document.getElementById('f_chave_pix')||{value:''}).value.trim()||null,
     codigo_barras: (typeof pendingCodigoBarras !== 'undefined' && pendingCodigoBarras) ? pendingCodigoBarras : null
   };
-  // ── Verificar duplicata (mesmo fornecedor + valor + documento) ──
-  if(!editingId && documento) {
-    var dup = lancamentos.find(function(l) {
-      return (l.fornecedor||'').toUpperCase() === forn.toUpperCase() &&
-             Math.abs((+l.valor||0) - val) < 0.01 &&
-             (l.documento||'').trim().toUpperCase() === documento.toUpperCase();
+  // ── Verificar duplicata (múltiplos critérios de semelhança) ──
+  if(!editingId) {
+    var docNorm = (documento||'').trim().toUpperCase();
+    var fornNorm = (forn||'').toUpperCase();
+    var vencAtual = venc || '';
+    var chavePixAtual = (document.getElementById('f_chave_pix')||{value:''}).value.trim();
+
+    var suspeitos = [];
+    lancamentos.forEach(function(l) {
+      var mesmoValor = Math.abs((+l.valor||0) - val) < 0.01;
+      if(!mesmoValor) return;
+      var lDoc = (l.documento||'').trim().toUpperCase();
+      var lForn = (l.fornecedor||'').toUpperCase();
+      var lVenc = (l.vencimento||'');
+      var lChave = (l.chave_pix||'').trim();
+
+      var motivos = [];
+      if(docNorm && lDoc && docNorm === lDoc) motivos.push('mesmo no de documento (' + documento + ')');
+      if(fornNorm && lForn === fornNorm && vencAtual && lVenc === vencAtual) motivos.push('mesmo fornecedor e vencimento');
+      if(chavePixAtual && lChave && lChave.replace(/\D/g,'') === chavePixAtual.replace(/\D/g,'') && chavePixAtual.replace(/\D/g,'')) motivos.push('mesma chave Pix');
+      if(!motivos.length && fornNorm && lForn === fornNorm) motivos.push('mesmo fornecedor e valor');
+
+      if(motivos.length) suspeitos.push({ l: l, motivos: motivos });
     });
-    if(dup) {
-      var msg = 'Atencao: ja existe um lancamento similar!\n\n' +
-        'ID: ' + dup.id + '\n' +
-        'Documento: ' + dup.documento + '\n' +
-        'Valor: R$ ' + (+dup.valor).toLocaleString('pt-BR',{minimumFractionDigits:2}) + '\n' +
-        'Vencimento: ' + fmtDate(dup.vencimento) + '\n\n' +
-        'Deseja salvar mesmo assim?';
+
+    if(suspeitos.length) {
+      suspeitos.sort(function(a,b){ return b.motivos.length - a.motivos.length; });
+      var msg = 'ATENCAO: possivel duplicidade!\n\n' +
+        'Ja existe ' + (suspeitos.length===1 ? 'um lancamento parecido' : suspeitos.length + ' lancamentos parecidos') + ':\n\n';
+      suspeitos.slice(0,3).forEach(function(s){
+        var l = s.l;
+        msg += '- ID ' + l.id + ' - ' + (l.fornecedor||'') + '\n' +
+               '   Doc: ' + (l.documento||'-') + ' | R$ ' + (+l.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2}) +
+               ' | venc ' + fmtDate(l.vencimento) + '\n' +
+               '   Semelhanca: ' + s.motivos.join(', ') + '\n\n';
+      });
+      if(suspeitos.length > 3) msg += '... e mais ' + (suspeitos.length-3) + '\n\n';
+      msg += 'Deseja salvar mesmo assim?';
       if(!confirm(msg)) return;
     }
   }
