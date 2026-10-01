@@ -80,6 +80,9 @@
   .footer { margin-top: 32px; font-size: 10px; color: #ccc; font-family: 'DM Mono', monospace; }
 </style>
 
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png">
 </head>
 <body>
   <div class="card">
@@ -97,7 +100,12 @@
     <div class="footer">Grupo Foco &copy; 2026</div>
   </div>
   <script>
-    // Usuários base — senhas e roles podem ser sobrescritos pelo app-config via localStorage
+    // ─── Supabase ───
+    var SB_URL = 'https://zdckrfthpfpnzcxzaghd.supabase.co';
+    var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkY2tyZnRocGZwbnpjeHphZ2hkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzNDIzOTksImV4cCI6MjA4ODkxODM5OX0.940y3Nhso4mHjSr8L1D_eRoQUH6Yg5uiqZ6sg4qRD7Y';
+
+    // Fallback de EMERGÊNCIA — só usado se o Supabase não responder (rede fora).
+    // A fonte real das senhas é o banco (tabela usuarios, em bcrypt).
     var USERS_DEFAULT = {
       rodolfo:{senha:'foco2026',role:'gestor'},
       ivan:{senha:'ivan2026',role:'gestor'},
@@ -109,38 +117,41 @@
       henrique:{senha:'henrique2026',role:'funcionario'}
     };
 
-    function getUsers() {
-      var stored = localStorage.getItem('gf_users_v2');
-      if(stored) return JSON.parse(stored);
-      return null;
+    function entrar(nome, role, perms) {
+      sessionStorage.setItem('gf_user', nome);
+      sessionStorage.setItem('gf_role', role);
+      sessionStorage.setItem('gf_perms', JSON.stringify(perms || {}));
+      window.location.href = 'app.html';
+    }
+    function erroLogin(msg) {
+      var err = document.getElementById('err');
+      err.textContent = msg || 'Usuário ou senha incorretos';
+      document.getElementById('p').value='';
+      document.getElementById('p').focus();
+      setTimeout(function(){err.textContent='';}, 3000);
     }
 
-    function login() {
+    async function login() {
       var u = (document.getElementById('u').value||'').trim().toLowerCase();
       var p = document.getElementById('p').value||'';
-      var stored = getUsers();
-      var senha, role;
-      if(stored && stored[u]) {
-        senha = stored[u].senha;
-        role  = stored[u].role || 'funcionario';
-      } else if(USERS_DEFAULT[u]) {
-        senha = USERS_DEFAULT[u].senha;
-        role  = USERS_DEFAULT[u].role;
-      } else {
-        senha = null;
-      }
-      if(senha && p === senha) {
-        var nome = u.charAt(0).toUpperCase() + u.slice(1);
-        sessionStorage.setItem('gf_user', nome);
-        sessionStorage.setItem('gf_role', role);
-        window.location.href = 'app.html';
-      } else {
-        var err = document.getElementById('err');
-        err.textContent = 'Usuário ou senha incorretos';
-        document.getElementById('p').value='';
-        document.getElementById('p').focus();
-        setTimeout(function(){err.textContent='';}, 3000);
-      }
+      if(!u || !p) { erroLogin('Informe usuário e senha'); return; }
+      // 1) Tenta validar no banco (senha em bcrypt, verificada no servidor)
+      try {
+        var res = await fetch(SB_URL + '/rest/v1/rpc/gf_login', {
+          method:'POST',
+          headers:{ 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY, 'Content-Type':'application/json' },
+          body: JSON.stringify({ p_login:u, p_senha:p })
+        });
+        if(res.ok) {
+          var data = await res.json();
+          if(data && data.login) { entrar(data.nome, data.role || 'funcionario', data.perms); return; }
+          erroLogin('Usuário ou senha incorretos'); return;   // banco respondeu: senha errada
+        }
+      } catch(e) { /* rede fora — cai no fallback abaixo */ }
+      // 2) Fallback de emergência (Supabase fora do ar)
+      var d = USERS_DEFAULT[u];
+      if(d && p === d.senha) { entrar(u.charAt(0).toUpperCase()+u.slice(1), d.role, {}); }
+      else { erroLogin('Usuário ou senha incorretos'); }
     }
     // Se já logado, ir direto para o app
     if(sessionStorage.getItem('gf_user')) window.location.href='app.html';

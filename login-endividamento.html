@@ -108,6 +108,10 @@ input:focus{border-color:var(--verde-light);box-shadow:0 0 0 3px rgba(74,140,92,
   margin:0 auto 0;
 }
 </style>
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 </head>
 <body>
 <div class="bg-pattern"></div>
@@ -134,7 +138,11 @@ input:focus{border-color:var(--verde-light);box-shadow:0 0 0 3px rgba(74,140,92,
   </div>
 </div>
 <script>
-// USUÁRIOS: { usuario: { senha, role: 'gestor'|'funcionario', nome } }
+// ─── Supabase ───
+var SB_URL = 'https://zdckrfthpfpnzcxzaghd.supabase.co';
+var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkY2tyZnRocGZwbnpjeHphZ2hkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzNDIzOTksImV4cCI6MjA4ODkxODM5OX0.940y3Nhso4mHjSr8L1D_eRoQUH6Yg5uiqZ6sg4qRD7Y';
+
+// Fallback de EMERGÊNCIA — só se o Supabase não responder. Fonte real: banco (bcrypt).
 var USERS = {
   'rodolfo':  { senha:'foco2026',     role:'gestor',      nome:'Rodolfo' },
   'ivan':     { senha:'ivan2026',     role:'gestor',      nome:'Ivan' },
@@ -148,21 +156,39 @@ var USERS = {
   'eder':     { senha:'eder2026',     role:'funcionario', nome:'Eder' }
 };
 
-function login() {
+function entrar(nome, role, perms) {
+  sessionStorage.setItem('gf_user', nome);
+  sessionStorage.setItem('gf_role', role);
+  sessionStorage.setItem('gf_perms', JSON.stringify(perms || {}));
+  window.location.href = 'app-endividamento.html';
+}
+function erroLogin() {
+  var err = document.getElementById('err');
+  err.textContent = '⚠ Usuário ou senha incorretos';
+  document.getElementById('p').value = '';
+  document.getElementById('p').focus();
+  setTimeout(function(){err.textContent='';}, 3000);
+}
+
+async function login() {
   var u = (document.getElementById('u').value||'').trim().toLowerCase();
   var p = document.getElementById('p').value||'';
+  if(!u || !p) { erroLogin(); return; }
+  try {
+    var res = await fetch(SB_URL + '/rest/v1/rpc/gf_login', {
+      method:'POST',
+      headers:{ 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY, 'Content-Type':'application/json' },
+      body: JSON.stringify({ p_login:u, p_senha:p })
+    });
+    if(res.ok) {
+      var data = await res.json();
+      if(data && data.login) { entrar(data.nome, data.role || 'funcionario', data.perms); return; }
+      erroLogin(); return;
+    }
+  } catch(e) { /* rede fora — fallback */ }
   var user = USERS[u];
-  if(user && user.senha === p) {
-    sessionStorage.setItem('gf_user', user.nome);
-    sessionStorage.setItem('gf_role', user.role);
-    window.location.href = 'app-endividamento.html';
-  } else {
-    var err = document.getElementById('err');
-    err.textContent = '⚠ Usuário ou senha incorretos';
-    document.getElementById('p').value = '';
-    document.getElementById('p').focus();
-    setTimeout(function(){err.textContent='';}, 3000);
-  }
+  if(user && user.senha === p) { entrar(user.nome, user.role, {}); }
+  else { erroLogin(); }
 }
 
 if(sessionStorage.getItem('gf_user')) window.location.href = 'app-endividamento.html';

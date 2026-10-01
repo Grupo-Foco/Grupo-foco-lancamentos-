@@ -577,6 +577,10 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
 .pix-cc{font-family:'DM Mono',monospace;font-size:11px;line-height:1.5;color:var(--texto);word-break:break-all;background:var(--creme);border:1px solid var(--creme-dark);border-radius:8px;padding:10px;margin-bottom:10px;max-height:130px;overflow:auto;}
 
 </style>
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 </head>
 <body>
 
@@ -2212,13 +2216,10 @@ if(!currentUser) { window.location.href = 'index.html'; }
   if(r) r.textContent='(preenchido ao dar baixa)';
 })();
 
-// Carregar permissões individuais do usuário
+// Carregar permissões individuais do usuário (definidas no login, vindas do banco)
 function getUserPerms() {
-  var stored = localStorage.getItem('gf_users_v2');
-  if(!stored) return null;
-  var users = JSON.parse(stored);
-  var login = currentUser.toLowerCase();
-  return users[login] ? users[login].perms || {} : {};
+  try { return JSON.parse(sessionStorage.getItem('gf_perms') || '{}'); }
+  catch(e) { return {}; }
 }
 
 function hasPerm(perm) {
@@ -2571,6 +2572,7 @@ async function saveLancamento() {
   btn.disabled=true; btn.textContent='Salvando…';
   // Verificar se há parcelas múltiplas
   var nParc = parseInt(document.getElementById('f_parcelas').value) || 1;
+  var novoLocal = null;  // registro para inserir localmente (evita rebaixar toda a base)
   try {
     if(editingId && nParc > 1) {
       // Edição convertendo para parcelado: deletar original e criar novas parcelas
@@ -2672,12 +2674,24 @@ async function saveLancamento() {
           await sb(`${TABLE}?id=eq.${lid}`, {method:'PATCH', body:JSON.stringify(upd)});
         removerAnexo('boleto'); removerAnexo('nf');
         _reciboBlob = null;
+        novoLocal = Object.assign({}, saved[0], upd);
+      } else if(saved && saved[0]) {
+        novoLocal = saved[0];
       }
       showToast('✓ Lançamento salvo!');
     }
     clearForm();
     const fb=document.getElementById('saveFeedback'); fb.classList.add('show'); setTimeout(()=>fb.classList.remove('show'),2500);
-    await loadDataLeve();
+    // Lançamento simples: insere localmente (rápido). Demais fluxos: recarrega.
+    if(novoLocal) {
+      lancamentos.unshift(novoLocal);
+      applyFilters();
+      setSyncState('online', lancamentos.length + ' registros');
+      const el = document.getElementById('panel-subtitle');
+      if(el) el.textContent = `${lancamentos.length} lançamentos no total — ${filtered.length} exibidos`;
+    } else {
+      await loadDataLeve();
+    }
   } catch(e) { showToast('⚠ Erro: '+e.message,true); }
   finally { btn.disabled=false; btn.textContent='＋ Salvar Lançamento'; }
 }
