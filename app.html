@@ -84,6 +84,12 @@ textarea{resize:vertical;min-height:80px;}
 .btn-secondary:hover{border-color:var(--cinza);color:var(--texto);}
 .btn-ouro{background:var(--ouro);color:var(--verde);}
 .btn-ouro:hover{background:var(--ouro-light);transform:translateY(-1px);}
+/* Botões utilitários do painel — compactos e discretos */
+.panel-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap;justify-content:flex-end;}
+.btn-ico{font-family:'DM Mono',monospace;font-size:11px;font-weight:500;letter-spacing:.05em;color:var(--cinza);background:transparent;border:1px solid var(--creme-dark);border-radius:9px;padding:7px 12px;display:inline-flex;align-items:center;gap:7px;cursor:pointer;transition:all .18s;white-space:nowrap;}
+.btn-ico:hover{color:var(--verde);border-color:var(--verde-light);background:rgba(74,140,92,.07);}
+.btn-ico:disabled{opacity:.5;cursor:not-allowed;}
+.btn-ico svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;}
 .btn-danger{background:transparent;color:var(--erro);border:1.5px solid rgba(192,57,43,0.2);}
 .btn-danger:hover{background:rgba(192,57,43,0.06);}
 .save-feedback{font-family:'DM Mono',monospace;font-size:12px;color:var(--sucesso);opacity:0;transition:opacity 0.3s;display:flex;align-items:center;gap:6px;}
@@ -808,12 +814,15 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
       </div>
       <p id="panel-subtitle">Carregando…</p>
     </div>
-    <div style="display:flex;gap:10px;">
-      <button class="btn btn-secondary" onclick="loadData()">↻ Atualizar</button>
-      <button class="btn btn-secondary" onclick="carregarTudo()" title="Carregar todos os lançamentos (base completa)">⬛ Carregar tudo</button>
-      <button class="btn btn-secondary" onclick="exportXLSX()">↓ Excel</button>
-      <button class="btn btn-secondary" onclick="abrirModalDownloadLote()" title="Baixar boletos, NFs e recibos em ZIP">⬇ Docs ZIP</button>
-      <button class="btn btn-ouro" onclick="showView('form')">＋ Novo</button>
+    <div class="panel-actions">
+      <button class="btn-ico" onclick="loadData()" title="Recarregar os lançamentos do período">
+        <svg viewBox="0 0 24 24"><path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>Atualizar</button>
+      <button class="btn-ico" onclick="carregarTudo()" title="Carregar todos os lançamentos (base completa), além do período">
+        <svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/></svg>Tudo</button>
+      <button class="btn-ico" onclick="exportXLSX()" title="Exportar para Excel">
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Excel</button>
+      <button class="btn-ico" onclick="abrirModalDownloadLote()" title="Baixar boletos, NFs e recibos em ZIP">
+        <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V8M10 12h4"/></svg>Docs</button>
     </div>
   </div>
   <div class="stats-grid">
@@ -1129,6 +1138,7 @@ async function loadDataLeve() {
     lancamentos = novos;
     setSyncState('online',`${lancamentos.length} registros`);
     applyFilters();
+    atualizarContagensVenc();   // recontar vencidos/hoje/amanhã na base após baixa/exclusão
     const el = document.getElementById('panel-subtitle');
     if(el) el.textContent=`${lancamentos.length} lançamentos no total — ${filtered.length} exibidos`;
   } catch(e) { setSyncState('error','Erro'); showToast('⚠ '+e.message,true); }
@@ -1143,7 +1153,9 @@ var JANELA_ANTES = 1, JANELA_DEPOIS = 1;
 var baseCompleta = false;      // true quando a base inteira foi carregada
 var janelaCache  = [];         // cópia dos registros da janela (para restaurar ao limpar)
 var _buscando    = false;
-var _vencidosServidor = null;  // contagem exata de vencidos (count no servidor)
+var _vencidosServidor = null;  // contagens exatas da BASE (independentes do filtro da tela)
+var _hojeServidor = null;
+var _amanhaServidor = null;
 
 function _ym(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
 function janelaInicio(){ var d=new Date(); d=new Date(d.getFullYear(), d.getMonth()-JANELA_ANTES, 1); return _ym(d)+'-01'; }
@@ -1205,15 +1217,26 @@ async function aplicarFiltros(){
 }
 function aplicarFiltrosDebounced(){ clearTimeout(_filterTimer); _filterTimer=setTimeout(aplicarFiltros,350); }
 
-async function atualizarContagemVencidos(){
+// Conta no servidor (base inteira) — HEAD com count; não depende do filtro da tela
+async function _countVenc(qs){
   try {
-    var r = await fetch(`${SB_URL}/rest/v1/${TABLE}?select=id&status=eq.A%20PAGAR&vencimento=lt.${hojeISO()}`, {
+    var r = await fetch(`${SB_URL}/rest/v1/${TABLE}?select=id&${qs}`, {
       method:'HEAD', headers:{ apikey:SB_KEY, Authorization:'Bearer '+SB_KEY, Prefer:'count=exact', Range:'0-0' }
     });
     var cr=r.headers.get('content-range'); var n=cr?parseInt((cr.split('/')[1]||'0'),10):0;
-    _vencidosServidor = isNaN(n)?null:n;
-  } catch(e){ _vencidosServidor=null; }
+    return isNaN(n)?null:n;
+  } catch(e){ return null; }
 }
+// Atualiza as 3 contagens (vencidos / hoje / amanhã) a partir da base, não do recorte filtrado
+async function atualizarContagensVenc(){
+  var hoje=hojeISO(), amanha=addDiasISO(1);
+  _vencidosServidor = await _countVenc('status=eq.A%20PAGAR&vencimento=lt.'+hoje);
+  _hojeServidor     = await _countVenc('status=eq.A%20PAGAR&vencimento=eq.'+hoje);
+  _amanhaServidor   = await _countVenc('status=eq.A%20PAGAR&vencimento=eq.'+amanha);
+  atualizarBotoesVenc();
+}
+// Compatibilidade com chamadas antigas
+async function atualizarContagemVencidos(){ return atualizarContagensVenc(); }
 
 async function carregarTudo(){
   setSyncState('syncing','Carregando base completa…');
@@ -2776,9 +2799,8 @@ async function saveLancamento() {
     if(novoLocal) {
       lancamentos.unshift(novoLocal);
       applyFilters();
+      atualizarContagensVenc();   // atualiza os contadores de vencimento após novo lançamento
       setSyncState('online', lancamentos.length + ' registros');
-      const el = document.getElementById('panel-subtitle');
-      if(el) el.textContent = `${lancamentos.length} lançamentos no total — ${filtered.length} exibidos`;
     } else {
       await loadDataLeve();
     }
@@ -2893,7 +2915,7 @@ function contarVenceAmanha(){
 function atualizarBotaoVenceHoje(){
   var btn = document.getElementById('btn-vence-hoje');
   if(!btn) return;
-  var n = contarVenceHoje();
+  var n = (_hojeServidor !== null) ? _hojeServidor : contarVenceHoje();
   btn.style.display = 'inline-flex';
   if(n > 0){
     btn.classList.remove('zero');
@@ -2909,7 +2931,7 @@ function atualizarBotaoVencidos(){
   var btn = document.getElementById('btn-vencido');
   if(!btn) return;
   // Preferir a contagem exata do servidor (inclui vencidos fora da janela de 3 meses)
-  var n = (_vencidosServidor !== null && !baseCompleta && !temFiltroAtivo()) ? _vencidosServidor : contarVencidos();
+  var n = (_vencidosServidor !== null) ? _vencidosServidor : contarVencidos();
   btn.style.display = 'inline-flex';
   if(n > 0){
     btn.classList.remove('zero');
@@ -2924,7 +2946,7 @@ function atualizarBotaoVencidos(){
 function atualizarBotaoVenceAmanha(){
   var btn = document.getElementById('btn-vence-amanha');
   if(!btn) return;
-  var n = contarVenceAmanha();
+  var n = (_amanhaServidor !== null) ? _amanhaServidor : contarVenceAmanha();
   btn.style.display = 'inline-flex';
   if(n > 0){
     btn.classList.remove('zero');
