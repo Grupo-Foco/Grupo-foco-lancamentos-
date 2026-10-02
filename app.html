@@ -806,6 +806,7 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
     </div>
     <div style="display:flex;gap:10px;">
       <button class="btn btn-secondary" onclick="loadData()">↻ Atualizar</button>
+      <button class="btn btn-secondary" onclick="carregarTudo()" title="Carregar todos os lançamentos (base completa)">⬛ Carregar tudo</button>
       <button class="btn btn-secondary" onclick="exportXLSX()">↓ Excel</button>
       <button class="btn btn-secondary" onclick="abrirModalDownloadLote()" title="Baixar boletos, NFs e recibos em ZIP">⬇ Docs ZIP</button>
       <button class="btn btn-ouro" onclick="showView('form')">＋ Novo</button>
@@ -818,20 +819,20 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
     <div class="stat-card ok"><div class="stat-label">Pago</div><div class="stat-value money" id="stat-pago">—</div></div>
   </div>
   <div class="filters-bar">
-    <div class="filter-group filter-search"><label>Buscar</label><input type="text" id="filter-search" placeholder="Fornecedor, histórico, NF…" oninput="applyFiltersDebounced()"></div>
-    <div class="filter-group"><label>Status</label><select id="filter-status" onchange="applyFilters()"><option value="">Todos</option><option>A PAGAR</option><option>PAGO</option></select></div>
-    <div class="filter-group"><label>Forma Pgto</label><select id="filter-forma" onchange="applyFilters()"><option value="">Todas</option><option value="BOLETO">🏦 Boleto</option><option value="PIX">⚡ PIX</option><option value="CHEQUE">📝 Cheque</option><option value="OUTRO">Outro</option></select></div>
-    <div class="filter-group"><label>Fazenda</label><select id="filter-fazenda" onchange="applyFilters()"><option value="">Todas</option><option>ARMAZÉM</option><option>AVIÃO</option><option>BRASIL</option><option>CASA JOÃO E NEILA</option><option>ESCRITÓRIO - GO</option><option>LAGEADO</option><option>MAYARA</option><option>RATEIO</option><option>SANTA ANGELINA</option><option>SÃO BENTO</option></select></div>
-    <div class="filter-group"><label>Conta Gerencial</label><select id="filter-cg" onchange="applyFilters()"><option value="">Todas</option></select></div>
+    <div class="filter-group filter-search"><label>Buscar</label><input type="text" id="filter-search" placeholder="Fornecedor, histórico, NF…" oninput="aplicarFiltrosDebounced()"></div>
+    <div class="filter-group"><label>Status</label><select id="filter-status" onchange="aplicarFiltros()"><option value="">Todos</option><option>A PAGAR</option><option>PAGO</option></select></div>
+    <div class="filter-group"><label>Forma Pgto</label><select id="filter-forma" onchange="aplicarFiltros()"><option value="">Todas</option><option value="BOLETO">🏦 Boleto</option><option value="PIX">⚡ PIX</option><option value="CHEQUE">📝 Cheque</option><option value="OUTRO">Outro</option></select></div>
+    <div class="filter-group"><label>Fazenda</label><select id="filter-fazenda" onchange="aplicarFiltros()"><option value="">Todas</option><option>ARMAZÉM</option><option>AVIÃO</option><option>BRASIL</option><option>CASA JOÃO E NEILA</option><option>ESCRITÓRIO - GO</option><option>LAGEADO</option><option>MAYARA</option><option>RATEIO</option><option>SANTA ANGELINA</option><option>SÃO BENTO</option></select></div>
+    <div class="filter-group"><label>Conta Gerencial</label><select id="filter-cg" onchange="aplicarFiltros()"><option value="">Todas</option></select></div>
     
     <div class="filter-group"><label>Vencimento — De</label>
-      <input type="date" id="filter-venc-ini" onchange="applyFilters()" style="font-family:'DM Mono',monospace;font-size:12px;padding:6px 10px;border:1.5px solid var(--cinza-light);border-radius:8px;background:var(--branco);color:var(--texto);cursor:pointer;">
+      <input type="date" id="filter-venc-ini" onchange="aplicarFiltros()" style="font-family:'DM Mono',monospace;font-size:12px;padding:6px 10px;border:1.5px solid var(--cinza-light);border-radius:8px;background:var(--branco);color:var(--texto);cursor:pointer;">
     </div>
     <div class="filter-group"><label>Vencimento — Até</label>
-      <input type="date" id="filter-venc-fim" onchange="applyFilters()" style="font-family:'DM Mono',monospace;font-size:12px;padding:6px 10px;border:1.5px solid var(--cinza-light);border-radius:8px;background:var(--branco);color:var(--texto);cursor:pointer;">
+      <input type="date" id="filter-venc-fim" onchange="aplicarFiltros()" style="font-family:'DM Mono',monospace;font-size:12px;padding:6px 10px;border:1.5px solid var(--cinza-light);border-radius:8px;background:var(--branco);color:var(--texto);cursor:pointer;">
     </div>
     <div class="filter-group"><label>Data de lançamento</label>
-      <input type="date" id="filter-data-lanc" onchange="applyFilters()" style="font-family:'DM Mono',monospace;font-size:12px;padding:6px 10px;border:1.5px solid var(--cinza-light);border-radius:8px;background:var(--branco);color:var(--texto);cursor:pointer;">
+      <input type="date" id="filter-data-lanc" onchange="aplicarFiltros()" style="font-family:'DM Mono',monospace;font-size:12px;padding:6px 10px;border:1.5px solid var(--cinza-light);border-radius:8px;background:var(--branco);color:var(--texto);cursor:pointer;">
     </div>
     <div style="align-self:flex-end;"><button class="btn btn-secondary" onclick="clearFilters()" style="padding:8px 14px;font-size:11px;">✕ Limpar</button></div>
   </div>
@@ -1129,25 +1130,110 @@ async function loadDataLeve() {
   } catch(e) { setSyncState('error','Erro'); showToast('⚠ '+e.message,true); }
 }
 
+// ════════════════════════════════════════════════════════════
+// CARGA POR JANELA (mês anterior + atual + próximo) + busca no servidor
+// Reduz drasticamente o Disk IO: por padrão carrega só ~3 meses.
+// Qualquer filtro/busca consulta TODA a base no servidor sob demanda.
+// ════════════════════════════════════════════════════════════
+var JANELA_ANTES = 1, JANELA_DEPOIS = 1;
+var baseCompleta = false;      // true quando a base inteira foi carregada
+var janelaCache  = [];         // cópia dos registros da janela (para restaurar ao limpar)
+var _buscando    = false;
+var _vencidosServidor = null;  // contagem exata de vencidos (count no servidor)
+
+function _ym(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+function janelaInicio(){ var d=new Date(); d=new Date(d.getFullYear(), d.getMonth()-JANELA_ANTES, 1); return _ym(d)+'-01'; }
+function janelaFim(){ var d=new Date(); d=new Date(d.getFullYear(), d.getMonth()+JANELA_DEPOIS+1, 0); return _ym(d)+'-'+String(d.getDate()).padStart(2,'0'); }
+
+async function buscarPaginado(qs){
+  var out=[], off=0;
+  while(true){
+    var page = await sb(`${TABLE}?${qs}&limit=1000&offset=${off}`);
+    if(!page || page.length===0) break;
+    out = out.concat(page);
+    if(page.length < 1000) break;
+    off += 1000;
+    if(off >= 30000) break; // trava de segurança
+  }
+  return out;
+}
+
+function temFiltroAtivo(){
+  return ['filter-search','filter-status','filter-forma','filter-fazenda','filter-cg','filter-venc-ini','filter-venc-fim','filter-data-lanc']
+    .some(function(id){ var el=document.getElementById(id); return el && el.value; });
+}
+
+function montarQueryFiltros(){
+  var parts=['order=vencimento.asc'];
+  var g=function(id){ var el=document.getElementById(id); return el?el.value:''; };
+  var status=g('filter-status'); if(status) parts.push('status=eq.'+encodeURIComponent(status));
+  var fazenda=g('filter-fazenda'); if(fazenda) parts.push('fazenda=eq.'+encodeURIComponent(fazenda));
+  var cg=g('filter-cg'); if(cg) parts.push('cg=eq.'+encodeURIComponent(cg));
+  var vi=g('filter-venc-ini'); if(vi) parts.push('vencimento=gte.'+vi);
+  var vf=g('filter-venc-fim'); if(vf) parts.push('vencimento=lte.'+vf);
+  var dl=g('filter-data-lanc'); if(dl) parts.push('data_doc=eq.'+dl);
+  var forma=g('filter-forma'); if(forma && forma!=='OUTRO') parts.push('forma_pagamento=eq.'+encodeURIComponent(forma));
+  var s=(g('filter-search')||'').trim().replace(/[,()*]/g,' ').trim();
+  if(s){ var like=encodeURIComponent('*'+s+'*');
+    parts.push('or=(fornecedor.ilike.'+like+',historico.ilike.'+like+',documento.ilike.'+like+')'); }
+  return parts.join('&');
+}
+
+// Ponto de entrada dos filtros: decide entre janela local e busca no servidor
+async function aplicarFiltros(){
+  if(baseCompleta){ applyFilters(); return; }
+  if(_buscando) return;
+  if(temFiltroAtivo()){
+    _buscando=true; setSyncState('syncing','Buscando na base…');
+    try {
+      lancamentos = await buscarPaginado(montarQueryFiltros());
+      setSyncState('online', lancamentos.length+' encontrado(s)');
+    } catch(e) {
+      setSyncState('error','Erro'); showToast('⚠ Erro na busca: '+e.message,true);
+      lancamentos = janelaCache.slice();
+    }
+    _buscando=false;
+  } else {
+    lancamentos = janelaCache.slice();
+    setSyncState('online', lancamentos.length+' registros (período)');
+  }
+  applyFilters();
+}
+function aplicarFiltrosDebounced(){ clearTimeout(_filterTimer); _filterTimer=setTimeout(aplicarFiltros,350); }
+
+async function atualizarContagemVencidos(){
+  try {
+    var r = await fetch(`${SB_URL}/rest/v1/${TABLE}?select=id&status=eq.A%20PAGAR&vencimento=lt.${hojeISO()}`, {
+      method:'HEAD', headers:{ apikey:SB_KEY, Authorization:'Bearer '+SB_KEY, Prefer:'count=exact', Range:'0-0' }
+    });
+    var cr=r.headers.get('content-range'); var n=cr?parseInt((cr.split('/')[1]||'0'),10):0;
+    _vencidosServidor = isNaN(n)?null:n;
+  } catch(e){ _vencidosServidor=null; }
+}
+
+async function carregarTudo(){
+  setSyncState('syncing','Carregando base completa…');
+  try {
+    lancamentos = await buscarPaginado('order=vencimento.asc');
+    janelaCache = lancamentos.slice();
+    baseCompleta = true;
+    populateCGFilter();
+    applyFilters();
+    showToast('✓ Base completa carregada ('+lancamentos.length+')');
+  } catch(e){ setSyncState('error','Erro'); showToast('⚠ '+e.message,true); }
+}
+
 async function loadData() {
   setSyncState('syncing','Carregando…');
   try {
-    // Buscar todos os registros em páginas de 1000
-    lancamentos = [];
-    var offset = 0;
-    while(true) {
-      var page = await sb(`${TABLE}?order=vencimento.asc&limit=1000&offset=${offset}`);
-      if(!page || page.length === 0) break;
-      lancamentos = lancamentos.concat(page);
-      if(page.length < 1000) break;
-      offset += 1000;
-    }
-    setSyncState('online',`${lancamentos.length} registros`);
-    applyFilters(); 
+    baseCompleta = false;
+    janelaCache = await buscarPaginado('order=vencimento.asc&vencimento=gte.'+janelaInicio()+'&vencimento=lte.'+janelaFim());
+    lancamentos = janelaCache.slice();
+    setSyncState('online',`${lancamentos.length} registros (período)`);
     populateCGFilter();
     await carregarFornecedores();
-    const el = document.getElementById('panel-subtitle');
-    if(el) el.textContent=`${lancamentos.length} lançamentos no total — ${filtered.length} exibidos`;
+    atualizarContagemVencidos().then(function(){ atualizarBotoesVenc(); });
+    applyFilters();
   } catch(e) { setSyncState('error','Erro'); showToast('⚠ '+e.message,true); }
 }
 
@@ -2747,7 +2833,13 @@ function resetAnexos() {
 // ── PAINEL ──
 function populateCGFilter() {
   const sel=document.getElementById('filter-cg'), cur=sel.value;
-  const cgs=[...new Set(lancamentos.map(l=>l.cg).filter(Boolean))].sort();
+  // Usa a lista fixa do formulário (plano de contas completo), não só o que está carregado
+  var cgs=[];
+  var src=document.getElementById('f_cg');
+  if(src){ cgs=[...src.querySelectorAll('option')].map(o=>(o.value||o.textContent||'').trim())
+             .filter(v=>v && v.indexOf('Selecionar')<0 && v.indexOf('──')<0); }
+  if(!cgs.length){ cgs=[...new Set(lancamentos.map(l=>l.cg).filter(Boolean))].sort(); }
+  cgs=[...new Set(cgs)];
   sel.innerHTML='<option value="">Todas</option>'+cgs.map(c=>`<option${c===cur?' selected':''}>${c}</option>`).join('');
 }
 
@@ -2812,7 +2904,8 @@ function atualizarBotaoVenceHoje(){
 function atualizarBotaoVencidos(){
   var btn = document.getElementById('btn-vencido');
   if(!btn) return;
-  var n = contarVencidos();
+  // Preferir a contagem exata do servidor (inclui vencidos fora da janela de 3 meses)
+  var n = (_vencidosServidor !== null && !baseCompleta && !temFiltroAtivo()) ? _vencidosServidor : contarVencidos();
   btn.style.display = 'inline-flex';
   if(n > 0){
     btn.classList.remove('zero');
@@ -2852,7 +2945,7 @@ function filtrarVenceHoje(){
   var st = document.getElementById('filter-status'); if(st) st.value = 'A PAGAR';
   var vi = document.getElementById('filter-venc-ini'); if(vi) vi.value = hoje;
   var vf = document.getElementById('filter-venc-fim'); if(vf) vf.value = hoje;
-  applyFilters();
+  aplicarFiltros();
 }
 function filtrarVencidos(){
   var ontem = addDiasISO(-1);
@@ -2861,7 +2954,7 @@ function filtrarVencidos(){
   });
   var st = document.getElementById('filter-status'); if(st) st.value = 'A PAGAR';
   var vf = document.getElementById('filter-venc-fim'); if(vf) vf.value = ontem;
-  applyFilters();
+  aplicarFiltros();
 }
 function filtrarVenceAmanha(){
   var amanha = addDiasISO(1);
@@ -2871,7 +2964,7 @@ function filtrarVenceAmanha(){
   var st = document.getElementById('filter-status'); if(st) st.value = 'A PAGAR';
   var vi = document.getElementById('filter-venc-ini'); if(vi) vi.value = amanha;
   var vf = document.getElementById('filter-venc-fim'); if(vf) vf.value = amanha;
-  applyFilters();
+  aplicarFiltros();
 }
 
 function applyFilters() {
@@ -2915,7 +3008,12 @@ function applyFilters() {
   });
   renderTable(); renderStats();
   atualizarBotoesVenc();
-  document.getElementById('panel-subtitle').textContent=`${lancamentos.length} lançamentos no total — ${filtered.length} exibidos`;
+  var _sub = baseCompleta
+    ? `${filtered.length} de ${lancamentos.length} (base completa)`
+    : (typeof temFiltroAtivo==='function' && temFiltroAtivo())
+      ? `${filtered.length} resultado(s) — busca em toda a base`
+      : `${filtered.length} exibido(s) — período ${janelaInicio().substring(0,7)} a ${janelaFim().substring(0,7)}`;
+  var _subEl=document.getElementById('panel-subtitle'); if(_subEl) _subEl.textContent=_sub;
 }
 
 function renderStats() {
@@ -3000,7 +3098,7 @@ function clearFilters() {
     var el = document.getElementById(id); if(el) el.value='';
   });
   var ca = document.getElementById('checkAll'); if(ca) ca.checked = false;
-  applyFilters(); // renderTable() dentro já chama checkSel()
+  aplicarFiltros(); // volta à janela (período) e re-renderiza
 }
 // ── Atalhos de ciclo de pagamento ──
 function setCiclo(ciclo) {
