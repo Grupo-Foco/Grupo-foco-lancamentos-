@@ -1228,12 +1228,23 @@ async function _countVenc(qs){
   } catch(e){ return null; }
 }
 // Atualiza as 3 contagens (vencidos / hoje / amanhã) a partir da base, não do recorte filtrado
+var _contagensData = null;   // guarda a data (hojeISO) em que as contagens foram calculadas
 async function atualizarContagensVenc(){
   var hoje=hojeISO(), amanha=addDiasISO(1);
   _vencidosServidor = await _countVenc('status=eq.A%20PAGAR&vencimento=lt.'+hoje);
   _hojeServidor     = await _countVenc('status=eq.A%20PAGAR&vencimento=eq.'+hoje);
   _amanhaServidor   = await _countVenc('status=eq.A%20PAGAR&vencimento=eq.'+amanha);
+  _contagensData = hoje;      // marca o dia de referência das contagens
   atualizarBotoesVenc();
+}
+
+// Detecta virada de dia (aba aberta desde ontem): se o dia mudou, recarrega a janela
+// de 3 meses E recalcula as contagens com a data de hoje. Sem isso, os contadores
+// "vencendo hoje/amanhã" ficariam congelados na data em que a página foi aberta.
+function checarViradaDia(){
+  if(_contagensData && _contagensData !== hojeISO()){
+    loadData();
+  }
 }
 // Compatibilidade com chamadas antigas
 async function atualizarContagemVencidos(){ return atualizarContagensVenc(); }
@@ -2574,6 +2585,10 @@ async function init() {
     var nu=document.getElementById('nav-user');
     if(nu) nu.textContent = currentUser;
     showToast('✓ ' + lancamentos.length + ' registros carregados!');
+    // Virada de dia: se a aba ficar aberta de um dia para o outro, revalida ao voltar o foco
+    document.addEventListener('visibilitychange', function(){ if(!document.hidden) checarViradaDia(); });
+    window.addEventListener('focus', checarViradaDia);
+    setInterval(checarViradaDia, 5*60*1000);   // e a cada 5 min, mesmo com a aba em foco
   } catch(e) {
     setLoading(false);
     setSyncState('error','Falha');
