@@ -1231,9 +1231,15 @@ async function _countVenc(qs){
 var _contagensData = null;   // guarda a data (hojeISO) em que as contagens foram calculadas
 async function atualizarContagensVenc(){
   var hoje=hojeISO(), amanha=addDiasISO(1);
-  _vencidosServidor = await _countVenc('status=eq.A%20PAGAR&vencimento=lt.'+hoje);
-  _hojeServidor     = await _countVenc('status=eq.A%20PAGAR&vencimento=eq.'+hoje);
-  _amanhaServidor   = await _countVenc('status=eq.A%20PAGAR&vencimento=eq.'+amanha);
+  // 3 contagens em PARALELO (antes eram 3 idas ao servidor em série)
+  var r = await Promise.all([
+    _countVenc('status=eq.A%20PAGAR&vencimento=lt.'+hoje),
+    _countVenc('status=eq.A%20PAGAR&vencimento=eq.'+hoje),
+    _countVenc('status=eq.A%20PAGAR&vencimento=eq.'+amanha)
+  ]);
+  _vencidosServidor = r[0];
+  _hojeServidor     = r[1];
+  _amanhaServidor   = r[2];
   _contagensData = hoje;      // marca o dia de referência das contagens
   atualizarBotoesVenc();
 }
@@ -1245,6 +1251,33 @@ function checarViradaDia(){
   if(_contagensData && _contagensData !== hojeISO()){
     loadData();
   }
+}
+
+// ════════════════════════════════════════════════════════════
+// ATUALIZAÇÃO LOCAL — evita rebaixar a base inteira após salvar/baixar/excluir.
+// Antes, cada baixa/exclusão chamava loadDataLeve() (baixava TODOS os registros).
+// Agora alteramos só o item mexido na lista em memória e recontamos os badges.
+// ════════════════════════════════════════════════════════════
+function _acharIdx(arr, id){ for(var i=0;i<arr.length;i++){ if(+arr[i].id === +id) return i; } return -1; }
+function _patchLocal(id, campos){
+  var i=_acharIdx(lancamentos,id); if(i>=0) Object.assign(lancamentos[i], campos);
+  if(Array.isArray(janelaCache)){ var j=_acharIdx(janelaCache,id); if(j>=0) Object.assign(janelaCache[j], campos); }
+}
+function _removerLocal(ids){
+  var s={}; (Array.isArray(ids)?ids:[ids]).forEach(function(x){ s[+x]=1; });
+  lancamentos = lancamentos.filter(function(l){ return !s[+l.id]; });
+  if(Array.isArray(janelaCache)) janelaCache = janelaCache.filter(function(l){ return !s[+l.id]; });
+}
+function _inserirLocal(rows){
+  (Array.isArray(rows)?rows:[rows]).forEach(function(r){ if(r) lancamentos.unshift(r); });
+}
+// Re-renderiza e recontar os badges SEM baixar a base
+function aposMudancaLocal(){
+  applyFilters();
+  atualizarContagensVenc();   // contagens leves (HEAD count em paralelo)
+  setSyncState('online', lancamentos.length + ' registros');
+  var el = document.getElementById('panel-subtitle');
+  if(el && typeof filtered !== 'undefined') el.textContent = lancamentos.length + ' lançamentos no total — ' + filtered.length + ' exibidos';
 }
 // Compatibilidade com chamadas antigas
 async function atualizarContagemVencidos(){ return atualizarContagensVenc(); }
@@ -2513,6 +2546,7 @@ function salvarParcelas(base, n, boletoPb, nfPb) {
             var reciboPb = await uploadAnexoBlob(reciboBlob, lid, 'recibo');
             if (reciboPb) {
               await sb(TABLE + '?id=eq.' + lid, {method:'PATCH', body:JSON.stringify({recibo_path: reciboPb})});
+              if(saved[0]) saved[0].recibo_path = reciboPb;  // reflete no registro local
             }
           } catch(e) { console.warn('Recibo parcela ' + (idx+1) + ':', e); }
         }
@@ -2700,7 +2734,10 @@ async function saveLancamento() {
   btn.disabled=true; btn.textContent='Salvando…';
   // Verificar se há parcelas múltiplas
   var nParc = parseInt(document.getElementById('f_parcelas').value) || 1;
-  var novoLocal = null;  // registro para inserir localmente (evita rebaixar toda a base)
+  var novoLocal = null;       // 1 registro novo (parcela única)
+  var novasParcelas = null;   // N registros novos (parcelado)
+  var editadoId = null, editadoObj = null;  // edição simples
+  var excluidoId = null;      // id removido (edição convertida em parcelado)
   try {
     if(editingId && nParc > 1) {
       // Edição convertendo para parcelado: deletar original e criar novas parcelas
@@ -2724,9 +2761,11 @@ async function saveLancamento() {
       }
       // Deletar o registro original
       await sb(`${TABLE}?id=eq.${eidDel}`, {method:'DELETE'});
+      excluidoId = eidDel;
       // Criar as parcelas novas
       showToast('💾 Salvando ' + nParc + ' parcelas…');
-      await salvarParcelas(obj, nParc, boletoPb, nfPb);
+      var resEP = await salvarParcelas(obj, nParc, boletoPb, nfPb);
+      novasParcelas = (resEP||[]).map(function(s){ return s&&s[0]; }).filter(Boolean);
       _editBoleto = null; _editNf = null;
       showToast('✓ ' + nParc + ' parcelas salvas!');
     } else if(editingId) {
@@ -2758,6 +2797,7 @@ async function saveLancamento() {
       obj.boleto_path = null;
       obj.nf_path     = null;
       await sb(`${TABLE}?id=eq.${eid}`,{method:'PATCH',body:JSON.stringify(obj)});
+      editadoId = eid; editadoObj = obj;
       _editBoleto = null; _editNf = null;
       showToast('✓ Atualizado!');
     } else if(nParc > 1) {
@@ -2780,7 +2820,8 @@ async function saveLancamento() {
         }
       }
       showToast('💾 Salvando ' + nParc + ' parcelas…');
-      await salvarParcelas(obj, nParc, boletoPb, nfPb);
+      var resNP = await salvarParcelas(obj, nParc, boletoPb, nfPb);
+      novasParcelas = (resNP||[]).map(function(s){ return s&&s[0]; }).filter(Boolean);
       showToast('✓ ' + nParc + ' parcelas salvas!');
     } else {
       // Parcela única
@@ -2810,15 +2851,12 @@ async function saveLancamento() {
     }
     clearForm();
     const fb=document.getElementById('saveFeedback'); fb.classList.add('show'); setTimeout(()=>fb.classList.remove('show'),2500);
-    // Lançamento simples: insere localmente (rápido). Demais fluxos: recarrega.
-    if(novoLocal) {
-      lancamentos.unshift(novoLocal);
-      applyFilters();
-      atualizarContagensVenc();   // atualiza os contadores de vencimento após novo lançamento
-      setSyncState('online', lancamentos.length + ' registros');
-    } else {
-      await loadDataLeve();
-    }
+    // Todos os fluxos agora atualizam a lista LOCAL (sem rebaixar a base inteira)
+    if(excluidoId)                       _removerLocal(excluidoId);
+    if(novoLocal)                        lancamentos.unshift(novoLocal);
+    if(novasParcelas && novasParcelas.length) _inserirLocal(novasParcelas);
+    if(editadoId)                        _patchLocal(editadoId, editadoObj);
+    aposMudancaLocal();
   } catch(e) { showToast('⚠ Erro: '+e.message,true); }
   finally { btn.disabled=false; btn.textContent='＋ Salvar Lançamento'; }
 }
@@ -3209,7 +3247,7 @@ async function deleteSelected() {
   try {
     const filter=ids.map(id=>`id.eq.${id}`).join(',');
     await sb(`${TABLE}?or=(${filter})`,{method:'DELETE',prefer:'return=minimal'});
-    await loadDataLeve(); checkSel(); showToast(`🗑 ${ids.length} excluído(s)`);
+    _removerLocal(ids); aposMudancaLocal(); checkSel(); showToast(`🗑 ${ids.length} excluído(s)`);
   } catch(e) { showToast('⚠ '+e.message,true); }
 }
 
@@ -3255,7 +3293,7 @@ function openDetail(id) {
   `;
   document.getElementById('modalDeleteBtn').onclick=async()=>{
     if(!confirm('Excluir?')) return;
-    try { await sb(`${TABLE}?id=eq.${id}`,{method:'DELETE',prefer:'return=minimal'}); await loadDataLeve(); closeModal(); showToast('🗑 Excluído'); }
+    try { await sb(`${TABLE}?id=eq.${id}`,{method:'DELETE',prefer:'return=minimal'}); _removerLocal(id); aposMudancaLocal(); closeModal(); showToast('🗑 Excluído'); }
     catch(e) { showToast('⚠ '+e.message,true); }
   };
   document.getElementById('modalEditBtn').onclick=()=>{closeModal();editLancamento(id);};
@@ -3371,7 +3409,8 @@ async function confirmarBaixaRapida(id) {
       body: JSON.stringify({ status: 'PAGO', pagamento: dataPag, conta: conta })
     });
     var pop = document.getElementById('popup-baixa-rapida'); if(pop) pop.remove();
-    await loadDataLeve();
+    _patchLocal(id, { status:'PAGO', pagamento:dataPag, conta:conta });
+    aposMudancaLocal();
     showToast('✓ Baixado como PAGO!');
   } catch(e) {
     showToast('⚠ Erro: ' + e.message, true);
@@ -3387,7 +3426,8 @@ async function desfazerBaixaLinha(id) {
       method: 'PATCH',
       body: JSON.stringify({ status: 'A PAGAR', pagamento: null })
     });
-    await loadDataLeve();
+    _patchLocal(id, { status:'A PAGAR', pagamento:null });
+    aposMudancaLocal();
     showToast('↺ Baixa desfeita');
   } catch(e) { showToast('⚠ Erro: ' + e.message, true); }
 }
@@ -3405,7 +3445,8 @@ async function confirmarBaixaModal() {
       method: 'PATCH',
       body: JSON.stringify({ status: 'PAGO', pagamento: dataPag, conta: conta })
     });
-    await loadDataLeve();
+    _patchLocal(lancId, { status:'PAGO', pagamento:dataPag, conta:conta });
+    aposMudancaLocal();
     closeModal();
     showToast('✓ Lançamento baixado como PAGO!');
   } catch(e) {
@@ -3756,7 +3797,8 @@ async function confirmarBaixa() {
       btn.textContent = `Salvando ${ok}/${ids.length}…`;
     }
     document.getElementById('modalBaixa').classList.remove('open');
-    await loadDataLeve();
+    ids.forEach(function(id){ _patchLocal(id, { status:'PAGO', pagamento:pagData, conta:baixaConta }); });
+    aposMudancaLocal();
     checkSel();
     showToast(`✓ ${ids.length} lançamento${ids.length>1?'s':''} baixado${ids.length>1?'s':''}!`);
   } catch(e) {
