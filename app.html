@@ -1179,6 +1179,31 @@ function temFiltroAtivo(){
     .some(function(id){ var el=document.getElementById(id); return el && el.value; });
 }
 
+// Converte o termo de busca em condição PostgREST por VALOR, se parecer número.
+// Aceita "1.234,56" e "1234,56" (exato) e "1.234"/"1234" (faixa do real inteiro).
+function _valorCond(raw){
+  var t = (raw||'').replace(/r\$/ig,'').replace(/\s/g,'');
+  if(!t) return null;
+  var temCent;
+  if(/^\d{1,3}(\.\d{3})+,\d{1,2}$/.test(t)){        // 1.234,56
+    t = t.replace(/\./g,'').replace(',','.'); temCent = true;
+  } else if(/^\d+,\d{1,2}$/.test(t)){                // 1234,56
+    t = t.replace(',','.'); temCent = true;
+  } else if(/^\d{1,3}(\.\d{3})+$/.test(t)){          // 1.234 (ponto de milhar)
+    t = t.replace(/\./g,''); temCent = false;
+  } else if(/^\d+\.\d{1,2}$/.test(t)){               // 1234.56 (ponto decimal)
+    temCent = true;
+  } else if(/^\d+$/.test(t)){                        // 1234
+    temCent = false;
+  } else {
+    return null;                                     // não é número
+  }
+  var n = parseFloat(t);
+  if(isNaN(n)) return null;
+  if(temCent) return 'valor.eq.'+n;                  // valor com centavos → exato
+  return 'and(valor.gte.'+n+',valor.lt.'+(n+1)+')';  // só reais → faixa daquele real
+}
+
 function montarQueryFiltros(){
   var parts=['order=vencimento.asc'];
   var g=function(id){ var el=document.getElementById(id); return el?el.value:''; };
@@ -1189,9 +1214,16 @@ function montarQueryFiltros(){
   var vf=g('filter-venc-fim'); if(vf) parts.push('vencimento=lte.'+vf);
   var dl=g('filter-data-lanc'); if(dl) parts.push('data_doc=eq.'+dl);
   var forma=g('filter-forma'); if(forma && forma!=='OUTRO') parts.push('forma_pagamento=eq.'+encodeURIComponent(forma));
-  var s=(g('filter-search')||'').trim().replace(/[,()*]/g,' ').trim();
-  if(s){ var like=encodeURIComponent('*'+s+'*');
-    parts.push('or=(fornecedor.ilike.'+like+',historico.ilike.'+like+',documento.ilike.'+like+')'); }
+  var raw=(g('filter-search')||'').trim();
+  if(raw){
+    var ors=[];
+    var txt=raw.replace(/[,()*]/g,' ').trim();   // texto: tira caracteres que quebram o PostgREST
+    if(txt){ var like=encodeURIComponent('*'+txt+'*');
+      ors.push('fornecedor.ilike.'+like,'historico.ilike.'+like,'documento.ilike.'+like); }
+    var vc=_valorCond(raw);                        // valor: inclui na busca se for número
+    if(vc) ors.push(vc);
+    if(ors.length) parts.push('or=('+ors.join(',')+')');
+  }
   return parts.join('&');
 }
 
