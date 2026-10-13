@@ -2680,7 +2680,59 @@ function setStatus(val,btn) {
   }
 }
 
+var _savingLanc = false;   // guard contra duplo-clique / reentrância
+
+// Lista de parcelas a criar (venc,valor) — espelha o cálculo de salvarParcelas
+function _linhasParaChecar(obj, nParc){
+  if(!nParc || nParc<=1) return [{ venc:(obj.vencimento||''), valor:(+obj.valor||0) }];
+  var out=[];
+  for(var j=0;j<nParc;j++){
+    var vi=document.getElementById('parc_venc_'+j);
+    var li=document.getElementById('parc_val_'+j);
+    var vp = (vi && vi.value) ? vi.value : (obj.vencimento||'');
+    var padrao = parseFloat(((+obj.valor||0)/nParc).toFixed(2));
+    var lv = (li && li.value!=='') ? parseFloat(li.value) : padrao;
+    if(isNaN(lv)||lv<=0) lv=padrao;
+    out.push({ venc:vp, valor:lv });
+  }
+  return out;
+}
+
+// Checa no SERVIDOR (base inteira, inclui lançamentos de OUTROS usuários) se já
+// existe lançamento com mesmo fornecedor + valor + vencimento. true = pode salvar.
+async function checarDuplicataServidor(forn, linhas){
+  try {
+    var vals=[]; linhas.forEach(function(x){ if(vals.indexOf(x.valor)<0) vals.push(x.valor); });
+    if(!vals.length) return true;
+    var q = TABLE + '?select=id,documento,valor,vencimento,lancador'
+          + '&fornecedor=eq.' + encodeURIComponent((forn||'').toUpperCase())
+          + '&valor=in.(' + vals.join(',') + ')';
+    var rows = await sb(q);
+    if(!rows || !rows.length) return true;
+    var hits=[];
+    linhas.forEach(function(ln){
+      rows.forEach(function(r){
+        if(Math.abs((+r.valor||0)-ln.valor)<0.01 && String(r.vencimento||'')===String(ln.venc) && hits.indexOf(r)<0)
+          hits.push(r);
+      });
+    });
+    if(!hits.length) return true;
+    var msg = 'ATENCAO: possivel duplicidade!\n\nJa existe(m) ' + hits.length +
+      ' lancamento(s) com mesmo fornecedor, valor e vencimento:\n\n';
+    hits.slice(0,4).forEach(function(r){
+      msg += '- ID ' + r.id + ' | R$ ' + (+r.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2}) +
+             ' | venc ' + fmtDate(r.vencimento) + ' | por ' + (r.lancador||'?') + '\n';
+    });
+    if(hits.length>4) msg += '... e mais ' + (hits.length-4) + '\n';
+    msg += '\nDeseja salvar mesmo assim?';
+    return confirm(msg);
+  } catch(e){ return true; /* falha de rede não bloqueia o salvamento */ }
+}
+
 async function saveLancamento() {
+  if(_savingLanc) return;    // já há um salvamento em andamento — ignora o 2º clique
+  _savingLanc = true;
+  try {
   const forn=document.getElementById('f_fornecedor').value.trim();
   const cnpjForn=document.getElementById('f_cnpj').value.trim();
   await salvarFornecedorSeNovo(forn, cnpjForn);
@@ -2721,46 +2773,12 @@ async function saveLancamento() {
     chave_pix:(document.getElementById('f_chave_pix')||{value:''}).value.trim()||null,
     codigo_barras: (typeof pendingCodigoBarras !== 'undefined' && pendingCodigoBarras) ? pendingCodigoBarras : null
   };
-  // ── Verificar duplicata (múltiplos critérios de semelhança) ──
+  // ── Verificar duplicata no SERVIDOR (base inteira, inclui outros usuários) ──
+  // Cobre lançamento avulso e parcelado (checa parcela a parcela).
   if(!editingId) {
-    var docNorm = (documento||'').trim().toUpperCase();
-    var fornNorm = (forn||'').toUpperCase();
-    var vencAtual = venc || '';
-    var chavePixAtual = (document.getElementById('f_chave_pix')||{value:''}).value.trim();
-
-    var suspeitos = [];
-    lancamentos.forEach(function(l) {
-      var mesmoValor = Math.abs((+l.valor||0) - val) < 0.01;
-      if(!mesmoValor) return;
-      var lDoc = (l.documento||'').trim().toUpperCase();
-      var lForn = (l.fornecedor||'').toUpperCase();
-      var lVenc = (l.vencimento||'');
-      var lChave = (l.chave_pix||'').trim();
-
-      var motivos = [];
-      if(docNorm && lDoc && docNorm === lDoc) motivos.push('mesmo no de documento (' + documento + ')');
-      if(fornNorm && lForn === fornNorm && vencAtual && lVenc === vencAtual) motivos.push('mesmo fornecedor e vencimento');
-      if(chavePixAtual && lChave && lChave.replace(/\D/g,'') === chavePixAtual.replace(/\D/g,'') && chavePixAtual.replace(/\D/g,'')) motivos.push('mesma chave Pix');
-      if(!motivos.length && fornNorm && lForn === fornNorm) motivos.push('mesmo fornecedor e valor');
-
-      if(motivos.length) suspeitos.push({ l: l, motivos: motivos });
-    });
-
-    if(suspeitos.length) {
-      suspeitos.sort(function(a,b){ return b.motivos.length - a.motivos.length; });
-      var msg = 'ATENCAO: possivel duplicidade!\n\n' +
-        'Ja existe ' + (suspeitos.length===1 ? 'um lancamento parecido' : suspeitos.length + ' lancamentos parecidos') + ':\n\n';
-      suspeitos.slice(0,3).forEach(function(s){
-        var l = s.l;
-        msg += '- ID ' + l.id + ' - ' + (l.fornecedor||'') + '\n' +
-               '   Doc: ' + (l.documento||'-') + ' | R$ ' + (+l.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2}) +
-               ' | venc ' + fmtDate(l.vencimento) + '\n' +
-               '   Semelhanca: ' + s.motivos.join(', ') + '\n\n';
-      });
-      if(suspeitos.length > 3) msg += '... e mais ' + (suspeitos.length-3) + '\n\n';
-      msg += 'Deseja salvar mesmo assim?';
-      if(!confirm(msg)) return;
-    }
+    var _nParcChk = parseInt(document.getElementById('f_parcelas').value) || 1;
+    var _ok = await checarDuplicataServidor(forn, _linhasParaChecar(obj, _nParcChk));
+    if(!_ok) return;
   }
   const btn=document.getElementById('btnSalvar');
   btn.disabled=true; btn.textContent='Salvando…';
@@ -2891,6 +2909,7 @@ async function saveLancamento() {
     aposMudancaLocal();
   } catch(e) { showToast('⚠ Erro: '+e.message,true); }
   finally { btn.disabled=false; btn.textContent='＋ Salvar Lançamento'; }
+  } finally { _savingLanc = false; }   // libera o guard de reentrância
 }
 
 function clearForm() {
