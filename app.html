@@ -1606,18 +1606,17 @@ async function abrirAnexo(path, isBoleto, linhaSalva) {
   const _doc = isImg
     ? `<img src="${url}" style="width:100%;height:100%;object-fit:contain;">`
     : `<iframe src="${url}#toolbar=1" style="width:100%;height:100%;border:none;"></iframe>`;
-  // Faixa do código de barras (se for boleto com linha válida)
+  // Faixa do código de barras (se for boleto com linha válida salva) — mostra já
   var _band = '';
-  if(isBoleto && linhaSalva && typeof cbLinhaValida === 'function' && cbLinhaValida(linhaSalva)) {
-    _band = barcodeBandHTML(linhaSalva);
-  }
+  var _linhaOk = isBoleto && linhaSalva && typeof cbLinhaValida === 'function' && cbLinhaValida(linhaSalva);
+  if(_linhaOk) _band = barcodeBandHTML(linhaSalva);
   frame.innerHTML = _band ? `<div class="cb-view-wrap">${_band}${_doc}</div>` : _doc;
   document.getElementById('viewerOverlay').classList.add('open');
-  if(_band) {
-    desenharBarcode('cb-svg-view', linhaSalva);
-  } else if(isBoleto && typeof viewerAutoLerGF === 'function') {
-    // Registro antigo sem código salvo: tenta ler na hora
-    viewerAutoLerGF(url, nome, isImg);
+  if(_band) desenharBarcode('cb-svg-view', linhaSalva);
+  // Boleto: SEMPRE relê o arquivo para escolher o boleto certo de HOJE.
+  // Em carnês com vários boletos, o código salvo pode ser de um mês anterior.
+  if(isBoleto && typeof viewerAutoLerGF === 'function') {
+    viewerAutoLerGF(url, nome, isImg, _linhaOk ? linhaSalva : '');
   }
 }
 function fecharViewer() {
@@ -1629,7 +1628,7 @@ function fecharViewer() {
 }
 
 // Lê o código na hora ao abrir um boleto antigo (sem código salvo)
-async function viewerAutoLerGF(url, nome, isImg) {
+async function viewerAutoLerGF(url, nome, isImg, linhaSalva) {
   const frame = document.getElementById('viewerFrame');
   if(!frame) return;
   var chip = document.createElement('div');
@@ -1660,6 +1659,10 @@ async function viewerAutoLerGF(url, nome, isImg) {
     }
     if(!linhas.length) { remover(); return; }
     var parc = cbOrdena(linhas);
+    if(!parc.length) { remover(); return; }
+    // Com código salvo e UM único boleto no arquivo: mantém o salvo (não sobrepõe).
+    // Só re-escolhe quando há VÁRIOS boletos (carnê) — aí o salvo pode ser de outro mês.
+    if(linhaSalva && parc.length <= 1) { remover(); return; }
     var pick = parc[cbEscolherParcela(parc)];
     if(!pick) { remover(); return; }
     // Se o visualizador ainda está aberto, injeta a faixa
@@ -4006,8 +4009,14 @@ async function lerCodigosDeArquivo(file){
 }
 
 function cbEscolherParcela(parcelas){
+  // Regra: pega o boleto MAIS URGENTE que ainda vale pagar — a vencer (venc >= hoje)
+  // ou vencido há no máximo 3 dias. Ignora boletos de meses anteriores.
+  // parcelas vem ordenada por vencimento crescente (cbOrdena).
   const h=new Date(); const hj=Date.UTC(h.getFullYear(),h.getMonth(),h.getDate());
-  let idx=parcelas.findIndex(p=>p.venc && p.venc.getTime()>=hj); if(idx<0) idx=parcelas.length-1; return idx;
+  const limite = hj - 3*86400000;   // tolerância de 3 dias para vencidos recentes
+  let idx=parcelas.findIndex(p=>p.venc && p.venc.getTime()>=limite);
+  if(idx<0) idx=parcelas.length-1;  // todos vencidos há mais de 3 dias → o menos antigo
+  return idx;
 }
 function cbOrdena(linhas){ return linhas.map(cbParse).filter(Boolean).sort((a,b)=>((a.venc&&a.venc.getTime())||0)-((b.venc&&b.venc.getTime())||0)); }
 
