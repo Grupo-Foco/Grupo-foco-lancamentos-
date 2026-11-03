@@ -617,7 +617,7 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
     </div>
     <span id="nav-user" style="font-size:12px;color:rgba(255,255,255,.7);font-family:'DM Mono',monospace;letter-spacing:.05em;"></span>
     <button id="btn-config" onclick="window.location.href='app-config.html'" style="display:none;font-size:11px;padding:5px 13px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:8px;color:rgba(255,255,255,.8);cursor:pointer;font-family:'DM Mono',monospace;letter-spacing:.05em;transition:background .2s;" onmouseover="this.style.background='rgba(255,255,255,.22)'" onmouseout="this.style.background='rgba(255,255,255,.1)'">⚙ Config</button>
-    <button id="btn-endividamento" onclick="abrirEndividamento()" style="display:none;font-size:11px;padding:5px 13px;background:rgba(200,168,75,0.18);border:1px solid rgba(200,168,75,0.45);border-radius:8px;color:var(--ouro-light);cursor:pointer;font-family:'DM Mono',monospace;letter-spacing:.05em;font-weight:600;transition:background .2s;" onmouseover="this.style.background='rgba(200,168,75,0.32)'" onmouseout="this.style.background='rgba(200,168,75,0.18)'">◈ Endividamento</button>
+    <button id="btn-endividamento" onclick="abrirEndividamento()" style="display:none;font-size:11px;padding:5px 13px;background:rgba(200,168,75,0.18);border:1px solid rgba(200,168,75,0.45);border-radius:8px;color:var(--ouro-light);cursor:pointer;font-family:'DM Mono',monospace;letter-spacing:.05em;font-weight:600;transition:background .2s;position:relative;" onmouseover="this.style.background='rgba(200,168,75,0.32)'" onmouseout="this.style.background='rgba(200,168,75,0.18)'">◈ Endividamento<span id="endiv-badge" title="" style="display:none;position:absolute;top:-8px;right:-8px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#c0392b;color:#fff;font-size:10px;font-weight:700;line-height:18px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.35);font-family:'DM Mono',monospace;">0</span></button>
     <button id="btn-receitas" onclick="window.location.href='app-receitas.html'" style="display:none;font-size:11px;padding:5px 13px;background:rgba(74,140,92,0.22);border:1px solid rgba(74,140,92,0.5);border-radius:8px;color:#a8e0b8;cursor:pointer;font-family:'DM Mono',monospace;letter-spacing:.05em;font-weight:600;transition:background .2s;" onmouseover="this.style.background='rgba(74,140,92,0.38)'" onmouseout="this.style.background='rgba(74,140,92,0.22)'">＄ Receitas</button>
     <button id="btn-relatorios" onclick="window.location.href='app-relatorios.html'" style="display:none;font-size:11px;padding:5px 13px;background:rgba(93,138,168,0.22);border:1px solid rgba(93,138,168,0.5);border-radius:8px;color:#b8d4e8;cursor:pointer;font-family:'DM Mono',monospace;letter-spacing:.05em;font-weight:600;transition:background .2s;" onmouseover="this.style.background='rgba(93,138,168,0.38)'" onmouseout="this.style.background='rgba(93,138,168,0.22)'">▤ Relatórios</button>
     <button onclick="sessionStorage.removeItem('gf_user');sessionStorage.removeItem('gf_role');window.location.href='index.html';"
@@ -1336,6 +1336,7 @@ async function loadData() {
     populateCGFilter();
     await carregarFornecedores();
     atualizarContagemVencidos().then(function(){ atualizarBotoesVenc(); });
+    atualizarAlertaEndiv();   // badge de parcelas de contrato a vencer sobre "Endividamento"
     applyFilters();
   } catch(e) { setSyncState('error','Erro'); showToast('⚠ '+e.message,true); }
 }
@@ -2474,6 +2475,33 @@ function relatorioBloqueado() {
     }, true);
   }
 })();
+
+// ════════════════════════════════════════════════════════════
+// ALERTA DE ENDIVIDAMENTO — badge sobre "Endividamento" com as parcelas
+// de contratos (máquinas/custeios) vencidas ou vencendo em breve.
+// Lê endiv_lancamentos (cada parcela é uma linha), sem duplicar nada.
+// ════════════════════════════════════════════════════════════
+var ENDIV_ALERTA_DIAS = 7;   // janela: vencidas + vencendo nos próximos N dias
+async function atualizarAlertaEndiv(){
+  try {
+    var badge = document.getElementById('endiv-badge');
+    if(!badge || typeof hasPerm!=='function' || !hasPerm('endividamento')) return;
+    var limite = addDiasISO(ENDIV_ALERTA_DIAS);
+    var rows = await sb('endiv_lancamentos?select=valor_parcela,data_parcela&status=eq.'
+                        + encodeURIComponent('A PAGAR') + '&data_parcela=lte.' + limite + '&limit=3000');
+    var n = (rows && rows.length) || 0;
+    if(!n){ badge.style.display='none'; return; }
+    var hoje = hojeISO();
+    var venc = rows.filter(function(r){ return (r.data_parcela||'') < hoje; }).length;
+    var soma = rows.reduce(function(s,r){ return s + (+r.valor_parcela||0); }, 0);
+    badge.textContent = n > 99 ? '99+' : String(n);
+    badge.title = n + ' parcela(s) de contrato a pagar'
+                + (venc ? ' — ' + venc + ' vencida(s)' : ' (próximos ' + ENDIV_ALERTA_DIAS + ' dias)')
+                + ' · R$ ' + soma.toLocaleString('pt-BR',{minimumFractionDigits:2});
+    badge.style.background = venc ? '#c0392b' : '#c8a84b';   // vermelho se vencidas, âmbar se só a vencer
+    badge.style.display = '';
+  } catch(e){ /* silencioso: alerta é informativo, não bloqueia nada */ }
+}
 
 function abrirEndividamento() {
   sessionStorage.setItem('gf_role', 'gestor');
