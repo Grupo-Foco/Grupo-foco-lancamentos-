@@ -617,6 +617,7 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
     </div>
     <span id="nav-user" style="font-size:12px;color:rgba(255,255,255,.7);font-family:'DM Mono',monospace;letter-spacing:.05em;"></span>
     <button id="btn-config" onclick="window.location.href='app-config.html'" style="display:none;font-size:11px;padding:5px 13px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:8px;color:rgba(255,255,255,.8);cursor:pointer;font-family:'DM Mono',monospace;letter-spacing:.05em;transition:background .2s;" onmouseover="this.style.background='rgba(255,255,255,.22)'" onmouseout="this.style.background='rgba(255,255,255,.1)'">⚙ Config</button>
+    <button id="btn-auditoria" onclick="abrirAuditoria()" style="display:none;font-size:11px;padding:5px 13px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:8px;color:rgba(255,255,255,.8);cursor:pointer;font-family:'DM Mono',monospace;letter-spacing:.05em;transition:background .2s;" onmouseover="this.style.background='rgba(255,255,255,.22)'" onmouseout="this.style.background='rgba(255,255,255,.1)'">🕵 Auditoria</button>
     <button id="btn-endividamento" onclick="abrirEndividamento()" style="display:none;font-size:11px;padding:5px 13px;background:rgba(200,168,75,0.18);border:1px solid rgba(200,168,75,0.45);border-radius:8px;color:var(--ouro-light);cursor:pointer;font-family:'DM Mono',monospace;letter-spacing:.05em;font-weight:600;transition:background .2s;position:relative;" onmouseover="this.style.background='rgba(200,168,75,0.32)'" onmouseout="this.style.background='rgba(200,168,75,0.18)'">◈ Endividamento<span id="endiv-badge" title="" style="display:none;position:absolute;top:-8px;right:-8px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#c0392b;color:#fff;font-size:10px;font-weight:700;line-height:18px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.35);font-family:'DM Mono',monospace;">0</span></button>
     <button id="btn-receitas" onclick="window.location.href='app-receitas.html'" style="display:none;font-size:11px;padding:5px 13px;background:rgba(74,140,92,0.22);border:1px solid rgba(74,140,92,0.5);border-radius:8px;color:#a8e0b8;cursor:pointer;font-family:'DM Mono',monospace;letter-spacing:.05em;font-weight:600;transition:background .2s;" onmouseover="this.style.background='rgba(74,140,92,0.38)'" onmouseout="this.style.background='rgba(74,140,92,0.22)'">＄ Receitas</button>
     <button id="btn-relatorios" onclick="window.location.href='app-relatorios.html'" style="display:none;font-size:11px;padding:5px 13px;background:rgba(93,138,168,0.22);border:1px solid rgba(93,138,168,0.5);border-radius:8px;color:#b8d4e8;cursor:pointer;font-family:'DM Mono',monospace;letter-spacing:.05em;font-weight:600;transition:background .2s;" onmouseover="this.style.background='rgba(93,138,168,0.38)'" onmouseout="this.style.background='rgba(93,138,168,0.22)'">▤ Relatórios</button>
@@ -897,6 +898,7 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal()">Fechar</button>
+      <button class="btn btn-secondary" id="modalHistBtn" style="display:none;">🕘 Histórico</button>
       <button class="btn btn-danger" id="modalDeleteBtn">🗑 Excluir</button>
       <button class="btn btn-secondary" id="modalEditBtn">✎ Editar</button>
       <button class="btn btn-primary" id="modalBaixarBtn" style="display:none;background:#22c55e;border-color:#22c55e;">✓ Baixar</button>
@@ -935,6 +937,28 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- ===== AUDITORIA (overlay) ===== -->
+<div id="audOverlay" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(26,58,42,.55);backdrop-filter:blur(2px);padding:24px;">
+  <div style="max-width:1040px;margin:0 auto;background:var(--branco,#fafaf7);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.3);display:flex;flex-direction:column;max-height:calc(100vh - 48px);overflow:hidden;">
+    <div style="background:var(--verde,#1a3a2a);color:#f5f0e8;padding:16px 22px;display:flex;justify-content:space-between;align-items:center;">
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:var(--ouro,#c8a84b);">🕵 Auditoria de Lançamentos</div>
+      <button onclick="fecharAuditoria()" style="background:rgba(255,255,255,.12);border:none;color:#f5f0e8;border-radius:8px;padding:6px 12px;cursor:pointer;font-family:'DM Mono',monospace;">✕ Fechar</button>
+    </div>
+    <div style="padding:14px 22px;border-bottom:1px solid var(--creme-dark,#e8e0d0);display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
+      <div><label style="font-size:10px;color:#8a8a7a;display:block;">USUÁRIO</label><input id="aud-user" placeholder="todos" style="padding:7px 10px;border:1px solid var(--creme-dark,#e8e0d0);border-radius:7px;font-size:13px;width:130px;"></div>
+      <div><label style="font-size:10px;color:#8a8a7a;display:block;">AÇÃO</label>
+        <select id="aud-acao" style="padding:7px 10px;border:1px solid var(--creme-dark,#e8e0d0);border-radius:7px;font-size:13px;">
+          <option value="">todas</option><option value="INSERT">Criação</option><option value="UPDATE">Edição</option><option value="DELETE">Exclusão</option>
+        </select></div>
+      <div><label style="font-size:10px;color:#8a8a7a;display:block;">DE</label><input type="date" id="aud-de" style="padding:7px 10px;border:1px solid var(--creme-dark,#e8e0d0);border-radius:7px;font-size:13px;"></div>
+      <div><label style="font-size:10px;color:#8a8a7a;display:block;">ATÉ</label><input type="date" id="aud-ate" style="padding:7px 10px;border:1px solid var(--creme-dark,#e8e0d0);border-radius:7px;font-size:13px;"></div>
+      <button onclick="carregarAuditoria()" style="background:var(--verde,#1a3a2a);color:var(--ouro,#c8a84b);border:none;border-radius:8px;padding:8px 16px;cursor:pointer;font-family:'Syne',sans-serif;font-weight:700;font-size:13px;">Filtrar</button>
+      <span id="aud-escopo" style="font-size:11px;color:#8a8a7a;align-self:center;"></span>
+    </div>
+    <div id="aud-body" style="overflow:auto;padding:8px 22px 22px;"></div>
+  </div>
+</div>
 
 <script>
 const SB_URL = 'https://zdckrfthpfpnzcxzaghd.supabase.co';
@@ -2440,6 +2464,8 @@ function relatorioBloqueado() {
   var btnConf  = document.getElementById('btn-config');
   var btnReceitas = document.getElementById('btn-receitas');
   if(hasPerm('endividamento') && btnEndiv) btnEndiv.style.display = '';
+  var btnAud = document.getElementById('btn-auditoria');
+  if(btnAud && currentRole === 'gestor') btnAud.style.display = '';   // auditoria: só gestor
   if(hasPerm('configuracoes') && btnConf)  btnConf.style.display  = '';
   // Receitas: visível para TODOS por padrão; só oculta se o gestor
   // marcou bloqueio explícito ('receitas_bloqueado') para o usuário.
@@ -2511,6 +2537,78 @@ function abrirEndividamento() {
   window.open('app-endividamento.html', '_blank');
 }
 
+// ════════════════════════════════════════════════════════════
+// AUDITORIA DE LANÇAMENTOS — quem alterou o quê e quando
+// Lê a tabela lanc_auditoria (preenchida por trigger no banco).
+// ════════════════════════════════════════════════════════════
+var _audLancId = null;   // quando aberto a partir de um lançamento específico
+function abrirAuditoria(lancId){
+  _audLancId = (lancId!==undefined && lancId!==null) ? lancId : null;
+  var ov = document.getElementById('audOverlay'); if(!ov) return;
+  ov.style.display='block';
+  var esc = document.getElementById('aud-escopo');
+  if(esc) esc.textContent = _audLancId ? ('Lançamento ID '+_audLancId) : '';
+  carregarAuditoria();
+}
+function fecharAuditoria(){ var ov=document.getElementById('audOverlay'); if(ov) ov.style.display='none'; }
+
+function _audEscHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+function _audAcaoLabel(a){ return a==='INSERT'?'Criação':a==='UPDATE'?'Edição':a==='DELETE'?'Exclusão':a; }
+function _audAcaoCor(a){ return a==='INSERT'?'#16a34a':a==='UPDATE'?'#c8a84b':a==='DELETE'?'#c0392b':'#8a8a7a'; }
+function _audCampoNome(c){
+  var m={fornecedor:'Fornecedor',documento:'Nº documento',solicitante:'Solicitante',data_doc:'Data lançamento',
+    vencimento:'Vencimento',pagamento:'Pagamento',status:'Status',valor:'Valor',conta:'Conta',correntista:'Correntista',
+    fazenda:'Fazenda',cg:'Conta gerencial',historico:'Histórico',forma_pagamento:'Forma pgto',safra:'Safra',cultura:'Cultura',cnpj:'CNPJ'};
+  return m[c]||c;
+}
+function _audMudancasHtml(acao, mud){
+  if(!mud) return '';
+  try{ if(typeof mud==='string') mud=JSON.parse(mud); }catch(e){ return ''; }
+  if(acao==='UPDATE'){
+    var parts=[];
+    for(var k in mud){ if(!mud.hasOwnProperty(k)) continue;
+      var de=mud[k]&&mud[k].de!=null?mud[k].de:'—', para=mud[k]&&mud[k].para!=null?mud[k].para:'—';
+      parts.push('<div style="font-size:12px;margin:2px 0;"><b>'+_audEscHtml(_audCampoNome(k))+':</b> <span style="color:#c0392b;">'+_audEscHtml(de)+'</span> → <span style="color:#16a34a;">'+_audEscHtml(para)+'</span></div>');
+    }
+    return parts.join('')||'<span style="color:#8a8a7a;font-size:12px;">(sem alteração de campos monitorados)</span>';
+  }
+  // INSERT / DELETE: snapshot resumido
+  var r=[];
+  if(mud.status!=null) r.push('status '+_audEscHtml(mud.status));
+  if(mud.valor!=null) r.push('R$ '+Number(mud.valor).toLocaleString('pt-BR',{minimumFractionDigits:2}));
+  if(mud.vencimento!=null) r.push('venc '+_audEscHtml(mud.vencimento));
+  return '<span style="color:#8a8a7a;font-size:12px;">'+r.join(' · ')+'</span>';
+}
+
+async function carregarAuditoria(){
+  var body=document.getElementById('aud-body'); if(!body) return;
+  body.innerHTML='<div style="padding:30px;text-align:center;color:#8a8a7a;">Carregando…</div>';
+  var qs=['order=quando.desc','limit=500'];
+  if(_audLancId!=null) qs.push('lancamento_id=eq.'+encodeURIComponent(_audLancId));
+  var u=(document.getElementById('aud-user')||{}).value; if(u&&u.trim()) qs.push('usuario=ilike.*'+encodeURIComponent(u.trim())+'*');
+  var ac=(document.getElementById('aud-acao')||{}).value; if(ac) qs.push('acao=eq.'+ac);
+  var de=(document.getElementById('aud-de')||{}).value; if(de) qs.push('quando=gte.'+de);
+  var ate=(document.getElementById('aud-ate')||{}).value; if(ate) qs.push('quando=lte.'+ate+'T23:59:59');
+  var rows;
+  try { rows = await sb('lanc_auditoria?'+qs.join('&')); }
+  catch(e){ body.innerHTML='<div style="padding:24px;color:#c0392b;">Não foi possível carregar a auditoria. Verifique se o SQL de auditoria já foi aplicado no Supabase.<br><span style="font-size:11px;color:#8a8a7a;">'+_audEscHtml(e.message)+'</span></div>'; return; }
+  if(!rows||!rows.length){ body.innerHTML='<div style="padding:30px;text-align:center;color:#8a8a7a;">Nenhum registro de auditoria para o filtro.</div>'; return; }
+  var html='<table style="width:100%;border-collapse:collapse;font-size:13px;">'+
+    '<thead><tr style="text-align:left;color:#8a8a7a;font-size:10px;letter-spacing:.06em;">'+
+    '<th style="padding:8px 6px;">QUANDO</th><th style="padding:8px 6px;">USUÁRIO</th><th style="padding:8px 6px;">AÇÃO</th><th style="padding:8px 6px;">LANÇAMENTO</th><th style="padding:8px 6px;">O QUE MUDOU</th></tr></thead><tbody>';
+  rows.forEach(function(r){
+    var dt=new Date(r.quando);
+    var dts=isNaN(dt)?_audEscHtml(r.quando):(dt.toLocaleDateString('pt-BR')+' '+dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}));
+    html+='<tr style="border-top:1px solid var(--creme-dark,#e8e0d0);">'+
+      '<td style="padding:8px 6px;white-space:nowrap;font-family:\'DM Mono\',monospace;font-size:12px;">'+dts+'</td>'+
+      '<td style="padding:8px 6px;font-weight:600;">'+_audEscHtml(r.usuario)+'</td>'+
+      '<td style="padding:8px 6px;"><span style="background:'+_audAcaoCor(r.acao)+';color:#fff;border-radius:10px;padding:2px 9px;font-size:11px;font-weight:600;">'+_audAcaoLabel(r.acao)+'</span></td>'+
+      '<td style="padding:8px 6px;font-size:12px;">#'+_audEscHtml(r.lancamento_id)+'<br><span style="color:#8a8a7a;">'+_audEscHtml(r.fornecedor||'')+'</span></td>'+
+      '<td style="padding:8px 6px;">'+_audMudancasHtml(r.acao, r.mudancas)+'</td></tr>';
+  });
+  html+='</tbody></table><div style="margin-top:10px;font-size:11px;color:#8a8a7a;">'+rows.length+' registro(s)'+(rows.length>=500?' (limite de 500 — refine o filtro)':'')+'</div>';
+  body.innerHTML=html;
+}
 
 function atualizarParcelas() {
   var n = parseInt(document.getElementById('f_parcelas').value) || 1;
@@ -2802,7 +2900,8 @@ async function saveLancamento() {
     forma_pagamento:(document.getElementById('f_forma_pag')||{value:'BOLETO'}).value,
     cnpj:cnpjForn||null,
     chave_pix:(document.getElementById('f_chave_pix')||{value:''}).value.trim()||null,
-    codigo_barras: (typeof pendingCodigoBarras !== 'undefined' && pendingCodigoBarras) ? pendingCodigoBarras : null
+    codigo_barras: (typeof pendingCodigoBarras !== 'undefined' && pendingCodigoBarras) ? pendingCodigoBarras : null,
+    alterado_por: currentUser || '—'   // auditoria: quem criou/editou
   };
   // ── Verificar duplicata no SERVIDOR (base inteira, inclui outros usuários) ──
   // Cobre lançamento avulso e parcelado (checa parcela a parcela).
@@ -2841,6 +2940,7 @@ async function saveLancamento() {
         removerAnexo('boleto'); removerAnexo('nf');
       }
       // Deletar o registro original
+      try { await sb(`${TABLE}?id=eq.${eidDel}`, {method:'PATCH',body:JSON.stringify({alterado_por:currentUser})}); } catch(e){} // auditoria
       await sb(`${TABLE}?id=eq.${eidDel}`, {method:'DELETE'});
       excluidoId = eidDel;
       // Criar as parcelas novas
@@ -3328,6 +3428,7 @@ async function deleteSelected() {
   if(!confirm(`Excluir ${ids.length} lançamento(s)?`)) return;
   try {
     const filter=ids.map(id=>`id.eq.${id}`).join(',');
+    try { await sb(`${TABLE}?or=(${filter})`,{method:'PATCH',body:JSON.stringify({alterado_por:currentUser})}); } catch(e){} // auditoria: quem excluiu
     await sb(`${TABLE}?or=(${filter})`,{method:'DELETE',prefer:'return=minimal'});
     _removerLocal(ids); aposMudancaLocal(); checkSel(); showToast(`🗑 ${ids.length} excluído(s)`);
   } catch(e) { showToast('⚠ '+e.message,true); }
@@ -3375,10 +3476,16 @@ function openDetail(id) {
   `;
   document.getElementById('modalDeleteBtn').onclick=async()=>{
     if(!confirm('Excluir?')) return;
-    try { await sb(`${TABLE}?id=eq.${id}`,{method:'DELETE',prefer:'return=minimal'}); _removerLocal(id); aposMudancaLocal(); closeModal(); showToast('🗑 Excluído'); }
+    try { try { await sb(`${TABLE}?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({alterado_por:currentUser})}); } catch(e){} await sb(`${TABLE}?id=eq.${id}`,{method:'DELETE',prefer:'return=minimal'}); _removerLocal(id); aposMudancaLocal(); closeModal(); showToast('🗑 Excluído'); }
     catch(e) { showToast('⚠ '+e.message,true); }
   };
   document.getElementById('modalEditBtn').onclick=()=>{closeModal();editLancamento(id);};
+  // Botão HISTÓRICO — só gestor
+  var btnHist = document.getElementById('modalHistBtn');
+  if(btnHist){
+    if(currentRole === 'gestor'){ btnHist.style.display=''; btnHist.onclick=function(){ abrirAuditoria(id); }; }
+    else btnHist.style.display='none';
+  }
   // Botão BAIXAR — só para A PAGAR
   var btnBaixar = document.getElementById('modalBaixarBtn');
   var panel = document.getElementById('modalBaixarPanel');
@@ -3488,7 +3595,7 @@ async function confirmarBaixaRapida(id) {
   try {
     await sb(TABLE + '?id=eq.' + id, {
       method: 'PATCH',
-      body: JSON.stringify({ status: 'PAGO', pagamento: dataPag, conta: conta })
+      body: JSON.stringify({ status: 'PAGO', pagamento: dataPag, conta: conta, alterado_por: currentUser })
     });
     var pop = document.getElementById('popup-baixa-rapida'); if(pop) pop.remove();
     _patchLocal(id, { status:'PAGO', pagamento:dataPag, conta:conta });
@@ -3506,7 +3613,7 @@ async function desfazerBaixaLinha(id) {
   try {
     await sb(TABLE + '?id=eq.' + id, {
       method: 'PATCH',
-      body: JSON.stringify({ status: 'A PAGAR', pagamento: null })
+      body: JSON.stringify({ status: 'A PAGAR', pagamento: null, alterado_por: currentUser })
     });
     _patchLocal(id, { status:'A PAGAR', pagamento:null });
     aposMudancaLocal();
@@ -3525,7 +3632,7 @@ async function confirmarBaixaModal() {
   try {
     await sb(TABLE + '?id=eq.' + lancId, {
       method: 'PATCH',
-      body: JSON.stringify({ status: 'PAGO', pagamento: dataPag, conta: conta })
+      body: JSON.stringify({ status: 'PAGO', pagamento: dataPag, conta: conta, alterado_por: currentUser })
     });
     _patchLocal(lancId, { status:'PAGO', pagamento:dataPag, conta:conta });
     aposMudancaLocal();
@@ -3873,7 +3980,7 @@ async function confirmarBaixa() {
     for (const id of ids) {
       await sb(`${TABLE}?id=eq.${id}`, {
         method: 'PATCH',
-        body: JSON.stringify({ status: 'PAGO', pagamento: pagData, conta: baixaConta })
+        body: JSON.stringify({ status: 'PAGO', pagamento: pagData, conta: baixaConta, alterado_por: currentUser })
       });
       ok++;
       btn.textContent = `Salvando ${ok}/${ids.length}…`;
