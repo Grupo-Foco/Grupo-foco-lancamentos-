@@ -19,6 +19,15 @@
   --radius:12px;--radius-sm:6px;
 }
 *{margin:0;padding:0;box-sizing:border-box;}
+.cfm{display:none;position:fixed;inset:0;z-index:2000;background:rgba(26,58,42,.55);backdrop-filter:blur(2px);align-items:center;justify-content:center;padding:22px;}
+.cfm.open{display:flex;}
+.cfm .box{background:#fafaf7;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.3);max-width:430px;width:100%;overflow:hidden;font-family:'DM Sans',sans-serif;}
+.cfm .box .hd{background:#1a3a2a;color:#f5f0e8;padding:16px 22px;font-family:'Syne',sans-serif;font-weight:700;font-size:15px;display:flex;align-items:center;gap:10px;}
+.cfm .box .bd{padding:22px;font-size:14px;color:#1a1a14;line-height:1.55;white-space:pre-line;}
+.cfm .box .ft{padding:0 22px 20px;display:flex;justify-content:flex-end;gap:10px;}
+.cfm .box .ft button{font-family:'Syne',sans-serif;font-weight:700;font-size:13px;padding:10px 18px;border-radius:9px;border:none;cursor:pointer;}
+.cfm .box .ft .c-cancel{background:transparent;border:1px solid #e8e0d0;color:#8a8a7a;}
+.cfm .box .iw{width:26px;height:26px;border-radius:50%;background:rgba(200,57,43,.18);display:flex;align-items:center;justify-content:center;stroke:#fff;flex:0 0 auto;}
 body{font-family:'DM Sans',sans-serif;background:var(--creme);color:var(--texto);min-height:100vh;}
 
 /* ── HEADER ── */
@@ -1271,9 +1280,9 @@ function abrirDetalheContrato(id) {
   document.getElementById('modalDetalhe').classList.add('open');
 }
 
-function deletarContratoAtual() {
+async function deletarContratoAtual() {
   if(!contratoAtualId) return;
-  if(!confirm('Excluir este contrato e todas as suas parcelas? Esta ação não pode ser desfeita.')) return;
+  if(!(await confirmar('Excluir este contrato e todas as suas parcelas? Esta ação não pode ser desfeita.', {titulo:'Excluir contrato', okLabel:'Excluir'}))) return;
   contratos = contratos.filter(function(c){return c.id !== contratoAtualId;});
   lancamentos = lancamentos.filter(function(l){return l.contrato_id !== contratoAtualId;});
   fecharModal('modalDetalhe');
@@ -1289,10 +1298,10 @@ function editarContratoAtual() {
   goEditarContrato(contratoAtualId);
 }
 
-function deletarContrato() {
+async function deletarContrato() {
   var sels = [...document.querySelectorAll('.chk-c:checked')];
   if(!sels.length) return;
-  if(!confirm('Excluir '+sels.length+' contrato(s) e suas parcelas?')) return;
+  if(!(await confirmar('Excluir '+sels.length+' contrato(s) e suas parcelas? Esta ação não pode ser desfeita.', {titulo:'Excluir contratos', okLabel:'Excluir'}))) return;
   sels.forEach(function(chk) {
     var id = +chk.dataset.id;
     contratos = contratos.filter(function(c){return c.id!==id;});
@@ -1406,12 +1415,12 @@ async function excluirLancSelecionados() {
   }).join('\n');
   if(itens.length > 8) resumo += '\n… e mais ' + (itens.length-8) + ' parcela(s)';
 
-  if(!confirm('EXCLUIR ' + ids.length + ' parcela(s)?\n\n' + resumo +
+  if(!(await confirmar('EXCLUIR ' + ids.length + ' parcela(s)?\n\n' + resumo +
     '\n\nTotal: R$ ' + soma.toLocaleString('pt-BR',{minimumFractionDigits:2}) +
-    '\n\n⚠ Esta ação NÃO pode ser desfeita.')) return;
+    '\n\nEsta ação NÃO pode ser desfeita.', {titulo:'Excluir parcelas', okLabel:'Excluir'}))) return;
 
   // Segunda confirmação, mais enfática
-  if(!confirm('Tem certeza? As parcelas serão apagadas permanentemente do banco de dados.')) return;
+  if(!(await confirmar('Tem certeza? As parcelas serão apagadas permanentemente do banco de dados.', {titulo:'Excluir parcelas', okLabel:'Excluir'}))) return;
 
   showToast('🗑 Excluindo…');
   try {
@@ -1570,7 +1579,7 @@ async function salvarContrato() {
     }
 
     // Gerar parcelas
-    if(!editandoContratoId || confirm('Regenerar parcelas deste contrato?')) {
+    if(!editandoContratoId || (await confirmar('Regenerar parcelas deste contrato?', {titulo:'Regenerar parcelas', okLabel:'Regenerar', perigo:false}))) {
       // Remove parcelas anteriores
       lancamentos = lancamentos.filter(function(l){return l.contrato_id !== newContratoId;});
       // Cria novas
@@ -1674,7 +1683,7 @@ function abrirBaixaInd(id) {
 }
 
 async function desfazerBaixa(id) {
-  if(!confirm('Desfazer a baixa desta parcela? O status voltará para A PAGAR.')) return;
+  if(!(await confirmar('Desfazer a baixa desta parcela? O status voltará para A PAGAR.', {titulo:'Desfazer baixa', okLabel:'Desfazer', perigo:false}))) return;
   try {
     var patch = {status: 'A PAGAR', data_pagamento: null, juros_pagos: null};
     await sb(TB_LANCAMENTOS+'?id=eq.'+id, {method:'PATCH', body:JSON.stringify(patch)});
@@ -2479,5 +2488,25 @@ async function confirmarAditivo() {
 </div>
 
 
+<div class="cfm" id="cfmOv">
+  <div class="box">
+    <div class="hd"><span class="iw"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></span><span id="cfmTitulo">Confirmar</span></div>
+    <div class="bd" id="cfmMsg"></div>
+    <div class="ft"><button class="c-cancel" onclick="cfmResolver(false)">Cancelar</button><button id="cfmOk" style="background:#c0392b;color:#fff;" onclick="cfmResolver(true)">Confirmar</button></div>
+  </div>
+</div>
+<script>
+var _cfmCb=null;
+function confirmar(msg, opts){
+  opts=opts||{};
+  var t=document.getElementById('cfmTitulo'); if(t) t.textContent=opts.titulo||'Confirmar';
+  var m=document.getElementById('cfmMsg'); if(m) m.textContent=msg;
+  var ok=document.getElementById('cfmOk');
+  if(ok){ ok.textContent=opts.okLabel||'Confirmar'; ok.style.background=(opts.perigo===false)?'#1a3a2a':'#c0392b'; ok.style.color=(opts.perigo===false)?'#c8a84b':'#fff'; }
+  var ov=document.getElementById('cfmOv'); if(ov) ov.classList.add('open');
+  return new Promise(function(res){ _cfmCb=res; });
+}
+function cfmResolver(v){ var ov=document.getElementById('cfmOv'); if(ov) ov.classList.remove('open'); if(_cfmCb){ var cb=_cfmCb; _cfmCb=null; cb(v); } }
+</script>
 </body>
 </html>

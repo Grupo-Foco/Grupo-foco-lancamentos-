@@ -503,6 +503,16 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
   .detail-item.full { grid-column: span 1; }
   .nav-tab { font-size: 8px; padding: 8px 2px; }
 }
+
+.cfm{display:none;position:fixed;inset:0;z-index:2000;background:rgba(26,58,42,.55);backdrop-filter:blur(2px);align-items:center;justify-content:center;padding:22px;}
+.cfm.open{display:flex;}
+.cfm .box{background:#fafaf7;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.3);max-width:430px;width:100%;overflow:hidden;font-family:'DM Sans',sans-serif;}
+.cfm .box .hd{background:#1a3a2a;color:#f5f0e8;padding:16px 22px;font-family:'Syne',sans-serif;font-weight:700;font-size:15px;display:flex;align-items:center;gap:10px;}
+.cfm .box .bd{padding:22px;font-size:14px;color:#1a1a14;line-height:1.55;white-space:pre-line;}
+.cfm .box .ft{padding:0 22px 20px;display:flex;justify-content:flex-end;gap:10px;}
+.cfm .box .ft button{font-family:'Syne',sans-serif;font-weight:700;font-size:13px;padding:10px 18px;border-radius:9px;border:none;cursor:pointer;}
+.cfm .box .ft .c-cancel{background:transparent;border:1px solid #e8e0d0;color:#8a8a7a;}
+.cfm .box .iw{width:26px;height:26px;border-radius:50%;background:rgba(200,57,43,.18);display:flex;align-items:center;justify-content:center;stroke:#fff;flex:0 0 auto;}
 </style>
   <link rel="apple-touch-icon" href="icon-180.png">
   <link rel="apple-touch-icon" sizes="120x120" href="icon-128.png">
@@ -1133,9 +1143,9 @@ async function saveReceita() {
     if(contasRat.length) {
       var somaRat = contasRat.reduce(function(s,c){return s+c.valor;},0);
       if(Math.abs(somaRat - valor) > 0.01) {
-        if(!confirm('O rateio das contas (R$ ' + somaRat.toLocaleString('pt-BR',{minimumFractionDigits:2}) +
+        if(!(await confirmar('O rateio das contas (R$ ' + somaRat.toLocaleString('pt-BR',{minimumFractionDigits:2}) +
           ') não fecha com o valor líquido (R$ ' + valor.toLocaleString('pt-BR',{minimumFractionDigits:2}) +
-          ').\n\nSalvar mesmo assim?')) { return; }
+          ').\n\nSalvar mesmo assim?', {titulo:'Rateio não fecha', okLabel:'Salvar mesmo assim', perigo:false}))) { return; }
       }
     }
   }
@@ -1258,7 +1268,7 @@ function toggleAll(cb) { document.querySelectorAll('.row-check').forEach(c=>c.ch
 function checkSel() { const checks=document.querySelectorAll('.row-check:checked'); document.getElementById('btn-delete-sel').style.display=checks.length>0?'flex':'none'; }
 async function deleteSelected() {
   const ids=[...document.querySelectorAll('.row-check:checked')].map(c=>+c.dataset.id);
-  if(!confirm(`Excluir ${ids.length} receita(s)?`)) return;
+  if(!(await confirmar(`Excluir ${ids.length} receita(s)? Esta ação não pode ser desfeita.`, {titulo:'Excluir receitas', okLabel:'Excluir'}))) return;
   try { const filter=ids.map(id=>`id.eq.${id}`).join(','); await sb(`${TABLE}?or=(${filter})`,{method:'DELETE',prefer:'return=minimal'}); await loadData(); showToast(`🗑 ${ids.length} excluída(s)`); }
   catch(e) { showToast('⚠ '+e.message,true); }
 }
@@ -1319,7 +1329,7 @@ function openDetail(id) {
     })()}
   `;
   document.getElementById('modalDeleteBtn').onclick=async()=>{
-    if(!confirm('Excluir?')) return;
+    if(!(await confirmar('Excluir esta receita? Esta ação não pode ser desfeita.', {titulo:'Excluir receita', okLabel:'Excluir'}))) return;
     try { await sb(`${TABLE}?id=eq.${id}`,{method:'DELETE',prefer:'return=minimal'}); await loadData(); closeModal(); showToast('🗑 Excluída'); }
     catch(e) { showToast('⚠ '+e.message,true); }
   };
@@ -1443,6 +1453,16 @@ async function init() {
   catch(e) { setLoading(false); setSyncState('error','Falha'); showToast('⚠ Erro: '+e.message,true); console.error(e); }
 }
 init();
+</script>
+<div class="cfm" id="cfmOv"><div class="box">
+<div class="hd"><span class="iw"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></span><span id="cfmTitulo">Confirmar</span></div>
+<div class="bd" id="cfmMsg"></div>
+<div class="ft"><button class="c-cancel" onclick="cfmResolver(false)">Cancelar</button><button id="cfmOk" style="background:#c0392b;color:#fff;" onclick="cfmResolver(true)">Confirmar</button></div>
+</div></div>
+<script>
+var _cfmCb=null;
+function confirmar(msg,opts){opts=opts||{};var t=document.getElementById('cfmTitulo');if(t)t.textContent=opts.titulo||'Confirmar';var m=document.getElementById('cfmMsg');if(m)m.textContent=msg;var ok=document.getElementById('cfmOk');if(ok){ok.textContent=opts.okLabel||'Confirmar';ok.style.background=(opts.perigo===false)?'#1a3a2a':'#c0392b';ok.style.color=(opts.perigo===false)?'#c8a84b':'#fff';}var ov=document.getElementById('cfmOv');if(ov)ov.classList.add('open');return new Promise(function(res){_cfmCb=res;});}
+function cfmResolver(v){var ov=document.getElementById('cfmOv');if(ov)ov.classList.remove('open');if(_cfmCb){var cb=_cfmCb;_cfmCb=null;cb(v);}}
 </script>
 </body>
 </html>

@@ -30,6 +30,17 @@ header{background:var(--verde);padding:8px 24px;display:flex;align-items:center;
 .logo-word{white-space:nowrap;line-height:1;}
 .logo-sub{color:var(--creme);font-weight:400;font-size:14px;opacity:0.72;white-space:nowrap;padding-left:2px;border-left:1px solid rgba(245,240,232,0.28);padding-left:12px;margin-left:2px;}
 .nav-tabs{display:flex;gap:4px;}
+.ic{width:15px;height:15px;vertical-align:-3px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;margin-right:6px;flex:0 0 auto;}
+.nav-tab .ic{margin-right:5px;}
+.cfm{display:none;position:fixed;inset:0;z-index:1200;background:rgba(26,58,42,.55);backdrop-filter:blur(2px);align-items:center;justify-content:center;padding:22px;}
+.cfm.open{display:flex;}
+.cfm .box{background:var(--branco,#fafaf7);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.3);max-width:430px;width:100%;overflow:hidden;font-family:'DM Sans',sans-serif;}
+.cfm .box .hd{background:var(--verde,#1a3a2a);color:#f5f0e8;padding:16px 22px;font-family:'Syne',sans-serif;font-weight:700;font-size:15px;display:flex;align-items:center;gap:10px;}
+.cfm .box .bd{padding:22px;font-size:14px;color:var(--texto,#1a1a14);line-height:1.55;white-space:pre-line;}
+.cfm .box .ft{padding:0 22px 20px;display:flex;justify-content:flex-end;gap:10px;}
+.cfm .box .ft button{font-family:'Syne',sans-serif;font-weight:700;font-size:13px;padding:10px 18px;border-radius:9px;border:none;cursor:pointer;}
+.cfm .box .ft .c-cancel{background:transparent;border:1px solid var(--creme-dark,#e8e0d0);color:var(--cinza,#8a8a7a);}
+.cfm .box .iw{width:26px;height:26px;border-radius:50%;background:rgba(200,57,43,.18);display:flex;align-items:center;justify-content:center;stroke:#fff;flex:0 0 auto;}
 .nav-tab{font-family:'DM Mono',monospace;font-size:11px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;padding:8px 20px;border-radius:6px;border:none;cursor:pointer;transition:all 0.2s;color:rgba(245,240,232,0.6);background:transparent;}
 .nav-tab:hover{color:var(--creme);background:rgba(255,255,255,0.08);}
 .nav-tab.active{background:var(--ouro);color:var(--verde);font-weight:700;}
@@ -606,9 +617,9 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
     <span class="logo-sub">Lançamentos</span>
   </div>
   <nav class="nav-tabs">
-    <button class="nav-tab active" onclick="showView('form');resetAnexos()">＋ Novo Lançamento</button>
-    <button class="nav-tab" onclick="showView('panel')">⊞ Painel</button>
-    <button class="nav-tab" id="nav-conciliacao" onclick="showView('conciliacao')" style="display:none">⇄ Conciliação</button>
+    <button class="nav-tab active" onclick="showView('form');resetAnexos()"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Novo Lançamento</button>
+    <button class="nav-tab" onclick="showView('panel')"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Painel</button>
+    <button class="nav-tab" id="nav-conciliacao" onclick="showView('conciliacao')" style="display:none"><svg class="ic" viewBox="0 0 24 24"><path d="M7 10h14l-4-4M17 14H3l4 4"/></svg>Conciliação</button>
   </nav>
   <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;">
     <div class="sync-indicator">
@@ -616,16 +627,16 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
       <span id="syncText" style="color:rgba(245,240,232,0.5)">—</span>
     </div>
     <span id="nav-user" style="font-size:12px;color:rgba(255,255,255,.7);font-family:'DM Mono',monospace;letter-spacing:.05em;"></span>
-    <button id="btn-config" onclick="window.location.href='app-config.html'" style="display:none;font-size:11px;padding:5px 13px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:8px;color:rgba(255,255,255,.8);cursor:pointer;font-family:'DM Mono',monospace;letter-spacing:.05em;transition:background .2s;" onmouseover="this.style.background='rgba(255,255,255,.22)'" onmouseout="this.style.background='rgba(255,255,255,.1)'">⚙ Config</button>
-    <button id="btn-auditoria" onclick="abrirAuditoria()" style="display:none;font-size:11px;padding:5px 13px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:8px;color:rgba(255,255,255,.8);cursor:pointer;font-family:'DM Mono',monospace;letter-spacing:.05em;transition:background .2s;" onmouseover="this.style.background='rgba(255,255,255,.22)'" onmouseout="this.style.background='rgba(255,255,255,.1)'">🕵 Auditoria</button>
-    <button id="btn-endividamento" onclick="abrirEndividamento()" style="display:none;font-size:11px;padding:5px 13px;background:rgba(200,168,75,0.18);border:1px solid rgba(200,168,75,0.45);border-radius:8px;color:var(--ouro-light);cursor:pointer;font-family:'DM Mono',monospace;letter-spacing:.05em;font-weight:600;transition:background .2s;position:relative;" onmouseover="this.style.background='rgba(200,168,75,0.32)'" onmouseout="this.style.background='rgba(200,168,75,0.18)'">◈ Endividamento<span id="endiv-badge" title="" style="display:none;position:absolute;top:-8px;right:-8px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#c0392b;color:#fff;font-size:10px;font-weight:700;line-height:18px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.35);font-family:'DM Mono',monospace;">0</span></button>
-    <button id="btn-seguros" onclick="abrirSeguros()" style="display:none;font-size:11px;padding:5px 13px;background:rgba(200,168,75,0.18);border:1px solid rgba(200,168,75,0.45);border-radius:8px;color:var(--ouro-light);cursor:pointer;font-family:'DM Mono',monospace;letter-spacing:.05em;font-weight:600;transition:background .2s;position:relative;" onmouseover="this.style.background='rgba(200,168,75,0.32)'" onmouseout="this.style.background='rgba(200,168,75,0.18)'">◈ Seguros<span id="seg-badge" title="" style="display:none;position:absolute;top:-8px;right:-8px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#c0392b;color:#fff;font-size:10px;font-weight:700;line-height:18px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.35);font-family:'DM Mono',monospace;">0</span></button>
-    <button id="btn-receitas" onclick="window.location.href='app-receitas.html'" style="display:none;font-size:11px;padding:5px 13px;background:rgba(74,140,92,0.22);border:1px solid rgba(74,140,92,0.5);border-radius:8px;color:#a8e0b8;cursor:pointer;font-family:'DM Mono',monospace;letter-spacing:.05em;font-weight:600;transition:background .2s;" onmouseover="this.style.background='rgba(74,140,92,0.38)'" onmouseout="this.style.background='rgba(74,140,92,0.22)'">＄ Receitas</button>
-    <button id="btn-relatorios" onclick="window.location.href='app-relatorios.html'" style="display:none;font-size:11px;padding:5px 13px;background:rgba(93,138,168,0.22);border:1px solid rgba(93,138,168,0.5);border-radius:8px;color:#b8d4e8;cursor:pointer;font-family:'DM Mono',monospace;letter-spacing:.05em;font-weight:600;transition:background .2s;" onmouseover="this.style.background='rgba(93,138,168,0.38)'" onmouseout="this.style.background='rgba(93,138,168,0.22)'">▤ Relatórios</button>
+    <button id="btn-config" onclick="window.location.href='app-config.html'" style="display:none;font-size:11px;padding:5px 13px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:8px;color:rgba(255,255,255,.8);cursor:pointer;font-family:'DM Mono',monospace;letter-spacing:.05em;transition:background .2s;" onmouseover="this.style.background='rgba(255,255,255,.22)'" onmouseout="this.style.background='rgba(255,255,255,.1)'"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Config</button>
+    <button id="btn-auditoria" onclick="abrirAuditoria()" style="display:none;font-size:11px;padding:5px 13px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:8px;color:rgba(255,255,255,.8);cursor:pointer;font-family:'DM Mono',monospace;letter-spacing:.05em;transition:background .2s;" onmouseover="this.style.background='rgba(255,255,255,.22)'" onmouseout="this.style.background='rgba(255,255,255,.1)'"><svg class="ic" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>Auditoria</button>
+    <button id="btn-endividamento" onclick="abrirEndividamento()" style="display:none;font-size:11px;padding:5px 13px;background:rgba(200,168,75,0.18);border:1px solid rgba(200,168,75,0.45);border-radius:8px;color:var(--ouro-light);cursor:pointer;font-family:'DM Mono',monospace;letter-spacing:.05em;font-weight:600;transition:background .2s;position:relative;" onmouseover="this.style.background='rgba(200,168,75,0.32)'" onmouseout="this.style.background='rgba(200,168,75,0.18)'"><svg class="ic" viewBox="0 0 24 24"><path d="M3 21h18M4 21V10l8-5 8 5v11M9 21v-6h6v6"/></svg>Endividamento<span id="endiv-badge" title="" style="display:none;position:absolute;top:-8px;right:-8px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#c0392b;color:#fff;font-size:10px;font-weight:700;line-height:18px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.35);font-family:'DM Mono',monospace;">0</span></button>
+    <button id="btn-seguros" onclick="abrirSeguros()" style="display:none;font-size:11px;padding:5px 13px;background:rgba(200,168,75,0.18);border:1px solid rgba(200,168,75,0.45);border-radius:8px;color:var(--ouro-light);cursor:pointer;font-family:'DM Mono',monospace;letter-spacing:.05em;font-weight:600;transition:background .2s;position:relative;" onmouseover="this.style.background='rgba(200,168,75,0.32)'" onmouseout="this.style.background='rgba(200,168,75,0.18)'"><svg class="ic" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Seguros<span id="seg-badge" title="" style="display:none;position:absolute;top:-8px;right:-8px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#c0392b;color:#fff;font-size:10px;font-weight:700;line-height:18px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.35);font-family:'DM Mono',monospace;">0</span></button>
+    <button id="btn-receitas" onclick="window.location.href='app-receitas.html'" style="display:none;font-size:11px;padding:5px 13px;background:rgba(74,140,92,0.22);border:1px solid rgba(74,140,92,0.5);border-radius:8px;color:#a8e0b8;cursor:pointer;font-family:'DM Mono',monospace;letter-spacing:.05em;font-weight:600;transition:background .2s;" onmouseover="this.style.background='rgba(74,140,92,0.38)'" onmouseout="this.style.background='rgba(74,140,92,0.22)'"><svg class="ic" viewBox="0 0 24 24"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Receitas</button>
+    <button id="btn-relatorios" onclick="window.location.href='app-relatorios.html'" style="display:none;font-size:11px;padding:5px 13px;background:rgba(93,138,168,0.22);border:1px solid rgba(93,138,168,0.5);border-radius:8px;color:#b8d4e8;cursor:pointer;font-family:'DM Mono',monospace;letter-spacing:.05em;font-weight:600;transition:background .2s;" onmouseover="this.style.background='rgba(93,138,168,0.38)'" onmouseout="this.style.background='rgba(93,138,168,0.22)'"><svg class="ic" viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>Relatórios</button>
     <button onclick="sessionStorage.removeItem('gf_user');sessionStorage.removeItem('gf_role');window.location.href='index.html';"
       style="font-size:12px;padding:6px 16px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:8px;color:white;cursor:pointer;font-family:'DM Mono',monospace;letter-spacing:.05em;transition:background .2s;"
       onmouseover="this.style.background='rgba(255,255,255,.25)'" onmouseout="this.style.background='rgba(255,255,255,.15)'">
-      ⎋ Sair
+      <svg class="ic" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>Sair
     </button>
   </div>
 </header>
@@ -900,7 +911,7 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal()">Fechar</button>
       <button class="btn btn-secondary" id="modalHistBtn" style="display:none;">🕘 Histórico</button>
-      <button class="btn btn-danger" id="modalDeleteBtn">🗑 Excluir</button>
+      <button class="btn btn-danger" id="modalDeleteBtn"><svg class="ic" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Excluir</button>
       <button class="btn btn-secondary" id="modalEditBtn">✎ Editar</button>
       <button class="btn btn-primary" id="modalBaixarBtn" style="display:none;background:#22c55e;border-color:#22c55e;">✓ Baixar</button>
     </div>
@@ -937,13 +948,24 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
   </div>
 </div>
 
+<!-- Confirmação (substitui o confirm/alert nativo) -->
+<div class="cfm" id="cfmOv">
+  <div class="box">
+    <div class="hd"><span class="iw"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></span><span id="cfmTitulo">Confirmar</span></div>
+    <div class="bd" id="cfmMsg"></div>
+    <div class="ft">
+      <button class="c-cancel" onclick="cfmResolver(false)">Cancelar</button>
+      <button id="cfmOk" style="background:var(--erro,#c0392b);color:#fff;" onclick="cfmResolver(true)">Confirmar</button>
+    </div>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 
 <!-- ===== AUDITORIA (overlay) ===== -->
 <div id="audOverlay" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(26,58,42,.55);backdrop-filter:blur(2px);padding:24px;">
   <div style="max-width:1040px;margin:0 auto;background:var(--branco,#fafaf7);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.3);display:flex;flex-direction:column;max-height:calc(100vh - 48px);overflow:hidden;">
     <div style="background:var(--verde,#1a3a2a);color:#f5f0e8;padding:16px 22px;display:flex;justify-content:space-between;align-items:center;">
-      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:var(--ouro,#c8a84b);">🕵 Auditoria de Lançamentos</div>
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:var(--ouro,#c8a84b);display:flex;align-items:center;gap:9px;"><svg class="ic" viewBox="0 0 24 24" style="width:18px;height:18px;margin:0;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>Auditoria de Lançamentos</div>
       <button onclick="fecharAuditoria()" style="background:rgba(255,255,255,.12);border:none;color:#f5f0e8;border-radius:8px;padding:6px 12px;cursor:pointer;font-family:'DM Mono',monospace;">✕ Fechar</button>
     </div>
     <div style="padding:14px 22px;border-bottom:1px solid var(--creme-dark,#e8e0d0);display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
@@ -962,6 +984,19 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
 </div>
 
 <script>
+// ── Confirmação com a identidade do sistema (substitui confirm/alert nativos) ──
+var _cfmCb=null;
+function confirmar(msg, opts){
+  opts=opts||{};
+  var t=document.getElementById('cfmTitulo'); if(t) t.textContent=opts.titulo||'Confirmar';
+  var m=document.getElementById('cfmMsg'); if(m) m.textContent=msg;
+  var ok=document.getElementById('cfmOk');
+  if(ok){ ok.textContent=opts.okLabel||'Confirmar'; ok.style.background = (opts.perigo===false)?'var(--verde,#1a3a2a)':'var(--erro,#c0392b)'; ok.style.color = (opts.perigo===false)?'var(--ouro,#c8a84b)':'#fff'; }
+  var ov=document.getElementById('cfmOv'); if(ov) ov.classList.add('open');
+  return new Promise(function(res){ _cfmCb=res; });
+}
+function cfmResolver(v){ var ov=document.getElementById('cfmOv'); if(ov) ov.classList.remove('open'); if(_cfmCb){ var cb=_cfmCb; _cfmCb=null; cb(v); } }
+
 const SB_URL = 'https://zdckrfthpfpnzcxzaghd.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkY2tyZnRocGZwbnpjeHphZ2hkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzNDIzOTksImV4cCI6MjA4ODkxODM5OX0.940y3Nhso4mHjSr8L1D_eRoQUH6Yg5uiqZ6sg4qRD7Y';
 const TABLE       = 'lancamentos';
@@ -2883,7 +2918,7 @@ async function checarDuplicataServidor(forn, linhas){
     });
     if(hits.length>4) msg += '... e mais ' + (hits.length-4) + '\n';
     msg += '\nDeseja salvar mesmo assim?';
-    return confirm(msg);
+    return await confirmar(msg, {titulo:'Possível duplicidade', okLabel:'Salvar mesmo assim', perigo:false});
   } catch(e){ return true; /* falha de rede não bloqueia o salvamento */ }
 }
 
@@ -2950,7 +2985,7 @@ async function saveLancamento() {
   try {
     if(editingId && nParc > 1) {
       // Edição convertendo para parcelado: deletar original e criar novas parcelas
-      if(!confirm('Este lançamento será substituído por ' + nParc + ' parcelas. O registro original será excluído. Confirma?')) {
+      if(!(await confirmar('Este lançamento será substituído por ' + nParc + ' parcelas. O registro original será excluído.', {titulo:'Converter em parcelas', okLabel:'Converter'}))) {
         btn.disabled=false; btn.textContent='＋ Salvar Lançamento'; return;
       }
       const eidDel = editingId;
@@ -3454,7 +3489,7 @@ function checkSel() {
 }
 async function deleteSelected() {
   const ids=[...document.querySelectorAll('.row-check:checked')].map(c=>+c.dataset.id);
-  if(!confirm(`Excluir ${ids.length} lançamento(s)?`)) return;
+  if(!(await confirmar(`Excluir ${ids.length} lançamento(s)? Esta ação não pode ser desfeita.`, {titulo:'Excluir lançamentos', okLabel:'Excluir'}))) return;
   try {
     const filter=ids.map(id=>`id.eq.${id}`).join(',');
     try { await sb(`${TABLE}?or=(${filter})`,{method:'PATCH',body:JSON.stringify({alterado_por:currentUser})}); } catch(e){} // auditoria: quem excluiu
@@ -3504,7 +3539,7 @@ function openDetail(id) {
     })()}
   `;
   document.getElementById('modalDeleteBtn').onclick=async()=>{
-    if(!confirm('Excluir?')) return;
+    if(!(await confirmar('Excluir este lançamento? Esta ação não pode ser desfeita.', {titulo:'Excluir lançamento', okLabel:'Excluir'}))) return;
     try { try { await sb(`${TABLE}?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({alterado_por:currentUser})}); } catch(e){} await sb(`${TABLE}?id=eq.${id}`,{method:'DELETE',prefer:'return=minimal'}); _removerLocal(id); aposMudancaLocal(); closeModal(); showToast('🗑 Excluído'); }
     catch(e) { showToast('⚠ '+e.message,true); }
   };
@@ -3638,7 +3673,7 @@ async function confirmarBaixaRapida(id) {
 
 // ═══ Desfazer baixa direto na linha ═══
 async function desfazerBaixaLinha(id) {
-  if(!confirm('Desfazer a baixa? O lançamento voltará para A PAGAR.')) return;
+  if(!(await confirmar('Desfazer a baixa? O lançamento voltará para A PAGAR.', {titulo:'Desfazer baixa', okLabel:'Desfazer', perigo:false}))) return;
   try {
     await sb(TABLE + '?id=eq.' + id, {
       method: 'PATCH',
@@ -4498,10 +4533,10 @@ function pixAplicarManual(){
 }
 
 // Lançamento PIX sem chave cadastrada: avisa e oferece editar
-function pixSemChave(id){
+async function pixSemChave(id){
   var l = lancamentos.find(function(x){ return x.id===id; });
   if(!l) return;
-  if(confirm('Este lançamento é PIX mas ainda não tem a chave cadastrada, por isso o QR não pode ser gerado.\n\nDeseja editar agora para adicionar a chave Pix?')) {
+  if(await confirmar('Este lançamento é PIX mas ainda não tem a chave cadastrada, por isso o QR não pode ser gerado.\n\nDeseja editar agora para adicionar a chave Pix?', {titulo:'Chave Pix ausente', okLabel:'Editar agora', perigo:false})) {
     editLancamento(id);
   }
 }
