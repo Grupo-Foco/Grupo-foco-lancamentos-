@@ -24,7 +24,7 @@
 }
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:'DM Sans',sans-serif;background:var(--creme);color:var(--texto);min-height:100vh;}
-header{background:var(--verde);padding:0 40px;display:flex;align-items:center;justify-content:space-between;height:64px;position:sticky;top:0;z-index:100;box-shadow:0 2px 16px rgba(0,0,0,0.25);}
+header{background:var(--verde);padding:8px 24px;display:flex;align-items:center;justify-content:space-between;min-height:64px;flex-wrap:wrap;row-gap:8px;position:sticky;top:0;z-index:100;box-shadow:0 2px 16px rgba(0,0,0,0.25);}
 .logo{font-family:'Syne',sans-serif;font-weight:800;font-size:18px;color:var(--ouro);letter-spacing:0.05em;display:flex;align-items:center;gap:12px;white-space:nowrap;line-height:1;}
 .logo-mark{height:44px;width:auto;display:block;background:#fff;border-radius:9px;padding:4px 7px;box-shadow:0 2px 8px rgba(0,0,0,0.22);flex-shrink:0;}
 .logo-word{white-space:nowrap;line-height:1;}
@@ -610,7 +610,7 @@ td.mono{font-family:'DM Mono',monospace;font-size:12px;}
     <button class="nav-tab" onclick="showView('panel')">⊞ Painel</button>
     <button class="nav-tab" id="nav-conciliacao" onclick="showView('conciliacao')" style="display:none">⇄ Conciliação</button>
   </nav>
-  <div style="display:flex;align-items:center;gap:16px;">
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;">
     <div class="sync-indicator">
       <div class="sync-dot" id="syncDot"></div>
       <span id="syncText" style="color:rgba(245,240,232,0.5)">—</span>
