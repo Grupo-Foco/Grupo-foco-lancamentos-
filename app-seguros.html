@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Grupo Foco — Seguros da Frota</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --verde:#1a3a2a;--verde-mid:#2d5c3f;--verde-light:#4a8c5c;
+  --ouro:#c8a84b;--ouro-light:#e8c96a;
+  --creme:#f5f0e8;--creme-dark:#e8e0d0;--branco:#fafaf7;
+  --cinza:#8a8a7a;--texto:#1a1a14;--erro:#c0392b;--sucesso:#16a34a;--amber:#d99407;
+}
+body{font-family:'DM Sans',sans-serif;background:var(--creme);color:var(--texto);}
+.nav{background:var(--verde);color:var(--creme);padding:12px 22px;display:flex;align-items:center;gap:18px;position:sticky;top:0;z-index:100;}
+.nav .logo{width:38px;height:38px;background:#fff;border-radius:9px;display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--verde);font-family:'Syne';font-size:13px;}
+.nav .brand{font-family:'Syne';font-weight:800;color:var(--ouro);letter-spacing:.04em;font-size:17px;}
+.nav .brand small{display:block;font-size:10px;color:rgba(245,240,232,.55);font-weight:400;letter-spacing:.14em;text-transform:uppercase;font-family:'DM Mono';}
+.nav .spacer{flex:1;}
+.nav button{font-family:'DM Mono';font-size:12px;padding:7px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:rgba(255,255,255,.85);cursor:pointer;letter-spacing:.04em;transition:background .2s;}
+.nav button:hover{background:rgba(255,255,255,.22);}
+.nav .u{font-family:'DM Mono';font-size:12px;color:rgba(245,240,232,.7);}
+.wrap{max-width:1360px;margin:0 auto;padding:22px;}
+h1{font-family:'Syne';font-weight:800;font-size:26px;color:var(--verde);margin-bottom:16px;}
+/* KPIs */
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:18px;}
+.kpi{background:var(--branco);border-radius:12px;padding:15px 16px;border-left:4px solid var(--ouro);box-shadow:0 1px 3px rgba(0,0,0,.05);}
+.kpi .l{font-family:'DM Mono';font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--cinza);margin-bottom:6px;}
+.kpi .v{font-family:'Syne';font-weight:800;font-size:23px;color:var(--verde);}
+.kpi.red{border-left-color:var(--erro);} .kpi.red .v{color:var(--erro);}
+.kpi.amber{border-left-color:var(--amber);} .kpi.amber .v{color:var(--amber);}
+.kpi.grey{border-left-color:var(--cinza);} .kpi.grey .v{color:var(--cinza);}
+/* status buttons */
+.stbtns{display:flex;gap:9px;margin-bottom:16px;flex-wrap:wrap;}
+.stbtn{border:1.5px solid var(--creme-dark);background:var(--branco);border-radius:22px;padding:8px 16px;cursor:pointer;font-family:'DM Sans';font-weight:600;font-size:13px;display:flex;align-items:center;gap:8px;transition:all .15s;}
+.stbtn .dot{width:9px;height:9px;border-radius:50%;}
+.stbtn.on{box-shadow:0 0 0 2px var(--verde) inset;}
+.stbtn.red .dot{background:var(--erro);} .stbtn.amber .dot{background:var(--amber);} .stbtn.grey .dot{background:var(--cinza);}
+/* filtros */
+.filtros{background:var(--branco);border-radius:12px;padding:14px 16px;display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;}
+.filtros label{font-family:'DM Mono';font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--cinza);display:block;margin-bottom:4px;}
+.filtros input,.filtros select{padding:8px 11px;border:1px solid var(--creme-dark);border-radius:8px;font-family:'DM Sans';font-size:13px;background:var(--branco);outline:none;}
+.filtros input:focus,.filtros select:focus{border-color:var(--verde-light);}
+.btn{font-family:'Syne';font-weight:700;font-size:13px;padding:9px 18px;border-radius:8px;border:none;cursor:pointer;letter-spacing:.03em;}
+.btn-primary{background:var(--verde);color:var(--ouro);} .btn-primary:hover{background:var(--verde-mid);}
+.btn-ghost{background:transparent;border:1px solid var(--creme-dark);color:var(--cinza);font-family:'DM Mono';font-weight:400;}
+/* tabela */
+.card{background:var(--branco);border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.05);}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+thead th{background:var(--verde);color:var(--creme);font-family:'DM Mono';font-size:10px;letter-spacing:.05em;text-transform:uppercase;padding:11px 10px;text-align:left;font-weight:500;}
+tbody td{padding:10px;border-top:1px solid var(--creme-dark);}
+tbody tr{cursor:pointer;} tbody tr:hover{background:var(--creme);}
+.badge{display:inline-block;border-radius:11px;padding:3px 10px;font-size:11px;font-weight:700;color:#fff;white-space:nowrap;}
+.b-venc{background:var(--erro);} .b-breve{background:var(--amber);} .b-vig{background:var(--sucesso);} .b-sem{background:var(--cinza);} .b-semdata{background:#b8961f;}
+.r{text-align:right;font-variant-numeric:tabular-nums;}
+/* modal */
+.ov{display:none;position:fixed;inset:0;z-index:500;background:rgba(26,58,42,.55);backdrop-filter:blur(2px);padding:22px;overflow:auto;}
+.ov.open{display:block;}
+.modal{max-width:760px;margin:0 auto;background:var(--branco);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden;}
+.modal .top{background:var(--verde);color:var(--creme);padding:15px 22px;display:flex;justify-content:space-between;align-items:center;}
+.modal .top .t{font-family:'Syne';font-weight:700;font-size:16px;color:var(--ouro);}
+.modal .body{padding:20px 22px;}
+.grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+.f{display:flex;flex-direction:column;}
+.f.full{grid-column:1/-1;} .f.two{grid-column:span 2;}
+.f label{font-family:'DM Mono';font-size:9px;letter-spacing:.07em;text-transform:uppercase;color:var(--cinza);margin-bottom:4px;}
+.f input,.f select,.f textarea{padding:9px 11px;border:1px solid var(--creme-dark);border-radius:8px;font-family:'DM Sans';font-size:13px;outline:none;}
+.f input:focus,.f select:focus,.f textarea:focus{border-color:var(--verde-light);}
+.chk{display:flex;align-items:center;gap:8px;font-size:13px;}
+.modal .foot{padding:14px 22px;border-top:1px solid var(--creme-dark);display:flex;justify-content:flex-end;gap:10px;}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--verde);color:var(--creme);padding:12px 22px;border-radius:10px;font-size:14px;z-index:900;opacity:0;transition:opacity .25s;pointer-events:none;}
+.toast.show{opacity:1;}
+.muted{color:var(--cinza);font-size:12px;}
+@media(max-width:860px){.kpis{grid-template-columns:repeat(2,1fr);}.grid{grid-template-columns:1fr;}.f.two{grid-column:auto;}}
+</style>
+</head>
+<body>
+<div class="nav">
+  <div class="logo">FOCO</div>
+  <div class="brand">SEGUROS<small>Frota — Grupo Foco</small></div>
+  <div class="spacer"></div>
+  <span class="u" id="navUser"></span>
+  <button onclick="voltarPainel()">← Painel</button>
+  <button onclick="loadSeguros()">↻ Atualizar</button>
+  <button onclick="abrirEditor()">＋ Novo seguro</button>
+</div>
+
+<div class="wrap">
+  <h1>Seguros da Frota</h1>
+
+  <div class="kpis">
+    <div class="kpi"><div class="l">Itens</div><div class="v" id="k-total">—</div></div>
+    <div class="kpi red"><div class="l">Vencidos</div><div class="v" id="k-venc">—</div></div>
+    <div class="kpi amber"><div class="l">Vencem em 30 dias</div><div class="v" id="k-breve">—</div></div>
+    <div class="kpi grey"><div class="l">Sem seguro</div><div class="v" id="k-sem">—</div></div>
+    <div class="kpi"><div class="l">Valor segurado</div><div class="v" id="k-valor">—</div></div>
+  </div>
+
+  <div class="stbtns">
+    <div class="stbtn red" id="sb-venc" onclick="toggleStatus('VENCIDO')"><span class="dot"></span><span id="t-venc">0 vencidos</span></div>
+    <div class="stbtn amber" id="sb-breve" onclick="toggleStatus('VENCE EM BREVE')"><span class="dot"></span><span id="t-breve">0 vencendo</span></div>
+    <div class="stbtn grey" id="sb-sem" onclick="toggleStatus('SEM SEGURO')"><span class="dot"></span><span id="t-sem">0 sem seguro</span></div>
+  </div>
+
+  <div class="filtros">
+    <div><label>Buscar</label><input id="f-busca" placeholder="item, chassi, apólice…" oninput="renderDebounced()" style="width:200px;"></div>
+    <div><label>Categoria</label><select id="f-cat" onchange="render()"><option value="">Todas</option></select></div>
+    <div><label>Fazenda</label><select id="f-faz" onchange="render()"><option value="">Todas</option></select></div>
+    <div><label>Proprietário</label><select id="f-prop" onchange="render()"><option value="">Todos</option></select></div>
+    <div><label>Seguradora</label><select id="f-seg" onchange="render()"><option value="">Todas</option></select></div>
+    <div><label>Status</label><select id="f-status" onchange="render()"><option value="">Todos</option><option>VENCIDO</option><option>VENCE EM BREVE</option><option>VIGENTE</option><option>SEM SEGURO</option><option>SEM DATA</option></select></div>
+    <button class="btn btn-ghost" onclick="limparFiltros()">✕ Limpar</button>
+    <button class="btn btn-ghost" onclick="exportarCSV()">⬇ CSV</button>
+  </div>
+
+  <div class="card">
+    <table>
+      <thead><tr>
+        <th>Status</th><th>Dias</th><th>Vigência</th><th>Item</th><th>Categoria</th>
+        <th>Proprietário</th><th>Fazenda</th><th>Seguradora</th><th>Corretor</th><th>Apólice</th><th class="r">Valor seg.</th>
+      </tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <div id="vazio" class="muted" style="padding:26px;text-align:center;display:none;">Nenhum item para o filtro.</div>
+  </div>
+  <div class="muted" id="rodape" style="margin-top:10px;"></div>
+</div>
+
+<!-- Editor -->
+<div class="ov" id="editorOv">
+  <div class="modal">
+    <div class="top"><div class="t" id="editorTitulo">Novo seguro</div><button onclick="fecharEditor()" style="background:rgba(255,255,255,.12);border:none;color:#f5f0e8;border-radius:8px;padding:6px 12px;cursor:pointer;">✕</button></div>
+    <div class="body">
+      <div class="grid">
+        <div class="f two"><label>Item (máquina/implemento)</label><input id="e-item"></div>
+        <div class="f"><label>Categoria</label><input id="e-cat" list="dl-cat"></div>
+        <div class="f"><label>Proprietário</label><input id="e-prop" list="dl-prop"></div>
+        <div class="f"><label>Fazenda</label><input id="e-faz" list="dl-faz"></div>
+        <div class="f"><label>Marca</label><input id="e-marca"></div>
+        <div class="f"><label>Modelo</label><input id="e-modelo"></div>
+        <div class="f"><label>Ano</label><input id="e-ano" type="number"></div>
+        <div class="f"><label>Nº Chassi / Série</label><input id="e-chassi"></div>
+        <div class="f"><label>Vigência (fim)</label><input id="e-vigencia" type="date"></div>
+        <div class="f"><label>Nº Apólice</label><input id="e-apolice"></div>
+        <div class="f"><label>Seguradora</label><input id="e-seg" list="dl-seg"></div>
+        <div class="f"><label>Valor do bem (R$)</label><input id="e-valbem" type="number" step="0.01"></div>
+        <div class="f"><label>Valor segurado (R$)</label><input id="e-valseg" type="number" step="0.01"></div>
+        <div class="f"><label>Corretor / Empresa</label><input id="e-corretor"></div>
+        <div class="f"><label>WhatsApp do corretor</label><input id="e-whats" placeholder="(00) 00000-0000"></div>
+        <div class="f"><label>E-mail do corretor</label><input id="e-email" type="email" placeholder="corretor@empresa.com"></div>
+        <div class="f full"><label>Observações</label><textarea id="e-obs" rows="2"></textarea></div>
+        <div class="f full"><label class="chk"><input type="checkbox" id="e-sem"> Item sem seguro (não segurar)</label></div>
+      </div>
+    </div>
+    <div class="foot">
+      <button class="btn btn-ghost" id="e-del" style="margin-right:auto;display:none;color:var(--erro);border-color:var(--erro);" onclick="excluirSeguro()">🗑 Excluir</button>
+      <button class="btn btn-ghost" onclick="fecharEditor()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarSeguro()">Salvar</button>
+    </div>
+  </div>
+</div>
+<datalist id="dl-cat"></datalist><datalist id="dl-prop"></datalist><datalist id="dl-faz"></datalist><datalist id="dl-seg"></datalist>
+<div class="toast" id="toast"></div>
+
+<script>
+var SB_URL='https://zdckrfthpfpnzcxzaghd.supabase.co';
+var SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkY2tyZnRocGZwbnpjeHphZ2hkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzNDIzOTksImV4cCI6MjA4ODkxODM5OX0.940y3Nhso4mHjSr8L1D_eRoQUH6Yg5uiqZ6sg4qRD7Y';
+var TABLE='seguros';
+var currentUser = sessionStorage.getItem('gf_user') || localStorage.getItem('gf_seg_user') || localStorage.getItem('gf_endiv_user') || '';
+var currentRole = sessionStorage.getItem('gf_role') || localStorage.getItem('gf_seg_role') || 'gestor';
+if(!currentUser){ window.location.href='index.html'; }
+if(currentRole!=='gestor'){ document.body.innerHTML='<div style="padding:60px;text-align:center;font-family:sans-serif;">Acesso restrito ao gestor.</div>'; }
+
+async function sb(path, opts){
+  opts=opts||{};
+  var h={ apikey:SB_KEY, Authorization:'Bearer '+SB_KEY, 'Content-Type':'application/json' };
+  if(opts.prefer) h['Prefer']=opts.prefer;
+  var res=await fetch(SB_URL+'/rest/v1/'+path, { method:opts.method||'GET', headers:h, body:opts.body });
+  if(!res.ok){ var t=await res.text(); throw new Error(res.status+' '+t); }
+  var txt=await res.text(); return txt? JSON.parse(txt) : null;
+}
+function toast(m){ var t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(function(){t.classList.remove('show');},2600); }
+function voltarPainel(){ window.location.href='app.html'; }
+
+// ---- datas / status ----
+function hojeISO(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function diasPara(vig){ if(!vig) return null; var a=new Date(vig+'T00:00:00'), b=new Date(hojeISO()+'T00:00:00'); return Math.round((a-b)/86400000); }
+function statusDe(s){
+  if(s.sem_seguro || !s.seguradora) return 'SEM SEGURO';
+  if(!s.vigencia) return 'SEM DATA';
+  var d=diasPara(s.vigencia);
+  if(d<0) return 'VENCIDO'; if(d<=30) return 'VENCE EM BREVE'; return 'VIGENTE';
+}
+function badgeDe(st){
+  var m={'VENCIDO':['b-venc','Vencido'],'VENCE EM BREVE':['b-breve','Vence em breve'],'VIGENTE':['b-vig','Vigente'],'SEM SEGURO':['b-sem','Sem seguro'],'SEM DATA':['b-semdata','Sem data']};
+  var x=m[st]||['b-sem',st]; return '<span class="badge '+x[0]+'">'+x[1]+'</span>';
+}
+function fmtData(v){ if(!v) return '—'; var p=v.split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
+function fmtR(v){ return (v==null||v==='')?'—':'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:0}); }
+
+var seguros=[], filtroStatus='';
+async function loadSeguros(){
+  try{
+    seguros = await sb(TABLE+'?select=*&order=vigencia.asc.nullslast&limit=5000');
+    popularFiltros(); atualizarKPIs(); render();
+  }catch(e){
+    document.getElementById('tbody').innerHTML='';
+    document.getElementById('vazio').style.display='block';
+    document.getElementById('vazio').innerHTML='Não foi possível carregar. Verifique se o SQL de seguros já foi aplicado no Supabase.<br><span class="muted">'+String(e.message)+'</span>';
+  }
+}
+function uniq(campo){ var s={}; seguros.forEach(function(x){ if(x[campo]) s[x[campo]]=1; }); return Object.keys(s).sort(); }
+function popularFiltros(){
+  [['f-cat','categoria','dl-cat'],['f-faz','fazenda','dl-faz'],['f-prop','proprietario','dl-prop'],['f-seg','seguradora','dl-seg']].forEach(function(t){
+    var sel=document.getElementById(t[0]); var cur=sel.value;
+    var opts='<option value="">'+sel.options[0].text+'</option>';
+    var dl=document.getElementById(t[2]); var dlh='';
+    uniq(t[1]).forEach(function(v){ opts+='<option>'+v+'</option>'; dlh+='<option>'+v+'</option>'; });
+    sel.innerHTML=opts; sel.value=cur; if(dl) dl.innerHTML=dlh;
+  });
+}
+function atualizarKPIs(){
+  var venc=0,breve=0,sem=0,valor=0;
+  seguros.forEach(function(s){ var st=statusDe(s);
+    if(st==='VENCIDO')venc++; else if(st==='VENCE EM BREVE')breve++; else if(st==='SEM SEGURO')sem++;
+    valor+=Number(s.valor_segurado||0);
+  });
+  document.getElementById('k-total').textContent=seguros.length;
+  document.getElementById('k-venc').textContent=venc;
+  document.getElementById('k-breve').textContent=breve;
+  document.getElementById('k-sem').textContent=sem;
+  document.getElementById('k-valor').textContent='R$ '+(valor/1e6).toLocaleString('pt-BR',{minimumFractionDigits:1})+' mi';
+  document.getElementById('t-venc').textContent=venc+' vencidos';
+  document.getElementById('t-breve').textContent=breve+' vencendo';
+  document.getElementById('t-sem').textContent=sem+' sem seguro';
+}
+function toggleStatus(st){
+  filtroStatus = (filtroStatus===st)?'':st;
+  ['sb-venc','sb-breve','sb-sem'].forEach(function(id){ document.getElementById(id).classList.remove('on'); });
+  if(filtroStatus){ var id= st==='VENCIDO'?'sb-venc':st==='VENCE EM BREVE'?'sb-breve':'sb-sem'; document.getElementById(id).classList.add('on'); }
+  render();
+}
+var _t; function renderDebounced(){ clearTimeout(_t); _t=setTimeout(render,250); }
+function filtrados(){
+  var q=(document.getElementById('f-busca').value||'').toLowerCase().trim();
+  var fc=document.getElementById('f-cat').value, ff=document.getElementById('f-faz').value,
+      fp=document.getElementById('f-prop').value, fs=document.getElementById('f-seg').value,
+      fst=document.getElementById('f-status').value;
+  return seguros.filter(function(s){
+    var st=statusDe(s);
+    if(filtroStatus && st!==filtroStatus) return false;
+    if(fst && st!==fst) return false;
+    if(fc && s.categoria!==fc) return false;
+    if(ff && s.fazenda!==ff) return false;
+    if(fp && s.proprietario!==fp) return false;
+    if(fs && s.seguradora!==fs) return false;
+    if(q){ var blob=[s.item,s.chassi,s.apolice,s.marca,s.modelo,s.corretor,s.observacoes].join(' ').toLowerCase(); if(blob.indexOf(q)<0) return false; }
+    return true;
+  });
+}
+function render(){
+  var list=filtrados();
+  var ord={'VENCIDO':0,'VENCE EM BREVE':1,'SEM DATA':2,'VIGENTE':3,'SEM SEGURO':4};
+  list.sort(function(a,b){ var sa=ord[statusDe(a)], sb_=ord[statusDe(b)]; if(sa!==sb_) return sa-sb_; return (a.vigencia||'9')<(b.vigencia||'9')?-1:1; });
+  var tb=document.getElementById('tbody'); tb.innerHTML='';
+  list.forEach(function(s){
+    var st=statusDe(s); var d=diasPara(s.vigencia);
+    var tr=document.createElement('tr'); tr.onclick=function(){ abrirEditor(s.id); };
+    tr.innerHTML='<td>'+badgeDe(st)+'</td><td class="r">'+(d==null?'—':d)+'</td><td>'+fmtData(s.vigencia)+'</td>'+
+      '<td><b>'+(s.item||'—')+'</b></td><td>'+(s.categoria||'—')+'</td><td>'+(s.proprietario||'—')+'</td>'+
+      '<td>'+(s.fazenda||'—')+'</td><td>'+(s.seguradora||'—')+'</td><td>'+(s.corretor||'—')+'</td>'+
+      '<td>'+(s.apolice||'—')+'</td><td class="r">'+fmtR(s.valor_segurado)+'</td>';
+    tb.appendChild(tr);
+  });
+  document.getElementById('vazio').style.display=list.length?'none':'block';
+  document.getElementById('rodape').textContent=list.length+' de '+seguros.length+' itens';
+}
+function limparFiltros(){
+  ['f-busca','f-cat','f-faz','f-prop','f-seg','f-status'].forEach(function(id){ document.getElementById(id).value=''; });
+  filtroStatus=''; ['sb-venc','sb-breve','sb-sem'].forEach(function(id){ document.getElementById(id).classList.remove('on'); });
+  render();
+}
+
+// ---- editor (novo/editar) ----
+var editId=null;
+function abrirEditor(id){
+  editId = (id!==undefined && id!==null) ? id : null;
+  var s = editId!=null ? seguros.filter(function(x){return x.id===editId;})[0] : {};
+  s=s||{};
+  document.getElementById('editorTitulo').textContent = editId!=null ? ('Editar — '+(s.item||'')) : 'Novo seguro';
+  var set=function(id,v){ document.getElementById(id).value = (v==null?'':v); };
+  set('e-item',s.item); set('e-cat',s.categoria); set('e-prop',s.proprietario); set('e-faz',s.fazenda);
+  set('e-marca',s.marca); set('e-modelo',s.modelo); set('e-ano',s.ano); set('e-chassi',s.chassi);
+  set('e-vigencia',s.vigencia); set('e-apolice',s.apolice); set('e-seg',s.seguradora);
+  set('e-valbem',s.valor_bem); set('e-valseg',s.valor_segurado);
+  set('e-corretor',s.corretor); set('e-whats',s.corretor_whats); set('e-email',s.corretor_email);
+  set('e-obs',s.observacoes); document.getElementById('e-sem').checked=!!s.sem_seguro;
+  document.getElementById('e-del').style.display = editId!=null ? '' : 'none';
+  document.getElementById('editorOv').classList.add('open');
+}
+function fecharEditor(){ document.getElementById('editorOv').classList.remove('open'); }
+function _num(id){ var v=document.getElementById(id).value; return v===''?null:Number(v); }
+function _txt(id){ var v=document.getElementById(id).value.trim(); return v===''?null:v; }
+async function salvarSeguro(){
+  var item=_txt('e-item'); if(!item){ toast('⚠ Informe o item'); return; }
+  var obj={ item:item, categoria:_txt('e-cat'), proprietario:_txt('e-prop'), fazenda:_txt('e-faz'),
+    marca:_txt('e-marca'), modelo:_txt('e-modelo'), ano:_num('e-ano'), chassi:_txt('e-chassi'),
+    vigencia:_txt('e-vigencia'), apolice:_txt('e-apolice'), seguradora:_txt('e-seg'),
+    valor_bem:_num('e-valbem'), valor_segurado:_num('e-valseg'),
+    corretor:_txt('e-corretor'), corretor_whats:_txt('e-whats'), corretor_email:_txt('e-email'),
+    observacoes:_txt('e-obs'), sem_seguro:document.getElementById('e-sem').checked,
+    alterado_por:currentUser, alterado_em:new Date().toISOString() };
+  try{
+    if(editId!=null){ await sb(TABLE+'?id=eq.'+editId,{method:'PATCH',body:JSON.stringify(obj)}); toast('✓ Atualizado'); }
+    else { await sb(TABLE,{method:'POST',prefer:'return=minimal',body:JSON.stringify(obj)}); toast('✓ Seguro cadastrado'); }
+    fecharEditor(); await loadSeguros();
+  }catch(e){ toast('⚠ Erro: '+e.message); }
+}
+async function excluirSeguro(){
+  if(editId==null) return;
+  if(!confirm('Excluir este item da frota?')) return;
+  try{ await sb(TABLE+'?id=eq.'+editId,{method:'DELETE',prefer:'return=minimal'}); toast('🗑 Excluído'); fecharEditor(); await loadSeguros(); }
+  catch(e){ toast('⚠ Erro: '+e.message); }
+}
+
+function exportarCSV(){
+  var list=filtrados(); var cols=['item','categoria','proprietario','fazenda','marca','modelo','ano','chassi','apolice','seguradora','corretor','corretor_whats','corretor_email','valor_bem','valor_segurado','vigencia','observacoes'];
+  var head=['Status','Dias'].concat(cols);
+  var linhas=[head.join(';')];
+  list.forEach(function(s){
+    var row=[statusDe(s), (diasPara(s.vigencia)==null?'':diasPara(s.vigencia))].concat(cols.map(function(c){ var v=s[c]==null?'':String(s[c]).replace(/;/g,','); return v; }));
+    linhas.push(row.join(';'));
+  });
+  var blob=new Blob(['﻿'+linhas.join('\n')],{type:'text/csv;charset=utf-8;'});
+  var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='seguros_frota.csv'; a.click();
+}
+
+document.getElementById('navUser').textContent=currentUser;
+if(currentRole==='gestor') loadSeguros();
+</script>
+</body>
+</html>
