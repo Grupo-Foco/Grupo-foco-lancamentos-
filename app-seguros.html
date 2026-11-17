@@ -17,7 +17,17 @@
 }
 body{font-family:'DM Sans',sans-serif;background:var(--creme);color:var(--texto);}
 .nav{background:var(--verde);color:var(--creme);padding:12px 22px;display:flex;align-items:center;gap:18px;position:sticky;top:0;z-index:100;}
-.nav .logo{width:38px;height:38px;background:#fff;border-radius:9px;display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--verde);font-family:'Syne';font-size:13px;}
+.nav .logo{width:40px;height:40px;background:#fff;border-radius:9px;padding:4px;object-fit:contain;flex:0 0 auto;}
+.ic{width:15px;height:15px;vertical-align:-3px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;margin-right:6px;}
+.btn .ic,.nav button .ic{margin-right:5px;}
+/* modal de confirmação */
+.cfm{display:none;position:fixed;inset:0;z-index:700;background:rgba(26,58,42,.55);backdrop-filter:blur(2px);align-items:center;justify-content:center;padding:22px;}
+.cfm.open{display:flex;}
+.cfm .box{background:var(--branco);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.3);max-width:420px;width:100%;overflow:hidden;}
+.cfm .box .hd{background:var(--verde);color:var(--creme);padding:16px 22px;font-family:'Syne';font-weight:700;font-size:15px;display:flex;align-items:center;gap:10px;}
+.cfm .box .bd{padding:22px;font-size:14px;color:var(--texto);line-height:1.5;}
+.cfm .box .ft{padding:0 22px 20px;display:flex;justify-content:flex-end;gap:10px;}
+.cfm .box .ic-warn{width:26px;height:26px;border-radius:50%;background:rgba(200,57,43,.15);display:flex;align-items:center;justify-content:center;stroke:#fff;}
 .nav .brand{font-family:'Syne';font-weight:800;color:var(--ouro);letter-spacing:.04em;font-size:17px;}
 .nav .brand small{display:block;font-size:10px;color:rgba(245,240,232,.55);font-weight:400;letter-spacing:.14em;text-transform:uppercase;font-family:'DM Mono';}
 .nav .spacer{flex:1;}
@@ -80,13 +90,13 @@ tbody tr{cursor:pointer;} tbody tr:hover{background:var(--creme);}
 </head>
 <body>
 <div class="nav">
-  <div class="logo">FOCO</div>
+  <img class="logo" src="icon-192.png" alt="Grupo Foco">
   <div class="brand">SEGUROS<small>Frota — Grupo Foco</small></div>
   <div class="spacer"></div>
   <span class="u" id="navUser"></span>
-  <button onclick="voltarPainel()">← Painel</button>
-  <button onclick="loadSeguros()">↻ Atualizar</button>
-  <button onclick="abrirEditor()">＋ Novo seguro</button>
+  <button onclick="voltarPainel()"><svg class="ic" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>Painel</button>
+  <button onclick="loadSeguros()"><svg class="ic" viewBox="0 0 24 24"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>Atualizar</button>
+  <button onclick="abrirEditor()"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Novo seguro</button>
 </div>
 
 <div class="wrap">
@@ -113,8 +123,8 @@ tbody tr{cursor:pointer;} tbody tr:hover{background:var(--creme);}
     <div><label>Proprietário</label><select id="f-prop" onchange="render()"><option value="">Todos</option></select></div>
     <div><label>Seguradora</label><select id="f-seg" onchange="render()"><option value="">Todas</option></select></div>
     <div><label>Status</label><select id="f-status" onchange="render()"><option value="">Todos</option><option>VENCIDO</option><option>VENCE EM BREVE</option><option>VIGENTE</option><option>SEM SEGURO</option><option>SEM DATA</option></select></div>
-    <button class="btn btn-ghost" onclick="limparFiltros()">✕ Limpar</button>
-    <button class="btn btn-ghost" onclick="exportarCSV()">⬇ CSV</button>
+    <button class="btn btn-ghost" onclick="limparFiltros()"><svg class="ic" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>Limpar</button>
+    <button class="btn btn-ghost" onclick="exportarCSV()"><svg class="ic" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>CSV</button>
   </div>
 
   <div class="card">
@@ -157,15 +167,39 @@ tbody tr{cursor:pointer;} tbody tr:hover{background:var(--creme);}
       </div>
     </div>
     <div class="foot">
-      <button class="btn btn-ghost" id="e-del" style="margin-right:auto;display:none;color:var(--erro);border-color:var(--erro);" onclick="excluirSeguro()">🗑 Excluir</button>
+      <button class="btn btn-ghost" id="e-del" style="margin-right:auto;display:none;color:var(--erro);border-color:var(--erro);" onclick="excluirSeguro()"><svg class="ic" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Excluir</button>
       <button class="btn btn-ghost" onclick="fecharEditor()">Cancelar</button>
       <button class="btn btn-primary" onclick="salvarSeguro()">Salvar</button>
     </div>
   </div>
 </div>
 <datalist id="dl-cat"></datalist><datalist id="dl-prop"></datalist><datalist id="dl-faz"></datalist><datalist id="dl-seg"></datalist>
+<!-- Confirmação (substitui o confirm nativo) -->
+<div class="cfm" id="cfmOv">
+  <div class="box">
+    <div class="hd"><span class="ic-warn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></span><span id="cfmTitulo">Confirmar</span></div>
+    <div class="bd" id="cfmMsg"></div>
+    <div class="ft">
+      <button class="btn btn-ghost" onclick="cfmResolver(false)">Cancelar</button>
+      <button class="btn" id="cfmOk" style="background:var(--erro);color:#fff;" onclick="cfmResolver(true)">Confirmar</button>
+    </div>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 
+<script>
+var _cfmCb=null;
+function confirmar(msg, opts){
+  opts=opts||{};
+  document.getElementById('cfmTitulo').textContent = opts.titulo||'Confirmar';
+  document.getElementById('cfmMsg').textContent = msg;
+  var ok=document.getElementById('cfmOk'); ok.textContent = opts.okLabel||'Confirmar';
+  ok.style.background = opts.perigo===false ? 'var(--verde)' : 'var(--erro)';
+  document.getElementById('cfmOv').classList.add('open');
+  return new Promise(function(res){ _cfmCb=res; });
+}
+function cfmResolver(v){ document.getElementById('cfmOv').classList.remove('open'); if(_cfmCb){ var cb=_cfmCb; _cfmCb=null; cb(v); } }
+</script>
 <script>
 var SB_URL='https://zdckrfthpfpnzcxzaghd.supabase.co';
 var SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkY2tyZnRocGZwbnpjeHphZ2hkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzNDIzOTksImV4cCI6MjA4ODkxODM5OX0.940y3Nhso4mHjSr8L1D_eRoQUH6Yg5uiqZ6sg4qRD7Y';
@@ -322,7 +356,8 @@ async function salvarSeguro(){
 }
 async function excluirSeguro(){
   if(editId==null) return;
-  if(!confirm('Excluir este item da frota?')) return;
+  var ok = await confirmar('Tem certeza que deseja excluir este item da frota? Esta ação não pode ser desfeita.', {titulo:'Excluir item', okLabel:'Excluir'});
+  if(!ok) return;
   try{ await sb(TABLE+'?id=eq.'+editId,{method:'DELETE',prefer:'return=minimal'}); toast('🗑 Excluído'); fecharEditor(); await loadSeguros(); }
   catch(e){ toast('⚠ Erro: '+e.message); }
 }
